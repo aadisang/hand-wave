@@ -13,7 +13,7 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: process.env.CORS_ORIGIN || "",
+    origin: process.env.CORS_ORIGIN || "*",
     allowMethods: ["GET", "POST", "OPTIONS"],
   })
 );
@@ -28,9 +28,10 @@ app.use(
   })
 );
 
-app.get("/", (c) => {
-  return c.text("OK");
-});
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-export default app;
+export default {
+  port,
+  fetch: app.fetch,
+};
 
