@@ -9,15 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Mic,
-  MicOff,
   Monitor,
   MonitorOff,
   Settings,
   Share2,
   Square,
   Video,
-  VideoOff,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import Webcam from "react-webcam";
@@ -25,8 +22,6 @@ import { toast } from "sonner";
 
 export default function Home() {
   const [isSharing, setIsSharing] = useState(false);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [streamType, setStreamType] = useState<"screen" | "camera" | null>(
     null
   );
@@ -40,7 +35,7 @@ export default function Home() {
         video: {
           displaySurface: "monitor",
         },
-        audio: isAudioEnabled,
+        audio: false,
       });
 
       if (videoRef.current) {
@@ -60,7 +55,7 @@ export default function Home() {
       console.error("Error starting screen share:", error);
       toast.error("Failed to start screen sharing");
     }
-  }, [isAudioEnabled]);
+  }, []);
 
   const startCamera = useCallback(async () => {
     try {
@@ -85,14 +80,6 @@ export default function Home() {
     setStreamType(null);
     toast.info("Sharing stopped");
   }, []);
-
-  const toggleAudio = useCallback(() => {
-    setIsAudioEnabled(!isAudioEnabled);
-  }, [isAudioEnabled]);
-
-  const toggleVideo = useCallback(() => {
-    setIsVideoEnabled(!isVideoEnabled);
-  }, [isVideoEnabled]);
 
   const videoConstraints = {
     width: 1280,
@@ -144,52 +131,6 @@ export default function Home() {
                   </Badge>
                 </div>
               )}
-
-              {/* Audio Toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Audio</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleAudio}
-                  className="w-20"
-                >
-                  {isAudioEnabled ? (
-                    <>
-                      <Mic className="h-4 w-4 mr-2" />
-                      On
-                    </>
-                  ) : (
-                    <>
-                      <MicOff className="h-4 w-4 mr-2" />
-                      Off
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {/* Video Toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Video</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleVideo}
-                  className="w-20"
-                >
-                  {isVideoEnabled ? (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      On
-                    </>
-                  ) : (
-                    <>
-                      <VideoOff className="h-4 w-4 mr-2" />
-                      Off
-                    </>
-                  )}
-                </Button>
-              </div>
 
               {/* Action Buttons */}
               <div className="space-y-3 pt-4">
@@ -264,7 +205,7 @@ export default function Home() {
                 ) : isSharing && streamType === "camera" ? (
                   <Webcam
                     ref={webcamRef}
-                    audio={isAudioEnabled}
+                    audio={false}
                     videoConstraints={videoConstraints}
                     className="w-full h-full object-contain"
                     mirrored={true}
