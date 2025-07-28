@@ -7,5 +7,10 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "bluebird": "^3.7.2",
+    "dotenv": "^17.2.1",
+    "instagram-private-api": "^1.46.1"
   }
 }
