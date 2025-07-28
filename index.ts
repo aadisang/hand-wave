@@ -1,5 +1,4 @@
 /* tslint:disable:no-console */
-import Bluebird from "bluebird";
 import { config } from "dotenv";
 import { IgApiClient } from "instagram-private-api";
 
@@ -21,7 +20,7 @@ async function login() {
   // basic login-procedure
   await login();
 
-  const { broadcast_id, upload_url } = await ig.live.create({
+  const { broadcast_id } = await ig.live.create({
     // create a stream in 720x1280 (9:16)
     previewWidth: 720,
     previewHeight: 1280,
@@ -54,7 +53,7 @@ async function login() {
    */
   // wait 2s
   console.log("Waiting 2 seconds...");
-  await Bluebird.delay(2000);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   // now, we print the next comments
   lastCommentTs = await printComments(broadcast_id, lastCommentTs);
 
@@ -64,7 +63,7 @@ async function login() {
 
   // wait 2s
   console.log("Waiting 2 seconds...");
-  await Bluebird.delay(2000);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   // now, we print the next comments
   lastCommentTs = await printComments(broadcast_id, lastCommentTs);
 
