@@ -148,6 +148,9 @@ dist
 
 .fusebox/
 
+# Turbo cache
+.turbo/
+
 # DynamoDB Local files
 
 .dynamodb/
