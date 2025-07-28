@@ -20,6 +20,7 @@ import {
   VideoOff,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import Webcam from "react-webcam";
 import { toast } from "sonner";
 
 export default function Home() {
@@ -30,6 +31,7 @@ export default function Home() {
     null
   );
   const videoRef = useRef<HTMLVideoElement>(null);
+  const webcamRef = useRef<Webcam>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const startScreenShare = useCallback(async () => {
@@ -62,23 +64,14 @@ export default function Home() {
 
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: isAudioEnabled,
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setIsSharing(true);
-        setStreamType("camera");
-        toast.success("Camera started successfully!");
-      }
+      setIsSharing(true);
+      setStreamType("camera");
+      toast.success("Camera started successfully!");
     } catch (error) {
       console.error("Error starting camera:", error);
       toast.error("Failed to start camera");
     }
-  }, [isAudioEnabled]);
+  }, []);
 
   const stopSharing = useCallback(() => {
     if (streamRef.current) {
@@ -100,6 +93,12 @@ export default function Home() {
   const toggleVideo = useCallback(() => {
     setIsVideoEnabled(!isVideoEnabled);
   }, [isVideoEnabled]);
+
+  const videoConstraints = {
+    width: 1280,
+    height: 720,
+    facingMode: "user",
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-2 ">
@@ -254,13 +253,21 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800 rounded-lg overflow-hidden">
-                {isSharing ? (
+                {isSharing && streamType === "screen" ? (
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
                     className="w-full h-full object-contain"
+                  />
+                ) : isSharing && streamType === "camera" ? (
+                  <Webcam
+                    ref={webcamRef}
+                    audio={isAudioEnabled}
+                    videoConstraints={videoConstraints}
+                    className="w-full h-full object-contain"
+                    mirrored={true}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
