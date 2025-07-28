@@ -16,8 +16,8 @@ export default function Home() {
   );
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-2">
-      <Card>
+    <div className="min-h-screen flex items-center justify-center px-4 py-2">
+      <Card className="flex max-w-3xl w-full">
         <CardHeader>
           <CardTitle>Sign Language Detection</CardTitle>
           <CardDescription>
