@@ -1,8 +1,8 @@
+import Header from "@/components/header";
+import Providers from "@/components/providers";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../index.css";
-import Providers from "@/components/providers";
-import Header from "@/components/header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "sign-language-detection",
-  description: "sign-language-detection",
+  title: "Sign Language Translator",
+  description:
+    "A real-time sign language translator built with Meta AI glasses, with a frontend interface for convenience",
 };
 
 export default function RootLayout({
@@ -39,3 +40,4 @@ export default function RootLayout({
     </html>
   );
 }
+
