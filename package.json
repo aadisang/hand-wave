@@ -17,6 +17,7 @@
     "@trpc/client": "^11.4.3",
     "@trpc/server": "^11.4.3",
     "@trpc/tanstack-react-query": "^11.4.3",
+    "babel-plugin-react-compiler": "^19.1.0-rc.2",
     "instagram-private-api": "^1.46.1",
     "react-webcam": "^7.2.0"
   },
@@ -25,4 +26,3 @@
   },
   "packageManager": "bun@1.1.42"
 }
-

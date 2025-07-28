@@ -61,9 +61,7 @@ export default function Home() {
     try {
       setIsSharing(true);
       setStreamType("camera");
-      toast.success("Camera started successfully!");
     } catch (error) {
-      console.error("Error starting camera:", error);
       toast.error("Failed to start camera");
     }
   }, []);
@@ -73,12 +71,13 @@ export default function Home() {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+
     setIsSharing(false);
     setStreamType(null);
-    toast.info("Sharing stopped");
   }, []);
 
   const videoConstraints = {
