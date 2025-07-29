@@ -32,9 +32,6 @@ export default function Home() {
   const startScreenShare = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: "monitor",
-        },
         audio: false,
       });
 
@@ -193,15 +190,20 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800 rounded-lg overflow-hidden">
-                {isSharing && streamType === "screen" ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-contain"
-                  />
-                ) : isSharing && streamType === "camera" ? (
+                {/* Hidden video element for screen sharing - always rendered */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-contain ${
+                    isSharing && streamType === "screen" ? "block" : "hidden"
+                  }`}
+                  style={{ width: "100%", height: "100%" }}
+                />
+
+                {/* Camera webcam */}
+                {isSharing && streamType === "camera" ? (
                   <Webcam
                     ref={webcamRef}
                     audio={false}
@@ -209,7 +211,7 @@ export default function Home() {
                     className="w-full h-full object-contain"
                     mirrored={true}
                   />
-                ) : (
+                ) : !isSharing || streamType !== "screen" ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center space-y-4">
                       <MonitorOff className="h-16 w-16 mx-auto text-neutral-400" />
@@ -223,7 +225,7 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </CardContent>
           </Card>
