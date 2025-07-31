@@ -17,11 +17,6 @@ export function Camera({ onStreamStop }: CameraProps) {
     facingMode: "user",
   };
 
-  const handleUserMediaError = () => {
-    stopSharing();
-    onStreamStop();
-  };
-
   return (
     <Webcam
       ref={webcamRef}
@@ -29,7 +24,10 @@ export function Camera({ onStreamStop }: CameraProps) {
       videoConstraints={videoConstraints}
       className="w-full h-full object-contain"
       mirrored={true}
-      onUserMediaError={handleUserMediaError}
+      onUserMediaError={() => {
+        stopSharing();
+        onStreamStop();
+      }}
     />
   );
 }

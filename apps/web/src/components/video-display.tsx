@@ -65,11 +65,8 @@ export function VideoDisplay() {
         stream.getVideoTracks()[0].onended = () => {
           handleStreamStop();
         };
-
-        toast.success("Screen sharing started successfully!");
       }
     } catch (error) {
-      console.error("Error starting screen share:", error);
       toast.error("Failed to start screen sharing");
       hasStartedScreenShare.current = false;
       stopSharing();
