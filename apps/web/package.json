@@ -10,6 +10,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
     "@opennextjs/cloudflare": "^1.6.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@tanstack/react-form": "^1.19.3",
