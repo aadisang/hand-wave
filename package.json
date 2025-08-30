@@ -13,16 +13,16 @@
     "dev:server": "turbo -F server dev"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.83.0",
-    "@trpc/client": "^11.4.3",
-    "@trpc/server": "^11.4.3",
-    "@trpc/tanstack-react-query": "^11.4.3",
-    "babel-plugin-react-compiler": "^19.1.0-rc.2",
+    "@tanstack/react-query": "^5.85.6",
+    "@trpc/client": "^11.5.0",
+    "@trpc/server": "^11.5.0",
+    "@trpc/tanstack-react-query": "^11.5.0",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
     "instagram-private-api": "^1.46.1",
     "react-webcam": "^7.2.0"
   },
   "devDependencies": {
-    "turbo": "^2.5.4"
+    "turbo": "^2.5.6"
   },
-  "packageManager": "bun@1.1.42"
+  "packageManager": "bun@1.2.21"
 }
