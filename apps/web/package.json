@@ -6,8 +6,7 @@
     "dev": "next dev --turbopack --port=3001 --experimental-https",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
@@ -44,3 +43,4 @@
     "wrangler": "^4.33.1"
   }
 }
+

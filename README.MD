@@ -2,103 +2,160 @@
 
 ## Project Overview
 
-This project is a real-time sign language translator built to work with Meta AI glasses. The application allows wearers to hear sign language translation readouts in real-time as they interact with signers.
+This project is a real-time sign language translator built to work with Meta AI glasses. The application detects signs from a shared video feed and aims to provide audio readouts to the wearer.
 
 ## Demo Video
 
 [![Sign Language Translation with Meta AI Glasses](https://img.youtube.com/vi/JgP18E60tOE/0.jpg)](https://www.youtube.com/watch?v=JgP18E60tOE)
 
-Watch our real-time sign language translator in action! The video shows how the system captures sign language via Meta AI glasses and provides immediate audio translations.
-
 ## Important Note
 
-This project was developed during a time-constrained hackathon environment and completed in under 10 hours. As a result, both the code quality and product polish are not production-ready. The current implementation:
+This is a hackathon-grade proof of concept, not production-ready. Current constraints:
 
-- Uses screen capture as a workaround due to lack of official Meta AI glasses SDK
-- Contains hardcoded values that may need adjustment for your setup
-- Has limited error handling and edge case coverage
+- Uses screen capture as a workaround due to lack of an official Meta AI glasses SDK
+- Minimal error handling and hardcoded assumptions
+- Audio readouts in-glasses are work-in-progress (not implemented yet)
 
-Consider this a proof of concept that demonstrates the potential of the technology rather than a finished product.
+## Current Status and Latency
+
+- Transport switched from Instagram Live to WhatsApp video calls, yielding approximately 10–20x lower end-to-end delay in practice.
+- Flow simplified: no Python streaming server and no mobile app required.
+
+## Roles
+
+- Sender: iPhone paired with Meta AI glasses, logged into WhatsApp Account A.
+- Receiver: Laptop running the website, logged into WhatsApp Account B.
+
+Note: Two separate WhatsApp accounts are required.
 
 ## Setup Instructions
 
 ### Prerequisites
 
 - Meta AI glasses
-- Laptop with Python installed
-- iPhone with Expo Go or ability to run the mobile app
-- Node.js and npm
-- Instagram account (for streaming)
+- iPhone (Sender) with WhatsApp installed
+- Laptop (Receiver) with WhatsApp Desktop installed
+- Two WhatsApp accounts (A for phone, B for desktop)
+- Bun (project uses Bun workspaces)
 
-### Step 1: Server Setup
+### Install and Run (Monorepo)
 
-1. Clone this repository to your computer
-2. Navigate to the server directory
-3. Install the required Python packages:
-   ```bash
-   pip install opencv-python numpy mss websockets ultralytics
-   ```
-4. Update the model path in `streaming.py` to match your local configuration:
-   ```python
-   # Change this path to where your YOLOv11 model is stored
-   model_path = "/path/to/your/best.pt"
-   ```
-5. Adjust the screen capture area in the `monitor` dictionary if needed:
-   ```python
-   monitor = {
-       "top": 70,
-       "left": 260,
-       "width": 480,
-       "height": 780
-   }
-   ```
-6. Run the streaming server:
-   ```bash
-   python streaming.py
-   ```
+From the repository root:
 
-### Step 2: Mobile App Setup
+```bash
+bun install
+bun run dev
+```
 
-1. Navigate to the project root directory
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the Expo development server:
-   ```bash
-   npx expo start
-   ```
+This starts the website at an HTTPS dev server on port 3001 by default.
 
-### Step 3: Meta AI Glasses Setup
+### WhatsApp-Based Video Path
 
-1. Pair your Meta AI glasses with your phone following the manufacturer's instructions
-2. Set up Instagram streaming on your glasses:
-   - Open the Instagram app on your glasses
-   - Navigate to streaming settings
-   - Start a stream
-
-### Step 4: Connecting Everything
-
-1. On your laptop, make sure the `streaming.py` script is running
-2. Position your Instagram stream window from the Meta AI glasses so it aligns with the capture area defined in the `monitor` dictionary
-3. The script will display a window showing the captured area with real-time sign language detection
-4. On your iPhone, open the mobile app via Expo Go or as a development build
-5. Connect to the same WiFi network as your laptop
-6. In the mobile app, enter the WebSocket connection details using your laptop's IP address and port 8765 (e.g., "ws://192.168.1.5:8765")
-7. When someone signs in front of the glasses, the script will display the detected signs with confidence levels, and these translations will be sent to your mobile app
-8. The mobile app will display the translations and read them aloud
+1. On the phone (Sender), log into WhatsApp with Account A and pair Meta AI glasses to the phone.
+2. On the laptop (Receiver), install/open WhatsApp Desktop and log into Account B.
+3. Start a WhatsApp video call between Account A and Account B.
+4. On the Meta AI glasses, double-tap the picture button to switch the call’s camera to the glasses.
+5. On the laptop, open the website and click “Share Screen”, then select the WhatsApp call window.
+6. The site will run hand detection on the shared call feed. Audio readouts to the glasses are WIP (not implemented yet).
 
 ## How It Works
 
-The application works through the following process:
+1. Video is streamed from Meta AI glasses to the phone’s WhatsApp app, then to the laptop over the WhatsApp call.
+2. The website performs on-device hand landmark detection using MediaPipe Tasks Vision in the browser.
+3. Detected landmarks are rendered overlay-only. Translation and in-glasses audio output are under development.
 
-1. **Video Capture**: The `streaming.py` script captures a portion of your screen where the Instagram stream from Meta AI glasses is displayed.
+## Troubleshooting
 
-2. **Sign Language Detection**: Each captured frame is processed by a YOLOv11 model fine-tuned on sign language gestures. The model detects signs and assigns confidence scores.
+- If “Share Screen” doesn’t list the WhatsApp window, ensure the call is active and the window is visible (not minimized).
+- On macOS, grant screen recording permissions to your browser (System Settings → Privacy & Security → Screen Recording).
+- If the canvas overlay is blank, wait for the video to fully load or reload the page. Ensure the site is served over HTTPS as required by getDisplayMedia.
 
-3. **WebSocket Broadcasting**: When a sign is detected with sufficient confidence, the translation is broadcast through a WebSocket server running on your computer.
+## Tech Stack
 
-4. **Mobile App Processing**: The Expo mobile app connects to this WebSocket server and receives the translations in real-time (less than 50ms latency).
+- Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS 4, shadcn/ui
+- Realtime Vision: MediaPipe Tasks Vision (`@mediapipe/tasks-vision`) HandLandmarker
+- State & Data: Zustand (local UI state), TanStack Query 5
+- API: tRPC 11 over Hono (server), typed client in web
+- Server: Bun runtime with Hono; build via tsdown
+- Monorepo: Turbo for orchestration; Bun workspaces
 
-5. **Audio Feedback**: The mobile app converts the text translations to speech, allowing the wearer to "hear" the sign language.
+## Architecture
+
+- Web app performs vision locally in-browser (WASM + WebGL via MediaPipe), overlaying hand landmarks on a canvas over a video/screen-share element.
+- Screen share provides frames from the WhatsApp desktop call; no raw media is uploaded to the backend.
+- Backend exposes tRPC endpoints for future inference/state; currently returns simulated detection data.
+
+## Monorepo Structure
+
+```
+apps/
+  web/      # Next.js app (UI, screen share, hand detection)
+  server/   # Bun + Hono + tRPC API
+```
+
+## Environment Variables
+
+Web (`apps/web`):
+
+- `NEXT_PUBLIC_SERVER_URL` – Base URL for server tRPC (e.g., `https://localhost:3000`).
+
+Server (`apps/server`):
+
+- `PORT` – Hono server port (default 3000)
+- `CORS_ORIGIN` – Allowed origin(s) (default `*`)
+
+Example root `.env`:
+
+```
+NEXT_PUBLIC_SERVER_URL=https://localhost:3000
+PORT=3000
+CORS_ORIGIN=https://localhost:3001
+```
+
+## Scripts
+
+Run from repository root:
+
+```bash
+bun install
+bun run dev          # dev (web HTTPS:3001; server if configured)
+bun run build        # build all
+bun run check-types  # typecheck all
+bun run dev:web      # web only
+bun run dev:server   # server only
+```
+
+Web dev server: Next.js on `https://localhost:3001` (see `apps/web/package.json`).
+
+## API (tRPC)
+
+- Router: `apps/server/src/routers/index.ts` → `detection`.
+- Procedure: `detection.detect` (mutation)
+  - Input: optional `imageData`, `videoData`, `audioData` (base64)
+  - Output: `{ detectedSign, confidence, boundingBox?, processingTime, modelVersion, timestamp }`
+  - Current: simulated response; replace with real model inference later.
+
+Client (`apps/web/src/utils/trpc.ts`):
+
+```ts
+httpBatchLink({ url: `${process.env.NEXT_PUBLIC_SERVER_URL}/trpc` });
+```
+
+## HTTPS and Permissions
+
+- Screen sharing requires a secure context; web dev runs with `--experimental-https` on 3001.
+- Approve browser prompts for screen recording and screen selection; reload if permissions change.
+
+## Limitations
+
+- In-glasses audio readout is not implemented.
+- Landmark visualization only; translation logic is stubbed.
+- No auth or multi-user coordination yet.
+
+## Roadmap
+
+- Implement gesture-to-letter/word translation pipeline.
+- Text-to-speech back to Meta AI glasses.
+- Improve model accuracy and add gesture classification.
+- Add auth, sessions, and recording controls.
 
