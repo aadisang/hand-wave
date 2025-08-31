@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sign Language Translator",
+  title: "Hand Wave",
   description:
-    "A real-time sign language translator built with Meta AI glasses, with a frontend interface for convenience",
+    "Hand Wave is a real-time hand gesture translator for Meta AI glasses with a web UI.",
 };
 
 export default function RootLayout({

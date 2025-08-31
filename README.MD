@@ -1,12 +1,12 @@
-# Sign Language Translator with Meta AI Glasses
+# Hand Wave with Meta AI Glasses
 
 ## Project Overview
 
-This project is a real-time sign language translator built to work with Meta AI glasses. The application detects signs from a shared video feed and aims to provide audio readouts to the wearer.
+This project is a real-time hand gesture translator built to work with Meta AI glasses. The application detects signs from a shared video feed and aims to provide audio readouts to the wearer.
 
 ## Demo Video
 
-[![Sign Language Translation with Meta AI Glasses](https://img.youtube.com/vi/JgP18E60tOE/0.jpg)](https://www.youtube.com/watch?v=JgP18E60tOE)
+[![With Meta AI Glasses](https://img.youtube.com/vi/JgP18E60tOE/0.jpg)](https://www.youtube.com/watch?v=JgP18E60tOE)
 
 ## Important Note
 

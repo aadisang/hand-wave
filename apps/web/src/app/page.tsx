@@ -13,7 +13,7 @@ export default function Home() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-neutral-100">
-            Sign Language Detection
+            Hand Wave
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400">
             Share your screen or camera to detect sign language in real-time
