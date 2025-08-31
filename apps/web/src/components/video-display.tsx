@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useHandLandmarker } from "@/hooks/useHandLandmarker";
 import { useSharingStore } from "@/stores/sharing-store";
 import { Monitor, MonitorOff, Video } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
@@ -18,6 +19,8 @@ export function VideoDisplay() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const hasStartedScreenShare = useRef(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { ready, start, stop } = useHandLandmarker();
 
   const getTitle = () => {
     if (streamType === "screen") return "Screen Share";
@@ -46,6 +49,7 @@ export function VideoDisplay() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    stop();
     hasStartedScreenShare.current = false;
     stopSharing();
   };
@@ -92,6 +96,33 @@ export function VideoDisplay() {
     }
   }, [isSharing]);
 
+  // Start hand tracking on screen share
+  useEffect(() => {
+    if (!ready) return;
+    if (!isSharing || streamType !== "screen") return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const resize = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      const { clientWidth, clientHeight } = parent;
+      canvas.style.width = `${clientWidth}px`;
+      canvas.style.height = `${clientHeight}px`;
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    if (canvas.parentElement) ro.observe(canvas.parentElement);
+
+    start({ video, canvas, mirror: false });
+
+    return () => {
+      ro.disconnect();
+      stop();
+    };
+  }, [ready, isSharing, streamType, start, stop]);
+
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
@@ -104,14 +135,20 @@ export function VideoDisplay() {
       <CardContent>
         <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-800 rounded-lg overflow-hidden">
           {isSharing && streamType === "screen" ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-contain"
-              style={{ width: "100%", height: "100%" }}
-            />
+            <div className="w-full h-full relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-contain"
+                style={{ width: "100%", height: "100%" }}
+              />
+              <canvas
+                ref={canvasRef}
+                className="absolute inset-0 pointer-events-none"
+              />
+            </div>
           ) : isSharing && streamType === "camera" ? (
             <Camera onStreamStop={handleStreamStop} />
           ) : (
