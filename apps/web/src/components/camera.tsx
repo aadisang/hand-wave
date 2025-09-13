@@ -8,6 +8,16 @@ interface CameraProps {
 	onStreamStop: () => void;
 }
 
+/**
+ * Renders a webcam feed with a canvas overlay and starts hand-landmarker processing.
+ *
+ * When the hand-landmarker is ready, the component sizes the overlay to its container,
+ * observes container resizes, and starts landmark detection using the underlying video element.
+ * If obtaining user media fails, it stops sharing and calls `onStreamStop`.
+ *
+ * @param onStreamStop - Callback invoked when the camera stream fails or is stopped due to a user-media error.
+ * @returns The Camera React element.
+ */
 export function Camera({ onStreamStop }: CameraProps) {
 	const webcamRef = useRef<Webcam>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -7,6 +7,12 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 
+/**
+ * Displays a presentational card for real-time sign language detection results.
+ *
+ * Renders a titled Card with a short description and a centered placeholder message.
+ * This is a client-side, static UI component with no props or side effects.
+ */
 export function DetectionResults() {
 	return (
 		<Card>

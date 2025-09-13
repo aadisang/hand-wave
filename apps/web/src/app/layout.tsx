@@ -19,6 +19,14 @@ export const metadata: Metadata = {
 		"Hand Wave is a real-time hand gesture translator for Meta AI glasses with a web UI.",
 };
 
+/**
+ * Root layout component for the Hand Wave app.
+ *
+ * Renders the top-level HTML structure with lang set to "en", applies global font
+ * CSS variables and antialiasing, and wraps the app content with shared providers.
+ *
+ * @param children - The React node(s) to render inside the app's main grid container.
+ */
 export default function RootLayout({
 	children,
 }: Readonly<{

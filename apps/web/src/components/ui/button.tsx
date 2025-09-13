@@ -35,6 +35,18 @@ const buttonVariants = cva(
 	},
 );
 
+/**
+ * Renders a styled, variant-aware button that can optionally render as a polymorphic child.
+ *
+ * Uses the `buttonVariants` configuration to compute class names based on `variant` and `size`,
+ * merges any extra `className`, and forwards all other props to the rendered element.
+ *
+ * @param asChild - If true, renders a Radix `Slot` to allow the caller to provide the actual element; otherwise renders a native `button`.
+ * @param variant - Visual variant key used by `buttonVariants` (e.g., "default", "destructive", "outline", etc.).
+ * @param size - Size key used by `buttonVariants` (e.g., "default", "sm", "lg", "icon").
+ * @param className - Additional CSS classes to merge with the variant-generated classes.
+ * @returns A JSX element (either a `button` or a `Slot`) with computed classes and forwarded props.
+ */
 function Button({
 	className,
 	variant,

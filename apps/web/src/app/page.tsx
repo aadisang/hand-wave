@@ -4,6 +4,14 @@ import { DetectionResults } from "@/components/detection-results";
 import { VideoDisplay } from "@/components/video-display";
 import { useSharingStore } from "@/stores/sharing-store";
 
+/**
+ * Top-level page component for the Hand Wave app.
+ *
+ * Renders the page header, control panel, and video display. If sharing is active
+ * (read from the sharing store), renders live detection results below the main content.
+ *
+ * @returns The page JSX for the Hand Wave home screen.
+ */
 export default function Home() {
 	const { isSharing } = useSharingStore();
 
