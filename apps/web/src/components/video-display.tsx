@@ -1,5 +1,8 @@
 "use client";
 
+import { Monitor, MonitorOff, Video } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
 	Card,
 	CardContent,
@@ -9,9 +12,6 @@ import {
 } from "@/components/ui/card";
 import { useHandLandmarker } from "@/hooks/useHandLandmarker";
 import { useSharingStore } from "@/stores/sharing-store";
-import { Monitor, MonitorOff, Video } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { Camera } from "./camera";
 
 export function VideoDisplay() {
