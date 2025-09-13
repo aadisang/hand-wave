@@ -11,27 +11,26 @@ const app = new Hono();
 app.use(logger());
 
 app.use(
-  "/*",
-  cors({
-    origin: process.env.CORS_ORIGIN || "*",
-    allowMethods: ["GET", "POST", "OPTIONS"],
-  })
+	"/*",
+	cors({
+		origin: process.env.CORS_ORIGIN || "*",
+		allowMethods: ["GET", "POST", "OPTIONS"],
+	}),
 );
 
 app.use(
-  "/trpc/*",
-  trpcServer({
-    router: appRouter,
-    createContext: (_opts, context) => {
-      return createContext({ context });
-    },
-  })
+	"/trpc/*",
+	trpcServer({
+		router: appRouter,
+		createContext: (_opts, context) => {
+			return createContext({ context });
+		},
+	}),
 );
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 export default {
-  port,
-  fetch: app.fetch,
+	port,
+	fetch: app.fetch,
 };
-

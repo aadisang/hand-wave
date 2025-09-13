@@ -1,28 +1,27 @@
 {
-  "name": "sign-language-detection",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build",
-    "check-types": "turbo check-types",
-    "dev:web": "turbo -F web dev",
-    "dev:server": "turbo -F server dev"
-  },
-  "dependencies": {
-    "@tanstack/react-query": "^5.85.6",
-    "@trpc/client": "^11.5.0",
-    "@trpc/server": "^11.5.0",
-    "@trpc/tanstack-react-query": "^11.5.0",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "react-webcam": "^7.2.0"
-  },
-  "devDependencies": {
-    "turbo": "^2.5.6"
-  },
-  "packageManager": "bun@1.2.21"
+	"name": "hand-wave",
+	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "turbo dev",
+		"build": "turbo build",
+		"check-types": "turbo check-types",
+		"dev:web": "turbo -F web dev",
+		"dev:server": "turbo -F server dev"
+	},
+	"dependencies": {
+		"@tanstack/react-query": "^5.85.6",
+		"@trpc/client": "^11.5.0",
+		"@trpc/server": "^11.5.0",
+		"@trpc/tanstack-react-query": "^11.5.0",
+		"babel-plugin-react-compiler": "^19.1.0-rc.3",
+		"react-webcam": "^7.2.0"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.6"
+	},
+	"packageManager": "bun@1.2.21"
 }
-

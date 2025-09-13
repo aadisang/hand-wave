@@ -1,25 +1,25 @@
 {
-  "name": "server",
-  "main": "src/index.ts",
-  "type": "module",
-  "scripts": {
-    "build": "tsdown",
-    "check-types": "tsc -b",
-    "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run dist/index.js"
-  },
-  "dependencies": {
-    "@hono/trpc-server": "^0.4.0",
-    "@trpc/client": "^11.5.0",
-    "@trpc/server": "^11.5.0",
-    "dotenv": "^16.6.1",
-    "hono": "^4.9.5",
-    "zod": "^4.1.5"
-  },
-  "devDependencies": {
-    "@types/bun": "^1.2.21",
-    "tsdown": "^0.12.9",
-    "typescript": "^5.9.2"
-  }
+	"name": "server",
+	"main": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"build": "tsdown",
+		"check-types": "tsc -b",
+		"compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+		"dev": "bun run --hot src/index.ts",
+		"start": "bun run dist/index.js"
+	},
+	"dependencies": {
+		"@hono/trpc-server": "^0.4.0",
+		"@trpc/client": "^11.5.0",
+		"@trpc/server": "^11.5.0",
+		"dotenv": "^16.6.1",
+		"hono": "^4.9.5",
+		"zod": "^4.1.5"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.2.21",
+		"tsdown": "^0.12.9",
+		"typescript": "^5.9.2"
+	}
 }
