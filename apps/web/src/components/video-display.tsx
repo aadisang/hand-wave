@@ -14,6 +14,27 @@ import { useHandLandmarker } from "@/hooks/useHandLandmarker";
 import { useSharingStore } from "@/stores/sharing-store";
 import { Camera } from "./camera";
 
+/**
+ * Renders a card that displays the current media stream (screen share or camera) and manages lifecycle for screen capture and hand-landmarking.
+ *
+ * When a screen share is active this component:
+ * - acquires a display MediaStream via `navigator.mediaDevices.getDisplayMedia` and attaches it to an internal `<video>` element,
+ * - overlays a `<canvas>` and starts the hand-landmarker (via `useHandLandmarker`) to perform sign-language/hand detection,
+ * - observes parent size changes to keep the canvas sized to the video,
+ * - stops and cleans up the MediaStream and hand-landmarker when the stream ends or when sharing is stopped.
+ *
+ * When a camera feed is active it delegates rendering and stream stop handling to the `Camera` component.
+ *
+ * Side effects:
+ * - Prompts the user for screen sharing permission when initiating a screen share.
+ * - Stops MediaStream tracks and hand-landmarker when the stream ends or on stop.
+ * - Shows a toast error and cancels sharing if starting screen share fails.
+ *
+ * UI states:
+ * - Screen Share: shows video + canvas overlay for hand detection.
+ * - Camera Feed: renders the `Camera` component.
+ * - No active stream: displays a placeholder with guidance.
+ */
 export function VideoDisplay() {
 	const { isSharing, streamType, stopSharing } = useSharingStore();
 	const videoRef = useRef<HTMLVideoElement>(null);

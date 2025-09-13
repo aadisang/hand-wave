@@ -2,6 +2,17 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Styled wrapper around a native `<input>` that applies project-standard UI classes.
+ *
+ * Renders a fully‑typed input element with a comprehensive set of base utility classes
+ * (colors, sizing, focus/aria-invalid states, dark-mode variants, file input styling, etc.)
+ * and merges any `className` passed via props.
+ *
+ * @param className - Optional extra CSS classes to merge with the component's base classes.
+ * @param type - Input `type` attribute forwarded to the underlying `<input>`.
+ * @returns A JSX element representing the styled `<input>`.
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
 	return (
 		<input

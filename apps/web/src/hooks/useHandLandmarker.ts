@@ -42,6 +42,21 @@ const HAND_CONNECTIONS: ReadonlyArray<readonly [number, number]> = [
 	[13, 17],
 ];
 
+/**
+ * React hook that initializes a MediaPipe HandLandmarker and provides start/stop controls to detect
+ * and render hand landmarks from a video onto a canvas.
+ *
+ * Initializes the HandLandmarker once on mount (using the GPU delegate) and cleans it up on unmount.
+ * The returned `start` function begins a requestAnimationFrame loop that calls the landmarker with
+ * `detectForVideo` for each new video frame and draws landmarks (and connections) into the provided
+ * canvas using an object-contain (letterboxed) mapping. `stop` halts the loop and cancels any pending
+ * animation frame.
+ *
+ * @returns An object with:
+ *  - `ready`: boolean that is true when the HandLandmarker has been successfully initialized.
+ *  - `start`: function accepting `StartOptions` ({ video, canvas, mirror? }) to begin processing and rendering.
+ *  - `stop`: function that stops processing and cancels any pending animation frame.
+ */
 export function useHandLandmarker() {
 	const landmarkerRef = useRef<HandLandmarker | null>(null);
 	const animationFrameRef = useRef<number | null>(null);

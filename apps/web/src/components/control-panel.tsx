@@ -11,6 +11,16 @@ import {
 import { useSharingStore } from "@/stores/sharing-store";
 import { Settings, Share2, Square, Video } from "lucide-react";
 
+/**
+ * Renders a control panel for managing sharing and camera sessions.
+ *
+ * Displays current sharing status, an optional stream type badge (screen or camera),
+ * and action buttons that toggle between "Share Screen" / "Start Camera" when idle
+ * and "Stop Sharing" when active. Button handlers invoke the corresponding store actions:
+ * `startScreenShare`, `startCamera`, and `stopSharing`.
+ *
+ * @returns The React element for the control panel.
+ */
 export function ControlPanel() {
 	const { isSharing, streamType, startScreenShare, startCamera, stopSharing } =
 		useSharingStore();

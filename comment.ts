@@ -7,6 +7,13 @@ config();
 
 const ig = new IgApiClient();
 
+/**
+ * Authenticates the global Instagram client using IG_USERNAME and IG_PASSWORD from the environment.
+ *
+ * Generates a device fingerprint for the configured username and performs account login via the shared `ig` client.
+ *
+ * @throws Error If either `IG_USERNAME` or `IG_PASSWORD` environment variables are not set.
+ */
 async function login() {
 	if (!process.env.IG_USERNAME || !process.env.IG_PASSWORD) {
 		throw new Error("IG_USERNAME and IG_PASSWORD must be set");
@@ -76,6 +83,17 @@ async function login() {
 	// now you're basically done
 })();
 
+/**
+ * Fetches and prints new live comments for a broadcast and returns the most recent comment timestamp.
+ *
+ * Retrieves comments from the live broadcast since `lastCommentTs`, logs each as `username: text`,
+ * and returns the `created_at` timestamp of the newest comment. If no new comments are found,
+ * the original `lastCommentTs` is returned.
+ *
+ * @param broadcastId - The live broadcast ID to fetch comments for.
+ * @param lastCommentTs - Timestamp (in seconds) of the last-processed comment; used as the lower bound for fetching.
+ * @returns The `created_at` timestamp of the latest fetched comment, or `lastCommentTs` if there were no new comments.
+ */
 async function printComments(broadcastId: string, lastCommentTs: number) {
 	const { comments } = await ig.live.getComment({ broadcastId, lastCommentTs });
 
