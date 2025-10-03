@@ -1,67 +1,116 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { trpc } from "@/utils/trpc";
-import inferenceArgs from "./inference_args.json";
 import type { CombinedLandmarkerResult } from "./useHolisticLandmarker";
+import { usePredictionStore } from "@/stores/prediction-store";
 
-interface PredictionResult {
-	text: string;
-	confidence: number;
-	processingTime: number;
-}
-
-const BUFFER_SIZE = 30; // Collect 30 frames (~1 second at 30fps) before inference
-const INFERENCE_INTERVAL_MS = 1000; // Run inference every 1 second
+const INFERENCE_INTERVAL_MS = 300; // Run inference every 300ms (real-time)
+const CONFIDENCE_THRESHOLD = 0.3; // Only show predictions above 30% confidence
+const STABILIZATION_FRAMES = 3; // Require 3 consecutive frames with same prediction to stabilize
 
 /**
- * Hook for continuous ASL prediction from holistic landmarks.
- * Automatically collects frames in a rolling buffer and runs inference periodically.
+ * Hook for real-time ASL prediction from hand landmarks.
+ * Runs inference on each frame and updates global prediction store.
  */
 export function useASLPrediction() {
-	const [predictionResult, setPredictionResult] =
-		useState<PredictionResult | null>(null);
-	const [isActive, setIsActive] = useState(false);
+	const { setPrediction, setActive, setLoading } = usePredictionStore();
 
-	// Rolling buffer of landmark frames: [num_frames, 390]
-	const landmarkFramesRef = useRef<number[][]>([]);
+	// Current hand landmarks for single-frame inference
+	const currentLandmarksRef = useRef<number[][] | null>(null);
 	const lastInferenceTimeRef = useRef<number>(0);
 	const isActiveRef = useRef<boolean>(false);
 
+	// Prediction stabilization
+	const predictionHistoryRef = useRef<string[]>([]);
+
 	const predictMutation = trpc.translation.predictFromLandmarks.useMutation({
 		onSuccess: (data) => {
-			if (data.success && data.text) {
-				setPredictionResult({
+			console.log("Prediction received:", data);
+
+			if (data.success && data.text && data.confidence !== undefined && data.confidence > CONFIDENCE_THRESHOLD) {
+				// Add to prediction history
+				predictionHistoryRef.current.push(data.text);
+
+				// Keep only last N predictions
+				if (predictionHistoryRef.current.length > STABILIZATION_FRAMES) {
+					predictionHistoryRef.current.shift();
+				}
+
+				// Check if prediction is stable (same prediction N times in a row)
+				const isStable =
+					predictionHistoryRef.current.length === STABILIZATION_FRAMES &&
+					predictionHistoryRef.current.every((p) => p === data.text);
+
+				// Update display if:
+				// 1. Very high confidence (>90%) - immediate update, OR
+				// 2. High confidence (>70%), OR
+				// 3. Stable across multiple frames
+				const shouldUpdate =
+					data.confidence > 0.9 ||
+					data.confidence > 0.7 ||
+					isStable;
+
+				if (shouldUpdate) {
+					console.log("Updating store with prediction:", data.text, "confidence:", data.confidence);
+					setPrediction({
+						text: data.text,
+						confidence: data.confidence,
+						processingTime: data.processingTime ?? 0,
+						topPredictions: data.topPredictions,
+					});
+				} else {
+					console.log("Prediction not stable enough yet:", predictionHistoryRef.current);
+					setLoading(false);
+				}
+			} else {
+				console.log("Prediction did not meet criteria:", {
+					success: data.success,
 					text: data.text,
-					confidence: data.confidence ?? 0,
-					processingTime: data.processingTime ?? 0,
+					confidence: data.confidence,
+					threshold: CONFIDENCE_THRESHOLD,
 				});
+				setLoading(false);
 			}
 		},
 		onError: (error) => {
 			console.error("Prediction error:", error);
+			setLoading(false);
 		},
 	});
 
 	const start = useCallback(() => {
-		console.log("Starting ASL prediction collection");
+		// Prevent multiple calls
+		if (isActiveRef.current) {
+			console.log("Already active, skipping start");
+			return;
+		}
+
+		console.log("Starting real-time ASL prediction");
 		isActiveRef.current = true;
-		setIsActive(true);
-		landmarkFramesRef.current = [];
-		setPredictionResult(null);
+		setActive(true);
+		currentLandmarksRef.current = null;
+		predictionHistoryRef.current = [];
 		lastInferenceTimeRef.current = 0;
-	}, []);
+	}, [setActive]);
 
 	const stop = useCallback(() => {
-		console.log("Stopping ASL prediction collection");
+		// Prevent multiple calls
+		if (!isActiveRef.current) {
+			console.log("Already stopped, skipping stop");
+			return;
+		}
+
+		console.log("Stopping ASL prediction");
 		isActiveRef.current = false;
-		setIsActive(false);
-		landmarkFramesRef.current = [];
-	}, []);
+		setActive(false);
+		currentLandmarksRef.current = null;
+		predictionHistoryRef.current = [];
+	}, [setActive]);
 
 	/**
-	 * Extract landmarks and add to rolling buffer.
-	 * Automatically triggers inference when buffer is full and interval has elapsed.
+	 * Extract hand landmarks and trigger real-time inference.
+	 * Uses either left or right hand (whichever is detected).
 	 */
 	const addLandmarkFrame = useCallback(
 		(result: CombinedLandmarkerResult) => {
@@ -69,109 +118,56 @@ export function useASLPrediction() {
 				return;
 			}
 
-			const selectedColumns = inferenceArgs.selected_columns;
-			const landmarkMap = new Map<string, number>();
+			// Extract hand landmarks (prefer right hand, fallback to left)
+			let handLandmarks: Array<{ x: number; y: number; z?: number }> | null = null;
+			let handType = "none";
 
-			// Face landmarks (468 total, 0-indexed)
-			if (result.faceLandmarks?.[0]) {
-				for (let i = 0; i < result.faceLandmarks[0].length; i++) {
-					const lm = result.faceLandmarks[0][i];
-					landmarkMap.set(`x_face_${i}`, lm.x);
-					landmarkMap.set(`y_face_${i}`, lm.y);
-					landmarkMap.set(`z_face_${i}`, lm.z ?? 0);
-				}
-			}
-
-			// Left hand landmarks (21 total, 0-indexed)
-			if (result.leftHandLandmarks?.[0]) {
-				for (let i = 0; i < result.leftHandLandmarks[0].length; i++) {
-					const lm = result.leftHandLandmarks[0][i];
-					landmarkMap.set(`x_left_hand_${i}`, lm.x);
-					landmarkMap.set(`y_left_hand_${i}`, lm.y);
-					landmarkMap.set(`z_left_hand_${i}`, lm.z ?? 0);
-				}
-			}
-
-			// Right hand landmarks (21 total, 0-indexed)
 			if (result.rightHandLandmarks?.[0]) {
-				for (let i = 0; i < result.rightHandLandmarks[0].length; i++) {
-					const lm = result.rightHandLandmarks[0][i];
-					landmarkMap.set(`x_right_hand_${i}`, lm.x);
-					landmarkMap.set(`y_right_hand_${i}`, lm.y);
-					landmarkMap.set(`z_right_hand_${i}`, lm.z ?? 0);
+				handLandmarks = result.rightHandLandmarks[0];
+				handType = "right";
+			} else if (result.leftHandLandmarks?.[0]) {
+				handLandmarks = result.leftHandLandmarks[0];
+				handType = "left";
+			}
+
+			if (!handLandmarks || handLandmarks.length !== 21) {
+				// No hand detected, reset prediction history
+				if (predictionHistoryRef.current.length > 0) {
+					console.log("No hand detected, resetting prediction history");
+					predictionHistoryRef.current = [];
+					setLoading(false);
 				}
-			}
-
-			// Pose landmarks (33 total, 0-indexed)
-			if (result.poseLandmarks?.[0]) {
-				for (let i = 0; i < result.poseLandmarks[0].length; i++) {
-					const lm = result.poseLandmarks[0][i];
-					landmarkMap.set(`x_pose_${i}`, lm.x);
-					landmarkMap.set(`y_pose_${i}`, lm.y);
-					landmarkMap.set(`z_pose_${i}`, lm.z ?? 0);
-				}
-			}
-
-			// Extract values in the exact order specified by selected_columns
-			const flatFrame: number[] = [];
-			let missingCount = 0;
-			for (const colName of selectedColumns) {
-				const value = landmarkMap.get(colName);
-				if (value === undefined) missingCount++;
-				flatFrame.push(value ?? 0); // Use 0 if landmark not detected
-			}
-
-			if (flatFrame.length !== 390) {
-				console.error(
-					`Expected 390 features, got ${flatFrame.length}. Check inference_args.json`,
-				);
 				return;
 			}
 
-			// Log detection stats occasionally
-			if (landmarkFramesRef.current.length % 10 === 0) {
-				console.log(`Landmark detection: ${390 - missingCount}/390 detected (${missingCount} missing)`);
-				console.log(`Hands: L=${result.leftHandLandmarks?.[0] ? 'YES' : 'NO'}, R=${result.rightHandLandmarks?.[0] ? 'YES' : 'NO'}`);
-			}
+			// Convert to [21, 2] format (x, y coordinates only)
+			const landmarks2D: number[][] = handLandmarks.map((lm) => [lm.x, lm.y]);
 
-			// Add to rolling buffer
-			landmarkFramesRef.current.push(flatFrame);
+			// Store current landmarks
+			currentLandmarksRef.current = landmarks2D;
 
-			// Keep only last BUFFER_SIZE frames
-			if (landmarkFramesRef.current.length > BUFFER_SIZE) {
-				landmarkFramesRef.current = landmarkFramesRef.current.slice(
-					-BUFFER_SIZE,
-				);
-			}
-
-			// Auto-trigger inference if buffer is full and interval elapsed
+			// Auto-trigger inference if interval elapsed
 			const now = Date.now();
-			if (
-				landmarkFramesRef.current.length >= BUFFER_SIZE &&
-				now - lastInferenceTimeRef.current >= INFERENCE_INTERVAL_MS &&
-				!predictMutation.isPending
-			) {
+			const timeSinceLastInference = now - lastInferenceTimeRef.current;
+
+			if (timeSinceLastInference >= INFERENCE_INTERVAL_MS && !predictMutation.isPending) {
 				lastInferenceTimeRef.current = now;
+				setLoading(true);
 
-				console.log(
-					`Auto-inference: ${landmarkFramesRef.current.length} frames`,
-				);
+				console.log(`Running inference on ${handType} hand with ${landmarks2D.length} landmarks`);
 
+				// Run inference on single frame
 				predictMutation.mutate({
-					landmarks: landmarkFramesRef.current,
+					landmarks: landmarks2D,
 				});
 			}
 		},
-		[predictMutation],
+		[predictMutation, setLoading],
 	);
 
 	return {
-		isActive,
 		start,
 		stop,
 		addLandmarkFrame,
-		predictionResult,
-		isLoading: predictMutation.isPending,
-		frameCount: landmarkFramesRef.current.length,
 	};
 }

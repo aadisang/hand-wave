@@ -1,8 +1,8 @@
 """
-FastAPI inference service for ASL Fingerspelling Recognition.
+FastAPI inference service for ASL Sign Language Recognition.
 
 This service provides a REST API endpoint for running TFLite model inference
-on hand landmark data to predict ASL fingerspelling text.
+on hand landmark data to predict ASL signs (alphabet A-Z + common phrases).
 """
 
 from contextlib import asynccontextmanager
@@ -22,16 +22,20 @@ class PredictRequest(BaseModel):
 
     landmarks: list[list[float]] = Field(
         ...,
-        description="Landmark frames with shape [num_frames, 390]",
+        description="Hand landmarks with shape [21, 2] for single frame OR [21, 21, 2] for movement sequence",
     )
+    image_width: int = Field(default=1920, description="Image width for movement normalization")
+    image_height: int = Field(default=1080, description="Image height for movement normalization")
+    mode: str = Field(default="static", description="Prediction mode: 'static' or 'movement'")
 
 
 class PredictResponse(BaseModel):
     """Response schema for prediction endpoint."""
 
-    text: str = Field(..., description="Predicted ASL text")
+    text: str = Field(..., description="Predicted ASL sign")
     confidence: float = Field(..., description="Prediction confidence score")
     processing_time: float = Field(..., description="Processing time in milliseconds")
+    top_predictions: list[dict] = Field(default=[], description="Top N predictions with labels and probabilities")
 
 
 @asynccontextmanager
@@ -39,39 +43,36 @@ async def lifespan(app: FastAPI):
     """Load model on startup, cleanup on shutdown."""
     global model_instance
 
-    print("Loading ASL TFLite model...")
+    print("Loading ASL TFLite models...")
 
     try:
-        from .tflite_model import TFLiteModel
+        from .asl_classifier import ASLClassifier
 
         # Paths to model files
         base_dir = Path(__file__).parent.parent
-        model_path = base_dir / "models" / "model.tflite"
-        inference_args_path = base_dir / "inference_args.json"
-        char_map_path = base_dir / "character_to_prediction_index.json"
+        static_model_path = base_dir / "models" / "static_model.tflite"
+        movement_model_path = base_dir / "models" / "movement_model.tflite"
+        label_path = base_dir / "label.csv"
 
-        if not model_path.exists():
-            print(f"⚠️  Model file not found: {model_path}")
-            print("")
-            print("   To get the model, you need to either:")
-            print("   1. Train it yourself (see apps/inference/README.md)")
-            print("   2. Download pre-trained weights from the competition")
+        if not static_model_path.exists():
+            print(f"⚠️  Static model file not found: {static_model_path}")
             print("")
             print("   Server will start but /predict endpoint will return 503")
             model_instance = None
-        elif not inference_args_path.exists():
-            print(f"⚠️  Config file not found: {inference_args_path}")
+        elif not movement_model_path.exists():
+            print(f"⚠️  Movement model file not found: {movement_model_path}")
             model_instance = None
-        elif not char_map_path.exists():
-            print(f"⚠️  Character mapping not found: {char_map_path}")
+        elif not label_path.exists():
+            print(f"⚠️  Label file not found: {label_path}")
             model_instance = None
         else:
-            model_instance = TFLiteModel(
-                model_path=str(model_path),
-                inference_args_path=str(inference_args_path),
-                char_map_path=str(char_map_path),
+            model_instance = ASLClassifier(
+                static_model_path=str(static_model_path),
+                movement_model_path=str(movement_model_path),
+                label_path=str(label_path),
+                output_count=5,
             )
-            print("✓ Model loaded successfully")
+            print("✓ ASL Classifier loaded successfully")
 
     except Exception as e:
         print(f"Error loading model: {e}")
@@ -88,9 +89,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="ASL Fingerspelling Inference API",
-    description="TFLite-based ASL recognition from hand landmarks",
-    version="1.0.0",
+    title="ASL Sign Language Inference API",
+    description="TFLite-based ASL recognition from hand landmarks (Alphabet + Phrases)",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -116,13 +117,13 @@ async def health_check():
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest) -> PredictResponse:
     """
-    Predict ASL text from hand landmarks.
+    Predict ASL sign from hand landmarks.
 
     Args:
-        request: PredictRequest containing landmark frames
+        request: PredictRequest containing hand landmarks
 
     Returns:
-        PredictResponse with predicted text and confidence
+        PredictResponse with predicted sign and confidence
     """
     import time
 
@@ -132,16 +133,42 @@ async def predict(request: PredictRequest) -> PredictResponse:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Landmarks are already flat: [num_frames, 390]
-        # Run inference
-        predicted_text, confidence = model_instance.predict(request.landmarks)
+        if request.mode == "static":
+            # Static sign prediction (single frame)
+            # Expected input: [21, 2] landmarks
+            indices, probs = model_instance.predict_static(request.landmarks)
+        elif request.mode == "movement":
+            # Movement sign prediction (sequence of frames)
+            # Expected input: [21, 21, 2] - 21 frames of 21 landmarks
+            indices, probs = model_instance.predict_movement(
+                request.landmarks,
+                request.image_width,
+                request.image_height,
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid mode. Use 'static' or 'movement'")
+
+        # Get top prediction
+        top_index = indices[0]
+        top_prob = probs[0]
+
+        # Get label
+        predicted_text = model_instance.get_label(top_index)
+
+        # Build top predictions list
+        top_predictions = [
+            {"label": model_instance.get_label(idx), "confidence": float(prob)}
+            for idx, prob in zip(indices, probs)
+            if idx != -1  # Filter out invalid movement predictions
+        ]
 
         processing_time = (time.time() - start_time) * 1000
 
         return PredictResponse(
             text=predicted_text,
-            confidence=confidence,
+            confidence=float(top_prob),
             processing_time=processing_time,
+            top_predictions=top_predictions,
         )
 
     except Exception as e:
@@ -155,13 +182,15 @@ async def predict(request: PredictRequest) -> PredictResponse:
 async def root():
     """Root endpoint with API information."""
     return {
-        "service": "ASL Fingerspelling Inference API",
-        "version": "1.0.0",
+        "service": "ASL Sign Language Inference API",
+        "version": "2.0.0",
+        "description": "Alphabet (A-Z) + Common Phrases (Good, Bad, I AM FRIENDLY)",
         "endpoints": {
             "health": "/health",
             "predict": "POST /predict",
             "docs": "/docs",
         },
+        "supported_signs": "A-Z, Noise, Good, Bad, I AM FRIENDLY",
     }
 
 
