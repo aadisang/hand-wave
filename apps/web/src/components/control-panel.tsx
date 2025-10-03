@@ -114,90 +114,22 @@ export function ControlPanel() {
 								Stop Sharing
 							</Button>
 
-							{/* ASL Prediction Status */}
-							<div className="pt-4 border-t space-y-3">
-								<div className="flex items-center justify-between">
-									<span className="text-sm font-medium">ASL Recognition</span>
-									<Badge variant={isLoading ? "secondary" : isActive ? "default" : "outline"}>
-										{isLoading ? "Analyzing..." : isActive ? "Real-time" : "Idle"}
-									</Badge>
+							{/* Quick Actions */}
+							{currentPrediction && (
+								<div className="pt-4 border-t">
+									<Button
+										onClick={handleSendToWhatsApp}
+										className="w-full"
+										variant="secondary"
+										disabled={sendWhatsAppMutation.isPending}
+									>
+										<MessageCircle className="h-4 w-4 mr-2" />
+										{sendWhatsAppMutation.isPending
+											? "Sending..."
+											: "Send to WhatsApp"}
+									</Button>
 								</div>
-
-								{/* Live Prediction Result */}
-								{currentPrediction ? (
-									<div className="space-y-3">
-										{/* Main Prediction */}
-										<div className="space-y-2">
-											<div className="text-sm font-medium text-muted-foreground">
-												Detected Sign
-											</div>
-											<div className="p-4 bg-primary/10 border-2 border-primary/20 rounded-lg">
-												<div className="text-3xl font-bold text-center mb-2">
-													{currentPrediction.text}
-												</div>
-												<div className="flex items-center justify-center gap-2">
-													<Badge variant="secondary" className="text-xs">
-														{(currentPrediction.confidence * 100).toFixed(0)}%
-													</Badge>
-													<Badge variant="outline" className="text-xs">
-														{currentPrediction.processingTime.toFixed(0)}ms
-													</Badge>
-												</div>
-											</div>
-										</div>
-
-										{/* Top Predictions */}
-										{currentPrediction.topPredictions &&
-											currentPrediction.topPredictions.length > 1 && (
-												<div className="space-y-2">
-													<div className="text-sm font-medium text-muted-foreground">
-														Other Possibilities
-													</div>
-													<div className="space-y-1.5">
-														{currentPrediction.topPredictions
-															.slice(1, 4)
-															.map((pred, idx) => (
-																<div
-																	key={idx}
-																	className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm"
-																>
-																	<span className="font-medium">
-																		{pred.label}
-																	</span>
-																	<Badge variant="outline" className="text-xs">
-																		{(pred.confidence * 100).toFixed(0)}%
-																	</Badge>
-																</div>
-															))}
-													</div>
-												</div>
-											)}
-
-										{/* Send Button */}
-										<Button
-											onClick={handleSendToWhatsApp}
-											className="w-full"
-											variant="secondary"
-											disabled={sendWhatsAppMutation.isPending}
-										>
-											<MessageCircle className="h-4 w-4 mr-2" />
-											{sendWhatsAppMutation.isPending
-												? "Sending..."
-												: "Send to WhatsApp"}
-										</Button>
-									</div>
-								) : (
-									<div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
-										<Circle className="h-8 w-8 text-muted-foreground/50 animate-pulse" />
-										<div className="text-sm text-muted-foreground">
-											Show an ASL sign to the camera
-										</div>
-										<div className="text-xs text-muted-foreground/70">
-											Supports A-Z alphabet + common phrases
-										</div>
-									</div>
-								)}
-							</div>
+							)}
 						</>
 					)}
 				</div>
