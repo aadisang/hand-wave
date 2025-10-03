@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
 import Webcam from "react-webcam";
-import { useHandLandmarker } from "@/hooks/useHandLandmarker";
+import { useASLPrediction } from "@/hooks/useASLPrediction";
+import { useHolisticLandmarker } from "@/hooks/useHolisticLandmarker";
 import { useSharingStore } from "@/stores/sharing-store";
 
 interface CameraProps {
@@ -9,11 +10,10 @@ interface CameraProps {
 }
 
 /**
- * Renders a webcam feed with a canvas overlay and starts hand-landmarker processing.
+ * Renders a webcam feed with a canvas overlay and starts holistic landmark processing.
  *
- * When the hand-landmarker is ready, the component sizes the overlay to its container,
- * observes container resizes, and starts landmark detection using the underlying video element.
- * If obtaining user media fails, it stops sharing and calls `onStreamStop`.
+ * Uses MediaPipe HolisticLandmarker to detect face, pose, and hand landmarks needed
+ * for ASL fingerspelling recognition. Collected landmarks are sent to the ASL prediction hook.
  *
  * @param onStreamStop - Callback invoked when the camera stream fails or is stopped due to a user-media error.
  * @returns The Camera React element.
@@ -22,7 +22,8 @@ export function Camera({ onStreamStop }: CameraProps) {
 	const webcamRef = useRef<Webcam>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const { stopSharing } = useSharingStore();
-	const { ready, start, stop } = useHandLandmarker();
+	const { ready, start, stop } = useHolisticLandmarker();
+	const { addLandmarkFrame, isCollecting } = useASLPrediction();
 
 	const videoConstraints = {
 		width: 1280,
@@ -51,6 +52,12 @@ export function Camera({ onStreamStop }: CameraProps) {
 			video: videoEl,
 			canvas: canvasEl,
 			mirror: true,
+			onLandmarksDetected: (result) => {
+				// Collect landmarks when recording is active
+				if (isCollecting) {
+					addLandmarkFrame(result);
+				}
+			},
 		});
 
 		return () => {
@@ -58,7 +65,7 @@ export function Camera({ onStreamStop }: CameraProps) {
 			cleanupStart?.();
 			stop();
 		};
-	}, [ready, start, stop]);
+	}, [ready, start, stop, isCollecting, addLandmarkFrame]);
 
 	return (
 		<div className="w-full h-full relative">
