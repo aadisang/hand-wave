@@ -63,6 +63,9 @@ export function useHandLandmarker() {
 	const runningRef = useRef(false);
 	const lastVideoTimeRef = useRef(-1);
 	const [ready, setReady] = useState(false);
+	const onLandmarksDetectedRef = useRef<
+		((result: HandLandmarkerResult) => void) | null
+	>(null);
 
 	// Initialize the HandLandmarker once on mount
 	useEffect(() => {
@@ -194,9 +197,19 @@ export function useHandLandmarker() {
 	);
 
 	const start = useCallback(
-		({ video, canvas, mirror = false }: StartOptions) => {
+		({
+			video,
+			canvas,
+			mirror = false,
+			onLandmarksDetected,
+		}: StartOptions & {
+			onLandmarksDetected?: (result: HandLandmarkerResult) => void;
+		}) => {
 			const lm = landmarkerRef.current;
 			if (!lm) return;
+
+			// Store the callback
+			onLandmarksDetectedRef.current = onLandmarksDetected || null;
 
 			// Ensure running mode is VIDEO
 			lm.setOptions?.({ runningMode: "VIDEO" }).catch(() => {});
@@ -234,6 +247,11 @@ export function useHandLandmarker() {
 					try {
 						const results = lm.detectForVideo(video, now);
 						drawResults(results, ctx, canvas, video, mirror);
+
+						// Call the landmarks callback if provided
+						if (onLandmarksDetectedRef.current) {
+							onLandmarksDetectedRef.current(results);
+						}
 					} catch (error) {
 						console.error("Error during hand detection:", error);
 					}
