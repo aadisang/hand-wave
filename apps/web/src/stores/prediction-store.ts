@@ -51,6 +51,13 @@ export const usePredictionStore = create<PredictionState>((set, get) => ({
 	},
 
 	addToHistory: (text: string, confidence: number, processingTime: number) => {
+		const state = get();
+
+		// Only add if different from the most recent sign (ignore confidence differences)
+		if (state.history.length > 0 && state.history[0].text === text) {
+			return; // Skip duplicate sign
+		}
+
 		const newItem: PredictionHistoryItem = {
 			id: `${Date.now()}-${Math.random()}`,
 			text,
