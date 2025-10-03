@@ -16,8 +16,8 @@ export default function Home() {
 	const { isSharing } = useSharingStore();
 
 	return (
-		<div className="min-h-screen flex items-center justify-center px-4 py-2">
-			<div className="w-full max-w-6xl space-y-6">
+		<div className="min-h-screen flex flex-col px-4 py-8">
+			<div className="w-full max-w-6xl mx-auto space-y-6">
 				{/* Header */}
 				<div className="text-center space-y-2">
 					<h1 className="text-4xl font-bold text-neutral-900 dark:text-neutral-100">
