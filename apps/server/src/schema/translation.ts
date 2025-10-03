@@ -1,17 +1,24 @@
 import { z } from "zod";
 
 /**
- * Schema for landmark frame (single frame of hand landmarks)
- * Each frame is a flat array of 390 features
+ * Schema for hand landmark point [x, y]
  */
-export const LandmarkFrameSchema = z.array(z.number()).length(390);
+export const LandmarkPointSchema = z.array(z.number()).length(2);
+
+/**
+ * Schema for single hand (21 landmarks, each with [x, y])
+ */
+export const HandLandmarksSchema = z.array(LandmarkPointSchema).length(21);
 
 /**
  * Schema for predicting ASL from landmarks
- * Expects an array of frames: [num_frames, 390]
+ * Expects hand landmarks: [21, 2] for static signs
  */
 export const PredictFromLandmarksInputSchema = z.object({
-	landmarks: z.array(LandmarkFrameSchema).min(1),
+	landmarks: HandLandmarksSchema,
+	imageWidth: z.number().optional().default(1920),
+	imageHeight: z.number().optional().default(1080),
+	mode: z.enum(["static", "movement"]).optional().default("static"),
 });
 
 export const PredictFromLandmarksOutputSchema = z.object({
@@ -19,6 +26,14 @@ export const PredictFromLandmarksOutputSchema = z.object({
 	text: z.string().optional(),
 	confidence: z.number().optional(),
 	processingTime: z.number().optional(),
+	topPredictions: z
+		.array(
+			z.object({
+				label: z.string(),
+				confidence: z.number(),
+			}),
+		)
+		.optional(),
 	error: z.string().optional(),
 	timestamp: z.string(),
 });
@@ -37,7 +52,8 @@ export const SendTranslationOutputSchema = z.object({
 	timestamp: z.string(),
 });
 
-export type LandmarkFrame = z.infer<typeof LandmarkFrameSchema>;
+export type LandmarkPoint = z.infer<typeof LandmarkPointSchema>;
+export type HandLandmarks = z.infer<typeof HandLandmarksSchema>;
 export type PredictFromLandmarksInput = z.infer<
 	typeof PredictFromLandmarksInputSchema
 >;
