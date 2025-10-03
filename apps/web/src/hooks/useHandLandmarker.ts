@@ -88,13 +88,15 @@ export function useHandLandmarker() {
 				}
 				landmarkerRef.current = handLandmarker;
 				setReady(true);
-			} catch {
+			} catch (error) {
+				console.error("Failed to initialize HandLandmarker:", error);
 				setReady(false);
 			}
 		})();
 
 		return () => {
 			// Cleanup
+			cancelled = true;
 			runningRef.current = false;
 
 			if (animationFrameRef.current != null) {
@@ -201,8 +203,21 @@ export function useHandLandmarker() {
 
 			runningRef.current = true;
 
-			const ctx = canvas.getContext("2d");
+			const ctx = canvas.getContext("2d", { willReadFrequently: false });
 			if (!ctx) return;
+
+			// Handle WebGL context loss
+			const handleContextLost = (event: Event) => {
+				event.preventDefault();
+				console.warn("Canvas context lost - will attempt to restore");
+			};
+
+			const handleContextRestored = () => {
+				console.info("Canvas context restored");
+			};
+
+			canvas.addEventListener("webglcontextlost", handleContextLost);
+			canvas.addEventListener("webglcontextrestored", handleContextRestored);
 
 			const loop = () => {
 				if (!runningRef.current) return;
@@ -216,8 +231,12 @@ export function useHandLandmarker() {
 
 				if (lastVideoTimeRef.current !== video.currentTime) {
 					lastVideoTimeRef.current = video.currentTime;
-					const results = lm.detectForVideo(video, now);
-					drawResults(results, ctx, canvas, video, mirror);
+					try {
+						const results = lm.detectForVideo(video, now);
+						drawResults(results, ctx, canvas, video, mirror);
+					} catch (error) {
+						console.error("Error during hand detection:", error);
+					}
 				}
 
 				animationFrameRef.current = requestAnimationFrame(loop);
@@ -233,6 +252,15 @@ export function useHandLandmarker() {
 				};
 				video.addEventListener("loadeddata", onLoaded);
 			}
+
+			// Cleanup function to remove event listeners
+			return () => {
+				canvas.removeEventListener("webglcontextlost", handleContextLost);
+				canvas.removeEventListener(
+					"webglcontextrestored",
+					handleContextRestored,
+				);
+			};
 		},
 		[drawResults],
 	);
