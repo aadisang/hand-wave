@@ -9,11 +9,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-
 
 # Global model instance
 model_instance: Any = None
