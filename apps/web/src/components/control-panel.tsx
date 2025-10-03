@@ -2,11 +2,9 @@
 import {
 	Circle,
 	MessageCircle,
-	Send,
-	Settings,
-	Share2,
 	Square,
 	Video,
+	Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +16,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { useASLPrediction } from "@/hooks/useASLPrediction";
 import { useSharingStore } from "@/stores/sharing-store";
+import { usePredictionStore } from "@/stores/prediction-store";
 import { trpc } from "@/utils/trpc";
 
 /**
@@ -35,7 +33,11 @@ import { trpc } from "@/utils/trpc";
 export function ControlPanel() {
 	const { isSharing, streamType, startScreenShare, startCamera, stopSharing } =
 		useSharingStore();
-	const { predictionResult, isLoading, frameCount } = useASLPrediction();
+
+	// Read from global prediction store
+	const currentPrediction = usePredictionStore((state) => state.currentPrediction);
+	const isLoading = usePredictionStore((state) => state.isLoading);
+	const isActive = usePredictionStore((state) => state.isActive);
 
 	const sendWhatsAppMutation = trpc.translation.send.useMutation({
 		onSuccess: () => {
@@ -47,8 +49,8 @@ export function ControlPanel() {
 	});
 
 	const handleSendToWhatsApp = () => {
-		if (predictionResult?.text) {
-			sendWhatsAppMutation.mutate({ translation: predictionResult.text });
+		if (currentPrediction?.text) {
+			sendWhatsAppMutation.mutate({ translation: currentPrediction.text });
 		}
 	};
 
@@ -56,7 +58,7 @@ export function ControlPanel() {
 		<Card className="lg:col-span-1">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<Settings className="h-5 w-5" />
+					<Circle className="h-5 w-5" />
 					Controls
 				</CardTitle>
 				<CardDescription>
@@ -116,29 +118,62 @@ export function ControlPanel() {
 							<div className="pt-4 border-t space-y-3">
 								<div className="flex items-center justify-between">
 									<span className="text-sm font-medium">ASL Recognition</span>
-									<Badge variant="default">
-										{isLoading
-											? "Processing..."
-											: `Active (${frameCount} frames)`}
+									<Badge variant={isLoading ? "secondary" : isActive ? "default" : "outline"}>
+										{isLoading ? "Analyzing..." : isActive ? "Real-time" : "Idle"}
 									</Badge>
 								</div>
 
 								{/* Live Prediction Result */}
-								{predictionResult ? (
-									<div className="space-y-2">
-										<div className="text-sm font-medium">
-											Latest Prediction:
-										</div>
-										<div className="p-3 bg-muted rounded-md">
-											<div className="text-lg font-bold">
-												{predictionResult.text || "No prediction"}
+								{currentPrediction ? (
+									<div className="space-y-3">
+										{/* Main Prediction */}
+										<div className="space-y-2">
+											<div className="text-sm font-medium text-muted-foreground">
+												Detected Sign
 											</div>
-											<div className="text-xs text-muted-foreground mt-1">
-												Confidence:{" "}
-												{(predictionResult.confidence * 100).toFixed(1)}% •{" "}
-												{predictionResult.processingTime.toFixed(0)}ms
+											<div className="p-4 bg-primary/10 border-2 border-primary/20 rounded-lg">
+												<div className="text-3xl font-bold text-center mb-2">
+													{currentPrediction.text}
+												</div>
+												<div className="flex items-center justify-center gap-2">
+													<Badge variant="secondary" className="text-xs">
+														{(currentPrediction.confidence * 100).toFixed(0)}%
+													</Badge>
+													<Badge variant="outline" className="text-xs">
+														{currentPrediction.processingTime.toFixed(0)}ms
+													</Badge>
+												</div>
 											</div>
 										</div>
+
+										{/* Top Predictions */}
+										{currentPrediction.topPredictions &&
+											currentPrediction.topPredictions.length > 1 && (
+												<div className="space-y-2">
+													<div className="text-sm font-medium text-muted-foreground">
+														Other Possibilities
+													</div>
+													<div className="space-y-1.5">
+														{currentPrediction.topPredictions
+															.slice(1, 4)
+															.map((pred, idx) => (
+																<div
+																	key={idx}
+																	className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm"
+																>
+																	<span className="font-medium">
+																		{pred.label}
+																	</span>
+																	<Badge variant="outline" className="text-xs">
+																		{(pred.confidence * 100).toFixed(0)}%
+																	</Badge>
+																</div>
+															))}
+													</div>
+												</div>
+											)}
+
+										{/* Send Button */}
 										<Button
 											onClick={handleSendToWhatsApp}
 											className="w-full"
@@ -152,8 +187,14 @@ export function ControlPanel() {
 										</Button>
 									</div>
 								) : (
-									<div className="text-sm text-muted-foreground text-center py-4">
-										Collecting frames... predictions will appear automatically
+									<div className="flex flex-col items-center justify-center py-8 text-center space-y-2">
+										<Circle className="h-8 w-8 text-muted-foreground/50 animate-pulse" />
+										<div className="text-sm text-muted-foreground">
+											Show an ASL sign to the camera
+										</div>
+										<div className="text-xs text-muted-foreground/70">
+											Supports A-Z alphabet + common phrases
+										</div>
 									</div>
 								)}
 							</div>

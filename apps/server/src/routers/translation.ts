@@ -10,13 +10,18 @@ import { sendWhatsAppMessage } from "../services/whatsapp";
 
 export const translationRouter = router({
 	/**
-	 * Predict ASL text from hand landmarks
+	 * Predict ASL sign from hand landmarks
 	 */
 	predictFromLandmarks: publicProcedure
 		.input(PredictFromLandmarksInputSchema)
 		.output(PredictFromLandmarksOutputSchema)
 		.mutation(async ({ input }) => {
-			const result = await predictFromLandmarks({ landmarks: input.landmarks });
+			const result = await predictFromLandmarks({
+				landmarks: input.landmarks,
+				imageWidth: input.imageWidth,
+				imageHeight: input.imageHeight,
+				mode: input.mode,
+			});
 			return {
 				...result,
 				timestamp: new Date().toISOString(),
