@@ -1,7 +1,8 @@
 # Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
 
+# Kaggle
+kaggle_reference/
 # Logs
-
 logs
 _.log
 npm-debug.log_
