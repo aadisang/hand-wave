@@ -5,9 +5,9 @@ import { trpc } from "@/utils/trpc";
 import type { CombinedLandmarkerResult } from "./useHolisticLandmarker";
 import { usePredictionStore } from "@/stores/prediction-store";
 
-const INFERENCE_INTERVAL_MS = 300; // Run inference every 300ms (real-time)
+const INFERENCE_INTERVAL_MS = 100; // Run inference every 100ms for snappier response
 const CONFIDENCE_THRESHOLD = 0.3; // Only show predictions above 30% confidence
-const STABILIZATION_FRAMES = 3; // Require 3 consecutive frames with same prediction to stabilize
+const STABILIZATION_FRAMES = 2; // Require 2 consecutive frames with same prediction to stabilize
 
 /**
  * Hook for real-time ASL prediction from hand landmarks.
@@ -24,9 +24,14 @@ export function useASLPrediction() {
 	// Prediction stabilization
 	const predictionHistoryRef = useRef<string[]>([]);
 
+	// Track request start time for accurate latency measurement
+	const requestStartTimeRef = useRef<number>(0);
+
 	const predictMutation = trpc.translation.predictFromLandmarks.useMutation({
 		onSuccess: (data) => {
-			console.log("Prediction received:", data);
+			// Calculate full round-trip time (client -> server -> client)
+			const roundTripTime = Date.now() - requestStartTimeRef.current;
+			console.log("Prediction received:", data, "Round-trip:", roundTripTime, "ms");
 
 			if (data.success && data.text && data.confidence !== undefined && data.confidence > CONFIDENCE_THRESHOLD) {
 				// Add to prediction history
@@ -43,12 +48,12 @@ export function useASLPrediction() {
 					predictionHistoryRef.current.every((p) => p === data.text);
 
 				// Update display if:
-				// 1. Very high confidence (>90%) - immediate update, OR
-				// 2. High confidence (>70%), OR
+				// 1. Very high confidence (>80%) - immediate update, OR
+				// 2. High confidence (>60%), OR
 				// 3. Stable across multiple frames
 				const shouldUpdate =
-					data.confidence > 0.9 ||
-					data.confidence > 0.7 ||
+					data.confidence > 0.8 ||
+					data.confidence > 0.6 ||
 					isStable;
 
 				if (shouldUpdate) {
@@ -56,7 +61,7 @@ export function useASLPrediction() {
 					setPrediction({
 						text: data.text,
 						confidence: data.confidence,
-						processingTime: data.processingTime ?? 0,
+						processingTime: roundTripTime, // Use full round-trip time
 						topPredictions: data.topPredictions,
 					});
 				} else {
@@ -152,6 +157,7 @@ export function useASLPrediction() {
 
 			if (timeSinceLastInference >= INFERENCE_INTERVAL_MS && !predictMutation.isPending) {
 				lastInferenceTimeRef.current = now;
+				requestStartTimeRef.current = now; // Record request start time
 				setLoading(true);
 
 				console.log(`Running inference on ${handType} hand with ${landmarks2D.length} landmarks`);
