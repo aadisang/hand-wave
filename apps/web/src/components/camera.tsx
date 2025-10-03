@@ -23,7 +23,7 @@ export function Camera({ onStreamStop }: CameraProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const { stopSharing } = useSharingStore();
 	const { ready, start, stop } = useHolisticLandmarker();
-	const { addLandmarkFrame, isCollecting } = useASLPrediction();
+	const { addLandmarkFrame, start: startPrediction } = useASLPrediction();
 
 	const videoConstraints = {
 		width: 1280,
@@ -35,6 +35,9 @@ export function Camera({ onStreamStop }: CameraProps) {
 		const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
 		const canvasEl = canvasRef.current ?? undefined;
 		if (!ready || !videoEl || !canvasEl) return;
+
+		// Start continuous prediction when camera starts
+		startPrediction();
 
 		// Size canvas to container via CSS; drawing code will handle DPR and letterboxing
 		const resize = () => {
@@ -53,10 +56,8 @@ export function Camera({ onStreamStop }: CameraProps) {
 			canvas: canvasEl,
 			mirror: true,
 			onLandmarksDetected: (result) => {
-				// Collect landmarks when recording is active
-				if (isCollecting) {
-					addLandmarkFrame(result);
-				}
+				// Continuously collect landmarks for automatic inference
+				addLandmarkFrame(result);
 			},
 		});
 
@@ -65,7 +66,7 @@ export function Camera({ onStreamStop }: CameraProps) {
 			cleanupStart?.();
 			stop();
 		};
-	}, [ready, start, stop, isCollecting, addLandmarkFrame]);
+	}, [ready, start, stop, addLandmarkFrame, startPrediction]);
 
 	return (
 		<div className="w-full h-full relative">

@@ -2,14 +2,16 @@ import { z } from "zod";
 
 /**
  * Schema for landmark frame (single frame of hand landmarks)
+ * Each frame is a flat array of 390 features
  */
-export const LandmarkFrameSchema = z.array(z.array(z.number()));
+export const LandmarkFrameSchema = z.array(z.number()).length(390);
 
 /**
  * Schema for predicting ASL from landmarks
+ * Expects an array of frames: [num_frames, 390]
  */
 export const PredictFromLandmarksInputSchema = z.object({
-	landmarks: z.array(LandmarkFrameSchema),
+	landmarks: z.array(LandmarkFrameSchema).min(1),
 });
 
 export const PredictFromLandmarksOutputSchema = z.object({

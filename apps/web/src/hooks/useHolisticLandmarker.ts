@@ -107,6 +107,9 @@ export function useHolisticLandmarker() {
 					},
 					runningMode: "VIDEO",
 					numHands: 2,
+					minHandDetectionConfidence: 0.3,
+					minHandPresenceConfidence: 0.3,
+					minTrackingConfidence: 0.3,
 				});
 
 				if (cancelled) {

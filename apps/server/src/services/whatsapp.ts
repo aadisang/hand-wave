@@ -2,11 +2,6 @@
  * WhatsApp service for sending messages via the WhatsApp Business API
  */
 
-interface WhatsAppConfig {
-	apiKey: string;
-	phoneNumber: string;
-}
-
 interface SendMessageParams {
 	message: string;
 }
