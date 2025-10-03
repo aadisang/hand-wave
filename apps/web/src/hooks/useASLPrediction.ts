@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { trpc } from "@/utils/trpc";
 import type { CombinedLandmarkerResult } from "./useHolisticLandmarker";
 import { usePredictionStore } from "@/stores/prediction-store";
 
 const INFERENCE_INTERVAL_MS = 100; // Run inference every 100ms for snappier response
 const CONFIDENCE_THRESHOLD = 0.3; // Only show predictions above 30% confidence
 const STABILIZATION_FRAMES = 2; // Require 2 consecutive frames with same prediction to stabilize
+const MOTION_THRESHOLD = 0.05; // Skip frames where hand is moving more than 5% (mid-transition)
 
 /**
  * Hook for real-time ASL prediction from hand landmarks.
@@ -18,8 +18,10 @@ export function useASLPrediction() {
 
 	// Current hand landmarks for single-frame inference
 	const currentLandmarksRef = useRef<number[][] | null>(null);
+	const previousLandmarksRef = useRef<number[][] | null>(null);
 	const lastInferenceTimeRef = useRef<number>(0);
 	const isActiveRef = useRef<boolean>(false);
+	const isPendingRef = useRef<boolean>(false);
 
 	// Prediction stabilization
 	const predictionHistoryRef = useRef<string[]>([]);
@@ -27,13 +29,50 @@ export function useASLPrediction() {
 	// Track request start time for accurate latency measurement
 	const requestStartTimeRef = useRef<number>(0);
 
-	const predictMutation = trpc.translation.predictFromLandmarks.useMutation({
-		onSuccess: (data) => {
-			// Calculate full round-trip time (client -> server -> client)
-			const roundTripTime = Date.now() - requestStartTimeRef.current;
-			console.log("Prediction received:", data, "Round-trip:", roundTripTime, "ms");
+	/**
+	 * Calculate hand motion between frames to detect mid-transition
+	 */
+	const calculateHandMotion = (current: number[][], previous: number[][]): number => {
+		let totalMotion = 0;
+		for (let i = 0; i < current.length; i++) {
+			const dx = current[i][0] - previous[i][0];
+			const dy = current[i][1] - previous[i][1];
+			totalMotion += Math.sqrt(dx * dx + dy * dy);
+		}
+		return totalMotion / current.length; // Average motion per landmark
+	};
 
-			if (data.success && data.text && data.confidence !== undefined && data.confidence > CONFIDENCE_THRESHOLD) {
+	/**
+	 * Direct HTTP call to Python inference server (bypasses tRPC/Next.js middleware)
+	 */
+	const runInference = async (landmarks: number[][]) => {
+		const startTime = Date.now();
+		requestStartTimeRef.current = startTime;
+		isPendingRef.current = true;
+
+		try {
+			// Direct call to Python FastAPI server
+			const response = await fetch("http://localhost:8000/predict", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					landmarks,
+					image_width: 1920,
+					image_height: 1080,
+					mode: "static",
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			const data = await response.json();
+			const roundTripTime = Date.now() - startTime;
+
+			console.log("Prediction received:", data.text, "Confidence:", data.confidence, "Latency:", roundTripTime, "ms");
+
+			if (data.text && data.confidence > CONFIDENCE_THRESHOLD) {
 				// Add to prediction history
 				predictionHistoryRef.current.push(data.text);
 
@@ -57,32 +96,25 @@ export function useASLPrediction() {
 					isStable;
 
 				if (shouldUpdate) {
-					console.log("Updating store with prediction:", data.text, "confidence:", data.confidence);
 					setPrediction({
 						text: data.text,
 						confidence: data.confidence,
-						processingTime: roundTripTime, // Use full round-trip time
-						topPredictions: data.topPredictions,
+						processingTime: roundTripTime,
+						topPredictions: data.top_predictions,
 					});
 				} else {
-					console.log("Prediction not stable enough yet:", predictionHistoryRef.current);
 					setLoading(false);
 				}
 			} else {
-				console.log("Prediction did not meet criteria:", {
-					success: data.success,
-					text: data.text,
-					confidence: data.confidence,
-					threshold: CONFIDENCE_THRESHOLD,
-				});
 				setLoading(false);
 			}
-		},
-		onError: (error) => {
-			console.error("Prediction error:", error);
+		} catch (error) {
+			console.error("Inference error:", error);
 			setLoading(false);
-		},
-	});
+		} finally {
+			isPendingRef.current = false;
+		}
+	};
 
 	const start = useCallback(() => {
 		// Prevent multiple calls
@@ -148,27 +180,35 @@ export function useASLPrediction() {
 			// Convert to [21, 2] format (x, y coordinates only)
 			const landmarks2D: number[][] = handLandmarks.map((lm) => [lm.x, lm.y]);
 
-			// Store current landmarks
+			// Detect if hand is moving (mid-transition) - skip inference if so
+			let isMoving = false;
+			if (previousLandmarksRef.current && previousLandmarksRef.current.length === landmarks2D.length) {
+				const motion = calculateHandMotion(landmarks2D, previousLandmarksRef.current);
+				isMoving = motion > MOTION_THRESHOLD;
+				if (isMoving) {
+					console.log(`Hand moving (motion=${motion.toFixed(3)}), skipping inference to avoid mid-transition capture`);
+				}
+			}
+
+			// Store current landmarks for next frame
+			previousLandmarksRef.current = landmarks2D;
 			currentLandmarksRef.current = landmarks2D;
 
-			// Auto-trigger inference if interval elapsed
+			// Auto-trigger inference if interval elapsed AND hand is stable (not moving)
 			const now = Date.now();
 			const timeSinceLastInference = now - lastInferenceTimeRef.current;
 
-			if (timeSinceLastInference >= INFERENCE_INTERVAL_MS && !predictMutation.isPending) {
+			if (timeSinceLastInference >= INFERENCE_INTERVAL_MS && !isPendingRef.current && !isMoving) {
 				lastInferenceTimeRef.current = now;
-				requestStartTimeRef.current = now; // Record request start time
 				setLoading(true);
 
 				console.log(`Running inference on ${handType} hand with ${landmarks2D.length} landmarks`);
 
-				// Run inference on single frame
-				predictMutation.mutate({
-					landmarks: landmarks2D,
-				});
+				// Run inference directly (bypass tRPC)
+				runInference(landmarks2D);
 			}
 		},
-		[predictMutation, setLoading],
+		[setLoading, setPrediction],
 	);
 
 	return {
