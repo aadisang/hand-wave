@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { useASLPrediction } from "@/hooks/useASLPrediction";
 import { useHolisticLandmarker } from "@/hooks/useHolisticLandmarker";
@@ -31,6 +31,10 @@ export function Camera({ onStreamStop }: CameraProps) {
 	// Read from global store
 	const currentPrediction = usePredictionStore((state) => state.currentPrediction);
 	const isLoading = usePredictionStore((state) => state.isLoading);
+	const isActive = usePredictionStore((state) => state.isActive);
+
+	// Track if hand is detected
+	const [handDetected, setHandDetected] = useState(false);
 
 	const videoConstraints = {
 		width: 1280,
@@ -60,6 +64,10 @@ export function Camera({ onStreamStop }: CameraProps) {
 			canvas: canvasEl,
 			mirror: true,
 			onLandmarksDetected: (result) => {
+				// Check if hand is detected
+				const hasHand = !!(result.rightHandLandmarks?.[0] || result.leftHandLandmarks?.[0]);
+				setHandDetected(hasHand);
+
 				// Continuously collect landmarks for automatic inference
 				addLandmarkFrame(result);
 			},
@@ -99,40 +107,30 @@ export function Camera({ onStreamStop }: CameraProps) {
 				className="absolute inset-0 pointer-events-none"
 			/>
 
-			{/* Live Prediction Overlay */}
-			{currentPrediction && (
-				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-					<Card className="bg-background/95 backdrop-blur-sm border-2 shadow-lg">
-						<div className="px-6 py-4 space-y-2">
-							<div className="flex items-center justify-center gap-3">
-								<span className="text-sm font-medium text-muted-foreground">
-									Detected Sign:
-								</span>
-								<div className="text-4xl font-bold tracking-tight">
-									{currentPrediction.text}
-								</div>
-							</div>
-							<div className="flex items-center justify-center gap-2">
-								<Badge variant="secondary" className="text-xs">
-									{(currentPrediction.confidence * 100).toFixed(0)}% confident
-								</Badge>
-								<Badge variant="outline" className="text-xs">
-									{currentPrediction.processingTime.toFixed(0)}ms
-								</Badge>
-							</div>
-						</div>
-					</Card>
-				</div>
-			)}
-
-			{/* Loading Indicator */}
-			{isLoading && !currentPrediction && (
-				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-					<Badge variant="secondary" className="animate-pulse">
-						Analyzing hand gesture...
+			{/* Subtle Status Overlay - Top Right Corner */}
+			<div className="absolute top-4 right-4 z-10">
+				{!handDetected ? (
+					<Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
+						No hand detected
 					</Badge>
-				</div>
-			)}
+				) : currentPrediction ? (
+					<div className="flex items-center gap-2 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border shadow-sm">
+						<span className="text-3xl font-bold">{currentPrediction.text}</span>
+						<div className="flex flex-col gap-1">
+							<Badge variant="secondary" className="text-xs h-4">
+								{(currentPrediction.confidence * 100).toFixed(0)}%
+							</Badge>
+							<Badge variant="outline" className="text-xs h-4">
+								{currentPrediction.processingTime.toFixed(0)}ms
+							</Badge>
+						</div>
+					</div>
+				) : isLoading ? (
+					<Badge variant="secondary" className="bg-background/80 backdrop-blur-sm animate-pulse">
+						Analyzing...
+					</Badge>
+				) : null}
+			</div>
 		</div>
 	);
 }
