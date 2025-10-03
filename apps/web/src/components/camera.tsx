@@ -1,8 +1,8 @@
 "use client";
-import { useHandLandmarker } from "@/hooks/useHandLandmarker";
-import { useSharingStore } from "@/stores/sharing-store";
 import { useEffect, useRef } from "react";
 import Webcam from "react-webcam";
+import { useHandLandmarker } from "@/hooks/useHandLandmarker";
+import { useSharingStore } from "@/stores/sharing-store";
 
 interface CameraProps {
 	onStreamStop: () => void;
@@ -46,10 +46,16 @@ export function Camera({ onStreamStop }: CameraProps) {
 		const ro = new ResizeObserver(resize);
 		if (canvasEl.parentElement) ro.observe(canvasEl.parentElement);
 
-		start({ video: videoEl, canvas: canvasEl, mirror: true });
+		// Mirror is true for camera feeds to create a natural "looking at yourself" experience
+		const cleanupStart = start({
+			video: videoEl,
+			canvas: canvasEl,
+			mirror: true,
+		});
 
 		return () => {
 			ro.disconnect();
+			cleanupStart?.();
 			stop();
 		};
 	}, [ready, start, stop]);
