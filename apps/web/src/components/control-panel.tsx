@@ -35,15 +35,7 @@ import { trpc } from "@/utils/trpc";
 export function ControlPanel() {
 	const { isSharing, streamType, startScreenShare, startCamera, stopSharing } =
 		useSharingStore();
-	const {
-		isCollecting,
-		startCollecting,
-		stopCollecting,
-		predict,
-		predictionResult,
-		isLoading,
-		frameCount,
-	} = useASLPrediction();
+	const { predictionResult, isLoading, frameCount } = useASLPrediction();
 
 	const sendWhatsAppMutation = trpc.translation.send.useMutation({
 		onSuccess: () => {
@@ -120,56 +112,31 @@ export function ControlPanel() {
 								Stop Sharing
 							</Button>
 
-							{/* ASL Recording Controls */}
+							{/* ASL Prediction Status */}
 							<div className="pt-4 border-t space-y-3">
 								<div className="flex items-center justify-between">
-									<span className="text-sm font-medium">ASL Recording</span>
-									<Badge variant={isCollecting ? "default" : "secondary"}>
-										{isCollecting ? `Recording (${frameCount} frames)` : "Idle"}
+									<span className="text-sm font-medium">ASL Recognition</span>
+									<Badge variant="default">
+										{isLoading
+											? "Processing..."
+											: `Active (${frameCount} frames)`}
 									</Badge>
 								</div>
 
-								{!isCollecting ? (
-									<Button
-										onClick={startCollecting}
-										className="w-full"
-										variant="default"
-									>
-										<Circle className="h-4 w-4 mr-2 fill-current" />
-										Start Recording
-									</Button>
-								) : (
-									<>
-										<Button
-											onClick={stopCollecting}
-											className="w-full"
-											variant="outline"
-										>
-											<Square className="h-4 w-4 mr-2" />
-											Stop Recording
-										</Button>
-										<Button
-											onClick={predict}
-											className="w-full"
-											disabled={isLoading || frameCount === 0}
-										>
-											<Send className="h-4 w-4 mr-2" />
-											{isLoading ? "Predicting..." : "Predict Sign"}
-										</Button>
-									</>
-								)}
-
-								{/* Prediction Result */}
-								{predictionResult && (
-									<div className="pt-2 space-y-2">
-										<div className="text-sm font-medium">Result:</div>
+								{/* Live Prediction Result */}
+								{predictionResult ? (
+									<div className="space-y-2">
+										<div className="text-sm font-medium">
+											Latest Prediction:
+										</div>
 										<div className="p-3 bg-muted rounded-md">
 											<div className="text-lg font-bold">
 												{predictionResult.text || "No prediction"}
 											</div>
 											<div className="text-xs text-muted-foreground mt-1">
 												Confidence:{" "}
-												{(predictionResult.confidence * 100).toFixed(1)}%
+												{(predictionResult.confidence * 100).toFixed(1)}% •{" "}
+												{predictionResult.processingTime.toFixed(0)}ms
 											</div>
 										</div>
 										<Button
@@ -183,6 +150,10 @@ export function ControlPanel() {
 												? "Sending..."
 												: "Send to WhatsApp"}
 										</Button>
+									</div>
+								) : (
+									<div className="text-sm text-muted-foreground text-center py-4">
+										Collecting frames... predictions will appear automatically
 									</div>
 								)}
 							</div>

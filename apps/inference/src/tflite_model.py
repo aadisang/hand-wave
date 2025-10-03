@@ -56,28 +56,24 @@ class TFLiteModel:
         print(f"  Selected columns: {len(self.selected_columns)}")
         print(f"  Vocabulary size: {len(self.num_to_char)}")
 
-    def preprocess(self, landmarks_flat: np.ndarray) -> np.ndarray:
+    def preprocess(self, landmarks_sequence: np.ndarray) -> np.ndarray:
         """
-        Preprocess flat landmark array for model input.
+        Preprocess landmark sequence for model input.
 
         Args:
-            landmarks_flat: Array of shape [390] (single frame, flattened)
+            landmarks_sequence: Array of shape [num_frames, 390] (sequence of flattened frames)
 
         Returns:
-            Preprocessed array ready for model input [1, 390]
+            Preprocessed array ready for model input
         """
-        # Ensure shape is [1, 390]
-        if landmarks_flat.shape == (390,):
-            landmarks_flat = landmarks_flat[np.newaxis, :]
-
         # Convert to float32
-        x = landmarks_flat.astype(np.float32)
+        x = landmarks_sequence.astype(np.float32)
 
-        # Model internally does:
-        # 1. Reshape [390] → [3, 130]
-        # 2. Transpose → [130, 3]
-        # 3. Normalize & fill NaNs
-        # We just need to ensure proper format
+        # The model expects the sequence as-is: [num_frames, 390]
+        # Internally it will:
+        # 1. Reshape each frame [390] → [130, 3]
+        # 2. Apply normalization and handle NaNs
+        # 3. Process the temporal sequence
 
         return x
 
@@ -87,6 +83,7 @@ class TFLiteModel:
 
         Args:
             landmark_frames: List of frames, each frame is [390] flat array
+                           Shape: [num_frames, 390]
 
         Returns:
             Tuple of (predicted_text, confidence)
@@ -94,35 +91,55 @@ class TFLiteModel:
         if not landmark_frames:
             return "", 0.0
 
-        all_predictions = []
-        all_confidences = []
+        # Convert to numpy array: [num_frames, 390]
+        sequence_array = np.array(landmark_frames, dtype=np.float32)
+        print(f"DEBUG: Input sequence shape: {sequence_array.shape}")
+        print(f"DEBUG: Input value range: min={sequence_array.min():.4f}, max={sequence_array.max():.4f}, mean={sequence_array.mean():.4f}")
+        print(f"DEBUG: Sample values (first frame, first 10): {sequence_array[0, :10]}")
+        print(f"DEBUG: NaN count: {np.isnan(sequence_array).sum()}")
 
-        # Process each frame independently
-        for frame in landmark_frames:
-            frame_array = np.array(frame, dtype=np.float32)
+        # The TFLite model expects flattened input: [1, num_frames * 390]
+        # Flatten the sequence into a single vector
+        input_data = sequence_array.flatten().astype(np.float32)
+        print(f"DEBUG: Flattened shape: {input_data.shape}")
 
-            # Preprocess single frame
-            input_data = self.preprocess(frame_array)
+        # Resize to match expected shape [1, 390]
+        # The model internally handles variable length sequences
+        expected_shape = self.input_details[0]["shape"]
+        print(f"DEBUG: Expected input shape: {expected_shape}")
 
-            # Set input tensor
-            self.interpreter.set_tensor(self.input_details[0]["index"], input_data)
+        # The model signature expects [1, 390] but processes variable length
+        # We need to use resize_tensor_input to set dynamic shape
+        num_frames = len(landmark_frames)
+        self.interpreter.resize_tensor_input(
+            self.input_details[0]["index"],
+            [num_frames, 390]
+        )
+        self.interpreter.allocate_tensors()
 
-            # Run inference
-            self.interpreter.invoke()
+        # Now set the tensor with correct shape
+        input_data = sequence_array  # [num_frames, 390]
+        print(f"DEBUG: Setting tensor with shape: {input_data.shape}")
 
-            # Get output: [sequence_length, vocab_size]
-            output = self.interpreter.get_tensor(self.output_details[0]["index"])
+        self.interpreter.set_tensor(self.input_details[0]["index"], input_data)
 
-            # Decode this frame's output
-            text, conf = self.decode_output(output)
-            all_predictions.append(text)
-            all_confidences.append(conf)
+        # Run inference ONCE on the entire sequence
+        self.interpreter.invoke()
 
-        # Combine predictions from all frames
-        final_text = "".join(all_predictions)
-        final_confidence = np.mean(all_confidences) if all_confidences else 0.0
+        # Get output
+        output = self.interpreter.get_tensor(self.output_details[0]["index"])
+        print(f"DEBUG: Model output shape: {output.shape}")
 
-        return final_text, float(final_confidence)
+        # The output is token scores for the predicted sequence
+        # Shape should be [sequence_length, vocab_size] or [1, sequence_length, vocab_size]
+        if len(output.shape) == 3:
+            output = output[0]
+
+        # Decode the sequence output
+        text, confidence = self.decode_output(output)
+        print(f"DEBUG: Decoded text: '{text}', confidence: {confidence}")
+
+        return text, float(confidence)
 
     def decode_output(self, output: np.ndarray) -> tuple[str, float]:
         """

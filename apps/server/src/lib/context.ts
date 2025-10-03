@@ -11,7 +11,9 @@ export type CreateContextOptions = {
  *
  * @returns An object with a `session` property (currently always `null`).
  */
-export async function createContext({ context }: CreateContextOptions) {
+export async function createContext({
+	context: _context,
+}: CreateContextOptions) {
 	// No auth configured
 	return {
 		session: null,
