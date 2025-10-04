@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import type { CombinedLandmarkerResult } from "./useHolisticLandmarker";
 import { usePredictionStore } from "@/stores/prediction-store";
+import type { CombinedLandmarkerResult } from "./useHolisticLandmarker";
 
 const INFERENCE_INTERVAL_MS = 100; // Run inference every 100ms for snappier response
 const CONFIDENCE_THRESHOLD = 0.3; // Only show predictions above 30% confidence
@@ -32,7 +32,10 @@ export function useASLPrediction() {
 	/**
 	 * Calculate hand motion between frames to detect mid-transition
 	 */
-	const calculateHandMotion = (current: number[][], previous: number[][]): number => {
+	const calculateHandMotion = (
+		current: number[][],
+		previous: number[][],
+	): number => {
 		let totalMotion = 0;
 		for (let i = 0; i < current.length; i++) {
 			const dx = current[i][0] - previous[i][0];
@@ -70,7 +73,15 @@ export function useASLPrediction() {
 			const data = await response.json();
 			const roundTripTime = Date.now() - startTime;
 
-			console.log("Prediction received:", data.text, "Confidence:", data.confidence, "Latency:", roundTripTime, "ms");
+			console.log(
+				"Prediction received:",
+				data.text,
+				"Confidence:",
+				data.confidence,
+				"Latency:",
+				roundTripTime,
+				"ms",
+			);
 
 			if (data.text && data.confidence > CONFIDENCE_THRESHOLD) {
 				// Add to prediction history
@@ -91,9 +102,7 @@ export function useASLPrediction() {
 				// 2. High confidence (>60%), OR
 				// 3. Stable across multiple frames
 				const shouldUpdate =
-					data.confidence > 0.8 ||
-					data.confidence > 0.6 ||
-					isStable;
+					data.confidence > 0.8 || data.confidence > 0.6 || isStable;
 
 				if (shouldUpdate) {
 					setPrediction({
@@ -156,7 +165,8 @@ export function useASLPrediction() {
 			}
 
 			// Extract hand landmarks (prefer right hand, fallback to left)
-			let handLandmarks: Array<{ x: number; y: number; z?: number }> | null = null;
+			let handLandmarks: Array<{ x: number; y: number; z?: number }> | null =
+				null;
 			let handType = "none";
 
 			if (result.rightHandLandmarks?.[0]) {
@@ -182,11 +192,19 @@ export function useASLPrediction() {
 
 			// Detect if hand is moving (mid-transition) - skip inference if so
 			let isMoving = false;
-			if (previousLandmarksRef.current && previousLandmarksRef.current.length === landmarks2D.length) {
-				const motion = calculateHandMotion(landmarks2D, previousLandmarksRef.current);
+			if (
+				previousLandmarksRef.current &&
+				previousLandmarksRef.current.length === landmarks2D.length
+			) {
+				const motion = calculateHandMotion(
+					landmarks2D,
+					previousLandmarksRef.current,
+				);
 				isMoving = motion > MOTION_THRESHOLD;
 				if (isMoving) {
-					console.log(`Hand moving (motion=${motion.toFixed(3)}), skipping inference to avoid mid-transition capture`);
+					console.log(
+						`Hand moving (motion=${motion.toFixed(3)}), skipping inference to avoid mid-transition capture`,
+					);
 				}
 			}
 
@@ -198,17 +216,23 @@ export function useASLPrediction() {
 			const now = Date.now();
 			const timeSinceLastInference = now - lastInferenceTimeRef.current;
 
-			if (timeSinceLastInference >= INFERENCE_INTERVAL_MS && !isPendingRef.current && !isMoving) {
+			if (
+				timeSinceLastInference >= INFERENCE_INTERVAL_MS &&
+				!isPendingRef.current &&
+				!isMoving
+			) {
 				lastInferenceTimeRef.current = now;
 				setLoading(true);
 
-				console.log(`Running inference on ${handType} hand with ${landmarks2D.length} landmarks`);
+				console.log(
+					`Running inference on ${handType} hand with ${landmarks2D.length} landmarks`,
+				);
 
 				// Run inference directly (bypass tRPC)
 				runInference(landmarks2D);
 			}
 		},
-		[setLoading, setPrediction],
+		[setLoading],
 	);
 
 	return {
