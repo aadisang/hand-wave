@@ -3,13 +3,13 @@
 import {
 	FaceLandmarker,
 	type FaceLandmarkerResult,
-	FilesetResolver,
 	HandLandmarker,
 	type HandLandmarkerResult,
 	PoseLandmarker,
 	type PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getMediaPipeModels } from "@/lib/mediapipe-cache";
 
 type StartOptions = {
 	video: HTMLVideoElement;
@@ -68,54 +68,15 @@ export function useHolisticLandmarker() {
 		((result: CombinedLandmarkerResult) => void) | null
 	>(null);
 
-	// Initialize all three landmarkers
+	// Initialize all three landmarkers using cached singleton
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
 			try {
-				const vision = await FilesetResolver.forVisionTasks(
-					"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm",
-				);
-
-				// Initialize Face Landmarker
-				const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-					numFaces: 1,
-				});
-
-				// Initialize Pose Landmarker
-				const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-				});
-
-				// Initialize Hand Landmarker
-				const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-					numHands: 2,
-					minHandDetectionConfidence: 0.3,
-					minHandPresenceConfidence: 0.3,
-					minTrackingConfidence: 0.3,
-				});
+				// Get cached models (instant on subsequent loads)
+				const { faceLandmarker, poseLandmarker, handLandmarker } = await getMediaPipeModels();
 
 				if (cancelled) {
-					faceLandmarker.close?.();
-					poseLandmarker.close?.();
-					handLandmarker.close?.();
 					return;
 				}
 
@@ -138,9 +99,7 @@ export function useHolisticLandmarker() {
 				animationFrameRef.current = null;
 			}
 
-			faceLandmarkerRef.current?.close?.();
-			poseLandmarkerRef.current?.close?.();
-			handLandmarkerRef.current?.close?.();
+			// Don't close models - they're cached for reuse
 			faceLandmarkerRef.current = null;
 			poseLandmarkerRef.current = null;
 			handLandmarkerRef.current = null;
