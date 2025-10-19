@@ -1,8 +1,9 @@
 "use client";
 
-import { queryClient } from "@/utils/trpc";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useEffect } from "react";
+import { queryClient, trpc, trpcClient } from "@/utils/trpc";
 import { ThemeProvider } from "./theme-provider";
 import { Toaster } from "./ui/sonner";
 
@@ -17,6 +18,25 @@ import { Toaster } from "./ui/sonner";
  * @returns The provider-wrapped React element tree.
  */
 export default function Providers({ children }: { children: React.ReactNode }) {
+	// Suppress MediaPipe WASM info messages that appear as errors
+	useEffect(() => {
+		const originalError = console.error;
+		console.error = (...args: unknown[]) => {
+			const message = args[0];
+			// Filter out TensorFlow Lite XNNPACK delegate info messages
+			if (
+				typeof message === "string" &&
+				message.includes("Created TensorFlow Lite XNNPACK delegate")
+			) {
+				return; // Suppress this message
+			}
+			originalError.apply(console, args);
+		};
+
+		return () => {
+			console.error = originalError;
+		};
+	}, []);
 	return (
 		<ThemeProvider
 			attribute="class"
@@ -24,10 +44,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 			enableSystem
 			disableTransitionOnChange
 		>
-			<QueryClientProvider client={queryClient}>
-				{children}
-				<ReactQueryDevtools />
-			</QueryClientProvider>
+			<trpc.Provider client={trpcClient} queryClient={queryClient}>
+				<QueryClientProvider client={queryClient}>
+					{children}
+					<ReactQueryDevtools />
+				</QueryClientProvider>
+			</trpc.Provider>
 			<Toaster richColors closeButton />
 		</ThemeProvider>
 	);

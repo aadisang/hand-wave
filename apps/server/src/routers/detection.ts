@@ -8,7 +8,7 @@ export const detectionRouter = router({
 	detect: publicProcedure
 		.input(DetectionInputSchema)
 		.output(DetectionOutputSchema)
-		.mutation(async ({ input }) => {
+		.mutation(async () => {
 			// TODO: Implement actual detection logic, for now we'll simulate a delay and return a random sign
 			await new Promise((resolve) => setTimeout(resolve, 500));
 

@@ -1,19 +1,28 @@
 "use client";
-import { useHandLandmarker } from "@/hooks/useHandLandmarker";
-import { useSharingStore } from "@/stores/sharing-store";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
+import { Badge } from "@/components/ui/badge";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { useASLPrediction } from "@/hooks/useASLPrediction";
+import { useHolisticLandmarker } from "@/hooks/useHolisticLandmarker";
+import { usePredictionStore } from "@/stores/prediction-store";
+import { useSharingStore } from "@/stores/sharing-store";
 
 interface CameraProps {
 	onStreamStop: () => void;
 }
 
 /**
- * Renders a webcam feed with a canvas overlay and starts hand-landmarker processing.
+ * Renders a webcam feed with a canvas overlay and starts holistic landmark processing.
  *
- * When the hand-landmarker is ready, the component sizes the overlay to its container,
- * observes container resizes, and starts landmark detection using the underlying video element.
- * If obtaining user media fails, it stops sharing and calls `onStreamStop`.
+ * Uses MediaPipe HolisticLandmarker to detect face, pose, and hand landmarks needed
+ * for ASL sign language recognition. Collected landmarks are sent to the ASL prediction hook.
  *
  * @param onStreamStop - Callback invoked when the camera stream fails or is stopped due to a user-media error.
  * @returns The Camera React element.
@@ -22,13 +31,44 @@ export function Camera({ onStreamStop }: CameraProps) {
 	const webcamRef = useRef<Webcam>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const { stopSharing } = useSharingStore();
-	const { ready, start, stop } = useHandLandmarker();
+	const { ready, start, stop } = useHolisticLandmarker();
+	const { addLandmarkFrame, start: startPrediction } = useASLPrediction();
+
+	// Read from global store
+	const currentPrediction = usePredictionStore(
+		(state) => state.currentPrediction,
+	);
+	const isLoading = usePredictionStore((state) => state.isLoading);
+
+	// Track if hand is detected
+	const [handDetected, setHandDetected] = useState(false);
+
+	// Camera device selection
+	const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+	const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
 
 	const videoConstraints = {
 		width: 1280,
 		height: 720,
-		facingMode: "user",
+		deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+		facingMode: selectedDeviceId ? undefined : "user",
 	};
+
+	// Enumerate cameras
+	useEffect(() => {
+		const getCameras = async () => {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			const videoDevices = devices.filter(
+				(device) => device.kind === "videoinput",
+			);
+			setDevices(videoDevices);
+			// Auto-select first device if none selected
+			if (videoDevices.length > 0 && !selectedDeviceId) {
+				setSelectedDeviceId(videoDevices[0].deviceId);
+			}
+		};
+		getCameras();
+	}, [selectedDeviceId]);
 
 	useEffect(() => {
 		const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
@@ -46,13 +86,36 @@ export function Camera({ onStreamStop }: CameraProps) {
 		const ro = new ResizeObserver(resize);
 		if (canvasEl.parentElement) ro.observe(canvasEl.parentElement);
 
-		start({ video: videoEl, canvas: canvasEl, mirror: true });
+		// Mirror is true for camera feeds to create a natural "looking at yourself" experience
+		const cleanupStart = start({
+			video: videoEl,
+			canvas: canvasEl,
+			mirror: true,
+			onLandmarksDetected: (result) => {
+				// Check if hand is detected
+				const hasHand = !!(
+					result.rightHandLandmarks?.[0] || result.leftHandLandmarks?.[0]
+				);
+				setHandDetected(hasHand);
+
+				// Continuously collect landmarks for automatic inference
+				addLandmarkFrame(result);
+			},
+		});
 
 		return () => {
 			ro.disconnect();
+			cleanupStart?.();
 			stop();
 		};
-	}, [ready, start, stop]);
+	}, [ready, start, stop, addLandmarkFrame]);
+
+	// Separate effect for starting prediction (only once when ready)
+	useEffect(() => {
+		if (ready) {
+			startPrediction();
+		}
+	}, [ready, startPrediction]);
 
 	return (
 		<div className="w-full h-full relative">
@@ -71,6 +134,55 @@ export function Camera({ onStreamStop }: CameraProps) {
 				ref={canvasRef}
 				className="absolute inset-0 pointer-events-none"
 			/>
+
+			{/* Camera Device Selector - Top Left Corner */}
+			{devices.length > 1 && (
+				<div className="absolute top-4 left-4 z-10">
+					<Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+						<SelectTrigger className="bg-background/80 backdrop-blur-sm">
+							<SelectValue placeholder="Select camera" />
+						</SelectTrigger>
+						<SelectContent>
+							{devices.map((device) => (
+								<SelectItem key={device.deviceId} value={device.deviceId}>
+									{device.label || `Camera ${devices.indexOf(device) + 1}`}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			)}
+
+			{/* Subtle Status Overlay - Top Right Corner */}
+			<div className="absolute top-4 right-4 z-10">
+				{!handDetected ? (
+					<Badge
+						variant="outline"
+						className="bg-background/80 backdrop-blur-sm"
+					>
+						No hand detected
+					</Badge>
+				) : currentPrediction ? (
+					<div className="flex items-center gap-2 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border shadow-sm">
+						<span className="text-3xl font-bold">{currentPrediction.text}</span>
+						<div className="flex flex-col gap-1">
+							<Badge variant="secondary" className="text-xs h-4">
+								{(currentPrediction.confidence * 100).toFixed(0)}%
+							</Badge>
+							<Badge variant="outline" className="text-xs h-4">
+								{currentPrediction.processingTime.toFixed(0)}ms
+							</Badge>
+						</div>
+					</div>
+				) : isLoading ? (
+					<Badge
+						variant="secondary"
+						className="bg-background/80 backdrop-blur-sm animate-pulse"
+					>
+						Analyzing...
+					</Badge>
+				) : null}
+			</div>
 		</div>
 	);
 }

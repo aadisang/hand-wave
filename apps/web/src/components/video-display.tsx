@@ -39,7 +39,7 @@ export function VideoDisplay() {
 	const { isSharing, streamType, stopSharing } = useSharingStore();
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const streamRef = useRef<MediaStream | null>(null);
-	const hasStartedScreenShare = useRef(false);
+	const isInitializingRef = useRef(false);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const { ready, start, stop } = useHandLandmarker();
 
@@ -62,21 +62,26 @@ export function VideoDisplay() {
 		return <MonitorOff className="h-5 w-5" />;
 	};
 
-	const handleStreamStop = () => {
+	const handleStreamStop = useCallback(() => {
 		if (streamRef.current) {
-			streamRef.current.getTracks().forEach((track) => track.stop());
+			streamRef.current.getTracks().forEach((track) => {
+				track.stop();
+			});
 			streamRef.current = null;
 		}
 		if (videoRef.current) {
 			videoRef.current.srcObject = null;
 		}
 		stop();
-		hasStartedScreenShare.current = false;
+		isInitializingRef.current = false;
 		stopSharing();
-	};
+	}, [stop, stopSharing]);
 
 	// Handle screen sharing when the component mounts and streamType is screen
 	const startScreenShare = useCallback(async () => {
+		if (isInitializingRef.current) return;
+		isInitializingRef.current = true;
+
 		try {
 			const stream = await navigator.mediaDevices.getDisplayMedia({
 				audio: false,
@@ -92,30 +97,23 @@ export function VideoDisplay() {
 				};
 			}
 		} catch (error) {
-			toast.error("Failed to start screen sharing");
-			hasStartedScreenShare.current = false;
+			console.error("Failed to start screen sharing:", error);
+			const errorMessage =
+				error instanceof DOMException && error.name === "NotAllowedError"
+					? "Screen sharing permission was denied"
+					: "Failed to start screen sharing";
+			toast.error(errorMessage);
+			isInitializingRef.current = false;
 			stopSharing();
 		}
-	}, [stopSharing]);
+	}, [handleStreamStop, stopSharing]);
 
 	// Use useEffect to handle screen sharing initiation
 	useEffect(() => {
-		if (
-			isSharing &&
-			streamType === "screen" &&
-			!hasStartedScreenShare.current
-		) {
-			hasStartedScreenShare.current = true;
+		if (isSharing && streamType === "screen" && !isInitializingRef.current) {
 			startScreenShare();
 		}
 	}, [isSharing, streamType, startScreenShare]);
-
-	// Reset flag when not sharing
-	useEffect(() => {
-		if (!isSharing) {
-			hasStartedScreenShare.current = false;
-		}
-	}, [isSharing]);
 
 	// Start hand tracking on screen share
 	useEffect(() => {
@@ -136,10 +134,12 @@ export function VideoDisplay() {
 		const ro = new ResizeObserver(resize);
 		if (canvas.parentElement) ro.observe(canvas.parentElement);
 
-		start({ video, canvas, mirror: false });
+		// Mirror is false for screen shares because they should display content as-is, not flipped
+		const cleanupStart = start({ video, canvas, mirror: false });
 
 		return () => {
 			ro.disconnect();
+			cleanupStart?.();
 			stop();
 		};
 	}, [ready, isSharing, streamType, start, stop]);

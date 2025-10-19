@@ -1,10 +1,14 @@
 import { z } from "zod";
 
-export const DetectionInputSchema = z.object({
-	imageData: z.string().optional(), // Base64 encoded image data
-	videoData: z.string().optional(), // Base64 encoded video data
-	audioData: z.string().optional(), // Base64 encoded audio data
-});
+export const DetectionInputSchema = z
+	.object({
+		imageData: z.string().optional(), // Base64 encoded image data
+		videoData: z.string().optional(), // Base64 encoded video data
+		audioData: z.string().optional(), // Base64 encoded audio data
+	})
+	.refine((data) => data.imageData || data.videoData || data.audioData, {
+		message: "At least one of imageData, videoData, or audioData is required",
+	});
 
 export const DetectionOutputSchema = z.object({
 	detectedSign: z.string(),

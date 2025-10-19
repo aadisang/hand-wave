@@ -63,6 +63,9 @@ export function useHandLandmarker() {
 	const runningRef = useRef(false);
 	const lastVideoTimeRef = useRef(-1);
 	const [ready, setReady] = useState(false);
+	const onLandmarksDetectedRef = useRef<
+		((result: HandLandmarkerResult) => void) | null
+	>(null);
 
 	// Initialize the HandLandmarker once on mount
 	useEffect(() => {
@@ -88,13 +91,15 @@ export function useHandLandmarker() {
 				}
 				landmarkerRef.current = handLandmarker;
 				setReady(true);
-			} catch {
+			} catch (error) {
+				console.error("Failed to initialize HandLandmarker:", error);
 				setReady(false);
 			}
 		})();
 
 		return () => {
 			// Cleanup
+			cancelled = true;
 			runningRef.current = false;
 
 			if (animationFrameRef.current != null) {
@@ -192,17 +197,40 @@ export function useHandLandmarker() {
 	);
 
 	const start = useCallback(
-		({ video, canvas, mirror = false }: StartOptions) => {
+		({
+			video,
+			canvas,
+			mirror = false,
+			onLandmarksDetected,
+		}: StartOptions & {
+			onLandmarksDetected?: (result: HandLandmarkerResult) => void;
+		}) => {
 			const lm = landmarkerRef.current;
 			if (!lm) return;
+
+			// Store the callback
+			onLandmarksDetectedRef.current = onLandmarksDetected || null;
 
 			// Ensure running mode is VIDEO
 			lm.setOptions?.({ runningMode: "VIDEO" }).catch(() => {});
 
 			runningRef.current = true;
 
-			const ctx = canvas.getContext("2d");
+			const ctx = canvas.getContext("2d", { willReadFrequently: false });
 			if (!ctx) return;
+
+			// Handle WebGL context loss
+			const handleContextLost = (event: Event) => {
+				event.preventDefault();
+				console.warn("Canvas context lost - will attempt to restore");
+			};
+
+			const handleContextRestored = () => {
+				console.info("Canvas context restored");
+			};
+
+			canvas.addEventListener("webglcontextlost", handleContextLost);
+			canvas.addEventListener("webglcontextrestored", handleContextRestored);
 
 			const loop = () => {
 				if (!runningRef.current) return;
@@ -216,8 +244,17 @@ export function useHandLandmarker() {
 
 				if (lastVideoTimeRef.current !== video.currentTime) {
 					lastVideoTimeRef.current = video.currentTime;
-					const results = lm.detectForVideo(video, now);
-					drawResults(results, ctx, canvas, video, mirror);
+					try {
+						const results = lm.detectForVideo(video, now);
+						drawResults(results, ctx, canvas, video, mirror);
+
+						// Call the landmarks callback if provided
+						if (onLandmarksDetectedRef.current) {
+							onLandmarksDetectedRef.current(results);
+						}
+					} catch (error) {
+						console.error("Error during hand detection:", error);
+					}
 				}
 
 				animationFrameRef.current = requestAnimationFrame(loop);
@@ -233,6 +270,15 @@ export function useHandLandmarker() {
 				};
 				video.addEventListener("loadeddata", onLoaded);
 			}
+
+			// Cleanup function to remove event listeners
+			return () => {
+				canvas.removeEventListener("webglcontextlost", handleContextLost);
+				canvas.removeEventListener(
+					"webglcontextrestored",
+					handleContextRestored,
+				);
+			};
 		},
 		[drawResults],
 	);

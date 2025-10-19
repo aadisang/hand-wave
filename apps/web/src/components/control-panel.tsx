@@ -1,4 +1,6 @@
 "use client";
+import { Circle, MessageCircle, Share2, Square, Video } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +10,9 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { usePredictionStore } from "@/stores/prediction-store";
 import { useSharingStore } from "@/stores/sharing-store";
-import { Settings, Share2, Square, Video } from "lucide-react";
+import { trpc } from "@/utils/trpc";
 
 /**
  * Renders a control panel for managing sharing and camera sessions.
@@ -25,11 +28,31 @@ export function ControlPanel() {
 	const { isSharing, streamType, startScreenShare, startCamera, stopSharing } =
 		useSharingStore();
 
+	// Read from global prediction store
+	const currentPrediction = usePredictionStore(
+		(state) => state.currentPrediction,
+	);
+
+	const sendWhatsAppMutation = trpc.translation.send.useMutation({
+		onSuccess: () => {
+			toast.success("Sent to WhatsApp!");
+		},
+		onError: (error) => {
+			toast.error(`Failed to send: ${error.message}`);
+		},
+	});
+
+	const handleSendToWhatsApp = () => {
+		if (currentPrediction?.text) {
+			sendWhatsAppMutation.mutate({ translation: currentPrediction.text });
+		}
+	};
+
 	return (
 		<Card className="lg:col-span-1">
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					<Settings className="h-5 w-5" />
+					<Circle className="h-5 w-5" />
 					Controls
 				</CardTitle>
 				<CardDescription>
@@ -74,15 +97,34 @@ export function ControlPanel() {
 							</Button>
 						</>
 					) : (
-						<Button
-							onClick={stopSharing}
-							variant="destructive"
-							className="w-full"
-							size="lg"
-						>
-							<Square className="h-5 w-5 mr-2" />
-							Stop Sharing
-						</Button>
+						<>
+							<Button
+								onClick={stopSharing}
+								variant="destructive"
+								className="w-full"
+								size="lg"
+							>
+								<Square className="h-5 w-5 mr-2" />
+								Stop Sharing
+							</Button>
+
+							{/* Quick Actions */}
+							{currentPrediction && (
+								<div className="pt-4 border-t">
+									<Button
+										onClick={handleSendToWhatsApp}
+										className="w-full"
+										variant="secondary"
+										disabled={sendWhatsAppMutation.isPending}
+									>
+										<MessageCircle className="h-4 w-4 mr-2" />
+										{sendWhatsAppMutation.isPending
+											? "Sending..."
+											: "Send to WhatsApp"}
+									</Button>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			</CardContent>
