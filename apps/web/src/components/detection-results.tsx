@@ -1,4 +1,7 @@
 "use client";
+import { Hand, History, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -14,10 +17,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { usePredictionStore } from "@/stores/prediction-store";
-import { Hand, Trash2, History } from "lucide-react";
 
 /**
  * Displays prediction history in a clean table format.
@@ -86,9 +86,15 @@ export function DetectionResults() {
 								<TableHeader className="sticky top-0 bg-background z-10">
 									<TableRow>
 										<TableHead className="w-[140px]">Time</TableHead>
-										<TableHead className="text-center w-[100px]">Sign</TableHead>
-										<TableHead className="text-right w-[120px]">Confidence</TableHead>
-										<TableHead className="text-right w-[100px]">Speed</TableHead>
+										<TableHead className="text-center w-[100px]">
+											Sign
+										</TableHead>
+										<TableHead className="text-right w-[120px]">
+											Confidence
+										</TableHead>
+										<TableHead className="text-right w-[100px]">
+											Speed
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -98,9 +104,7 @@ export function DetectionResults() {
 												{formatTime(item.timestamp)}
 											</TableCell>
 											<TableCell className="text-center">
-												<span className="text-2xl font-bold">
-													{item.text}
-												</span>
+												<span className="text-2xl font-bold">{item.text}</span>
 											</TableCell>
 											<TableCell className="text-right">
 												<Badge variant="secondary" className="text-xs">

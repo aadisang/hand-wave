@@ -28,7 +28,11 @@ interface PredictionState {
 
 	// Actions
 	setPrediction: (prediction: PredictionResult) => void;
-	addToHistory: (text: string, confidence: number, processingTime: number) => void;
+	addToHistory: (
+		text: string,
+		confidence: number,
+		processingTime: number,
+	) => void;
 	clearHistory: () => void;
 	setActive: (active: boolean) => void;
 	setLoading: (loading: boolean) => void;

@@ -1,11 +1,5 @@
 "use client";
-import {
-	Circle,
-	MessageCircle,
-	Square,
-	Video,
-	Share2,
-} from "lucide-react";
+import { Circle, MessageCircle, Share2, Square, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,8 +10,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { useSharingStore } from "@/stores/sharing-store";
 import { usePredictionStore } from "@/stores/prediction-store";
+import { useSharingStore } from "@/stores/sharing-store";
 import { trpc } from "@/utils/trpc";
 
 /**
@@ -35,9 +29,9 @@ export function ControlPanel() {
 		useSharingStore();
 
 	// Read from global prediction store
-	const currentPrediction = usePredictionStore((state) => state.currentPrediction);
-	const isLoading = usePredictionStore((state) => state.isLoading);
-	const isActive = usePredictionStore((state) => state.isActive);
+	const currentPrediction = usePredictionStore(
+		(state) => state.currentPrediction,
+	);
 
 	const sendWhatsAppMutation = trpc.translation.send.useMutation({
 		onSuccess: () => {

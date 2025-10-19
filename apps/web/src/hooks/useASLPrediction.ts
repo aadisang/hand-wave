@@ -32,98 +32,101 @@ export function useASLPrediction() {
 	/**
 	 * Calculate hand motion between frames to detect mid-transition
 	 */
-	const calculateHandMotion = (
-		current: number[][],
-		previous: number[][],
-	): number => {
-		let totalMotion = 0;
-		for (let i = 0; i < current.length; i++) {
-			const dx = current[i][0] - previous[i][0];
-			const dy = current[i][1] - previous[i][1];
-			totalMotion += Math.sqrt(dx * dx + dy * dy);
-		}
-		return totalMotion / current.length; // Average motion per landmark
-	};
+	const calculateHandMotion = useCallback(
+		(current: number[][], previous: number[][]): number => {
+			let totalMotion = 0;
+			for (let i = 0; i < current.length; i++) {
+				const dx = current[i][0] - previous[i][0];
+				const dy = current[i][1] - previous[i][1];
+				totalMotion += Math.sqrt(dx * dx + dy * dy);
+			}
+			return totalMotion / current.length; // Average motion per landmark
+		},
+		[],
+	);
 
 	/**
 	 * Direct HTTP call to Python inference server (bypasses tRPC/Next.js middleware)
 	 */
-	const runInference = async (landmarks: number[][]) => {
-		const startTime = Date.now();
-		requestStartTimeRef.current = startTime;
-		isPendingRef.current = true;
+	const runInference = useCallback(
+		async (landmarks: number[][]) => {
+			const startTime = Date.now();
+			requestStartTimeRef.current = startTime;
+			isPendingRef.current = true;
 
-		try {
-			// Direct call to Python FastAPI server
-			const response = await fetch("http://localhost:8000/predict", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					landmarks,
-					image_width: 1920,
-					image_height: 1080,
-					mode: "static",
-				}),
-			});
+			try {
+				// Direct call to Python FastAPI server
+				const response = await fetch("http://localhost:8000/predict", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						landmarks,
+						image_width: 1920,
+						image_height: 1080,
+						mode: "static",
+					}),
+				});
 
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-
-			const data = await response.json();
-			const roundTripTime = Date.now() - startTime;
-
-			console.log(
-				"Prediction received:",
-				data.text,
-				"Confidence:",
-				data.confidence,
-				"Latency:",
-				roundTripTime,
-				"ms",
-			);
-
-			if (data.text && data.confidence > CONFIDENCE_THRESHOLD) {
-				// Add to prediction history
-				predictionHistoryRef.current.push(data.text);
-
-				// Keep only last N predictions
-				if (predictionHistoryRef.current.length > STABILIZATION_FRAMES) {
-					predictionHistoryRef.current.shift();
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 				}
 
-				// Check if prediction is stable (same prediction N times in a row)
-				const isStable =
-					predictionHistoryRef.current.length === STABILIZATION_FRAMES &&
-					predictionHistoryRef.current.every((p) => p === data.text);
+				const data = await response.json();
+				const roundTripTime = Date.now() - startTime;
 
-				// Update display if:
-				// 1. Very high confidence (>80%) - immediate update, OR
-				// 2. High confidence (>60%), OR
-				// 3. Stable across multiple frames
-				const shouldUpdate =
-					data.confidence > 0.8 || data.confidence > 0.6 || isStable;
+				console.log(
+					"Prediction received:",
+					data.text,
+					"Confidence:",
+					data.confidence,
+					"Latency:",
+					roundTripTime,
+					"ms",
+				);
 
-				if (shouldUpdate) {
-					setPrediction({
-						text: data.text,
-						confidence: data.confidence,
-						processingTime: roundTripTime,
-						topPredictions: data.top_predictions,
-					});
+				if (data.text && data.confidence > CONFIDENCE_THRESHOLD) {
+					// Add to prediction history
+					predictionHistoryRef.current.push(data.text);
+
+					// Keep only last N predictions
+					if (predictionHistoryRef.current.length > STABILIZATION_FRAMES) {
+						predictionHistoryRef.current.shift();
+					}
+
+					// Check if prediction is stable (same prediction N times in a row)
+					const isStable =
+						predictionHistoryRef.current.length === STABILIZATION_FRAMES &&
+						predictionHistoryRef.current.every((p) => p === data.text);
+
+					// Update display if:
+					// 1. Very high confidence (>80%) - immediate update, OR
+					// 2. High confidence (>60%), OR
+					// 3. Stable across multiple frames
+					const shouldUpdate =
+						data.confidence > 0.8 || data.confidence > 0.6 || isStable;
+
+					if (shouldUpdate) {
+						setPrediction({
+							text: data.text,
+							confidence: data.confidence,
+							processingTime: roundTripTime,
+							topPredictions: data.top_predictions,
+						});
+					} else {
+						setLoading(false);
+					}
 				} else {
 					setLoading(false);
 				}
-			} else {
+			} catch (error) {
+				console.error("Inference error:", error);
 				setLoading(false);
+			} finally {
+				isPendingRef.current = false;
 			}
-		} catch (error) {
-			console.error("Inference error:", error);
-			setLoading(false);
-		} finally {
-			isPendingRef.current = false;
-		}
-	};
+		},
+		[setLoading, setPrediction],
+	);
 
 	const start = useCallback(() => {
 		// Prevent multiple calls
@@ -232,7 +235,7 @@ export function useASLPrediction() {
 				runInference(landmarks2D);
 			}
 		},
-		[setLoading],
+		[setLoading, calculateHandMotion, runInference],
 	);
 
 	return {
