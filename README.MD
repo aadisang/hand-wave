@@ -5,8 +5,8 @@ Real-time ASL (American Sign Language) recognition from Meta AI glasses, streame
 ## Demo
 
 <div align="center">
-<a href="https://www.youtube.com/watch?v=ZncD5yy729c">
-<img src="https://img.youtube.com/vi/ZncD5yy729c/0.jpg" alt="Demo: Hand Wave with Meta AI Glasses" width="720" />
+<a href="https://youtu.be/ZAxBf1XG9lU">
+<img src="https://img.youtube.com/vi/ZAxBf1XG9lU/0.jpg" alt="Demo: Hand Wave with Meta AI Glasses" width="720" />
 </a>
 <br />
 <em>Real-time stream from glasses with hand landmark detection and ASL translation.</em>
