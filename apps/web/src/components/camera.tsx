@@ -1,12 +1,18 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
+import { Badge } from "@/components/ui/badge";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useASLPrediction } from "@/hooks/useASLPrediction";
 import { useHolisticLandmarker } from "@/hooks/useHolisticLandmarker";
-import { useSharingStore } from "@/stores/sharing-store";
 import { usePredictionStore } from "@/stores/prediction-store";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { useSharingStore } from "@/stores/sharing-store";
 
 interface CameraProps {
 	onStreamStop: () => void;
@@ -29,18 +35,40 @@ export function Camera({ onStreamStop }: CameraProps) {
 	const { addLandmarkFrame, start: startPrediction } = useASLPrediction();
 
 	// Read from global store
-	const currentPrediction = usePredictionStore((state) => state.currentPrediction);
+	const currentPrediction = usePredictionStore(
+		(state) => state.currentPrediction,
+	);
 	const isLoading = usePredictionStore((state) => state.isLoading);
-	const isActive = usePredictionStore((state) => state.isActive);
 
 	// Track if hand is detected
 	const [handDetected, setHandDetected] = useState(false);
 
+	// Camera device selection
+	const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+	const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+
 	const videoConstraints = {
 		width: 1280,
 		height: 720,
-		facingMode: "user",
+		deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+		facingMode: selectedDeviceId ? undefined : "user",
 	};
+
+	// Enumerate cameras
+	useEffect(() => {
+		const getCameras = async () => {
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			const videoDevices = devices.filter(
+				(device) => device.kind === "videoinput",
+			);
+			setDevices(videoDevices);
+			// Auto-select first device if none selected
+			if (videoDevices.length > 0 && !selectedDeviceId) {
+				setSelectedDeviceId(videoDevices[0].deviceId);
+			}
+		};
+		getCameras();
+	}, [selectedDeviceId]);
 
 	useEffect(() => {
 		const videoEl = webcamRef.current?.video as HTMLVideoElement | undefined;
@@ -65,7 +93,9 @@ export function Camera({ onStreamStop }: CameraProps) {
 			mirror: true,
 			onLandmarksDetected: (result) => {
 				// Check if hand is detected
-				const hasHand = !!(result.rightHandLandmarks?.[0] || result.leftHandLandmarks?.[0]);
+				const hasHand = !!(
+					result.rightHandLandmarks?.[0] || result.leftHandLandmarks?.[0]
+				);
 				setHandDetected(hasHand);
 
 				// Continuously collect landmarks for automatic inference
@@ -85,9 +115,7 @@ export function Camera({ onStreamStop }: CameraProps) {
 		if (ready) {
 			startPrediction();
 		}
-		// Intentionally omitting startPrediction from deps to only call once when ready changes
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ready]);
+	}, [ready, startPrediction]);
 
 	return (
 		<div className="w-full h-full relative">
@@ -107,10 +135,31 @@ export function Camera({ onStreamStop }: CameraProps) {
 				className="absolute inset-0 pointer-events-none"
 			/>
 
+			{/* Camera Device Selector - Top Left Corner */}
+			{devices.length > 1 && (
+				<div className="absolute top-4 left-4 z-10">
+					<Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+						<SelectTrigger className="bg-background/80 backdrop-blur-sm">
+							<SelectValue placeholder="Select camera" />
+						</SelectTrigger>
+						<SelectContent>
+							{devices.map((device) => (
+								<SelectItem key={device.deviceId} value={device.deviceId}>
+									{device.label || `Camera ${devices.indexOf(device) + 1}`}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			)}
+
 			{/* Subtle Status Overlay - Top Right Corner */}
 			<div className="absolute top-4 right-4 z-10">
 				{!handDetected ? (
-					<Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
+					<Badge
+						variant="outline"
+						className="bg-background/80 backdrop-blur-sm"
+					>
 						No hand detected
 					</Badge>
 				) : currentPrediction ? (
@@ -126,7 +175,10 @@ export function Camera({ onStreamStop }: CameraProps) {
 						</div>
 					</div>
 				) : isLoading ? (
-					<Badge variant="secondary" className="bg-background/80 backdrop-blur-sm animate-pulse">
+					<Badge
+						variant="secondary"
+						className="bg-background/80 backdrop-blur-sm animate-pulse"
+					>
 						Analyzing...
 					</Badge>
 				) : null}

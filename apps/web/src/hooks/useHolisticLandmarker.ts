@@ -1,12 +1,12 @@
 "use client";
 
-import {
+import type {
 	FaceLandmarker,
-	type FaceLandmarkerResult,
+	FaceLandmarkerResult,
 	HandLandmarker,
-	type HandLandmarkerResult,
+	HandLandmarkerResult,
 	PoseLandmarker,
-	type PoseLandmarkerResult,
+	PoseLandmarkerResult,
 } from "@mediapipe/tasks-vision";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMediaPipeModels } from "@/lib/mediapipe-cache";
@@ -74,7 +74,8 @@ export function useHolisticLandmarker() {
 		(async () => {
 			try {
 				// Get cached models (instant on subsequent loads)
-				const { faceLandmarker, poseLandmarker, handLandmarker } = await getMediaPipeModels();
+				const { faceLandmarker, poseLandmarker, handLandmarker } =
+					await getMediaPipeModels();
 
 				if (cancelled) {
 					return;
@@ -217,7 +218,12 @@ export function useHolisticLandmarker() {
 	);
 
 	const start = useCallback(
-		({ video, canvas, mirror = false, onLandmarksDetected }: StartOptions) => {
+		({
+			video,
+			canvas,
+			mirror = false,
+			onLandmarksDetected,
+		}: StartOptions): (() => void) | undefined => {
 			const faceLm = faceLandmarkerRef.current;
 			const poseLm = poseLandmarkerRef.current;
 			const handLm = handLandmarkerRef.current;
@@ -234,17 +240,16 @@ export function useHolisticLandmarker() {
 			const ctx = canvas.getContext("2d", { willReadFrequently: false });
 			if (!ctx) return;
 
-			const handleContextLost = (event: Event) => {
-				event.preventDefault();
-				console.warn("Canvas context lost - will attempt to restore");
-			};
+			// Create a temporary canvas for preprocessing
+			const preprocessCanvas = document.createElement("canvas");
+			const preprocessCtx = preprocessCanvas.getContext("2d", {
+				willReadFrequently: false,
+			});
+			if (!preprocessCtx) return;
 
-			const handleContextRestored = () => {
-				console.info("Canvas context restored");
-			};
-
-			canvas.addEventListener("webglcontextlost", handleContextLost);
-			canvas.addEventListener("webglcontextrestored", handleContextRestored);
+			// Note: We intentionally avoid WebGL context listeners here since we're
+			// using a 2D canvas context. Adding WebGL listeners on a 2D context is
+			// unnecessary and can be misleading.
 
 			const loop = () => {
 				if (!runningRef.current) return;
@@ -259,10 +264,41 @@ export function useHolisticLandmarker() {
 				if (lastVideoTimeRef.current !== video.currentTime) {
 					lastVideoTimeRef.current = video.currentTime;
 					try {
-						// Run all three detectors
-						const faceResults = faceLm.detectForVideo(video, now);
-						const poseResults = poseLm.detectForVideo(video, now);
-						const handResults = handLm.detectForVideo(video, now);
+						// Preprocess video frame for better detection in poor lighting
+						preprocessCanvas.width = video.videoWidth;
+						preprocessCanvas.height = video.videoHeight;
+
+						// Draw original frame
+						preprocessCtx.drawImage(video, 0, 0);
+
+						// Apply brightness and contrast adjustments
+						const imageData = preprocessCtx.getImageData(
+							0,
+							0,
+							preprocessCanvas.width,
+							preprocessCanvas.height,
+						);
+						const data = imageData.data;
+
+						// Brightness: +20, Contrast: 1.2
+						const brightness = 20;
+						const contrast = 1.2;
+						const factor =
+							(259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
+
+						for (let i = 0; i < data.length; i += 4) {
+							// Apply contrast and brightness to RGB channels
+							data[i] = factor * (data[i] - 128) + 128 + brightness;
+							data[i + 1] = factor * (data[i + 1] - 128) + 128 + brightness;
+							data[i + 2] = factor * (data[i + 2] - 128) + 128 + brightness;
+						}
+
+						preprocessCtx.putImageData(imageData, 0, 0);
+
+						// Run all three detectors on preprocessed frame
+						const faceResults = faceLm.detectForVideo(preprocessCanvas, now);
+						const poseResults = poseLm.detectForVideo(preprocessCanvas, now);
+						const handResults = handLm.detectForVideo(preprocessCanvas, now);
 
 						// Separate hands by handedness
 						const leftHand = [];
@@ -308,11 +344,7 @@ export function useHolisticLandmarker() {
 			}
 
 			return () => {
-				canvas.removeEventListener("webglcontextlost", handleContextLost);
-				canvas.removeEventListener(
-					"webglcontextrestored",
-					handleContextRestored,
-				);
+				runningRef.current = false;
 			};
 		},
 		[drawResults],

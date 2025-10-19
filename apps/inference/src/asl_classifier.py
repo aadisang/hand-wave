@@ -51,10 +51,18 @@ class ASLClassifier:
         self.movement_input_details = self.movement_interpreter.get_input_details()
         self.movement_output_details = self.movement_interpreter.get_output_details()
 
-        # Load labels
-        with open(label_path, encoding="utf-8-sig") as f:
-            classifier_labels = csv.reader(f)
-            self.labels = [row[0] for row in classifier_labels]
+        # Load labels (robust to blank lines and BOM)
+        with open(label_path, encoding="utf-8-sig", newline="") as f:
+            reader = csv.reader(f)
+            labels: list[str] = []
+            for row in reader:
+                if not row:
+                    continue
+                label = row[0].strip()
+                if not label:
+                    continue
+                labels.append(label)
+            self.labels = labels
 
         self.output_count = output_count
 

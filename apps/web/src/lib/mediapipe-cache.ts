@@ -30,7 +30,11 @@ const cache: ModelCache = {
  * Load and cache MediaPipe models (singleton pattern).
  * Returns cached models if already loaded.
  */
-export async function getMediaPipeModels() {
+export async function getMediaPipeModels(): Promise<{
+	faceLandmarker: FaceLandmarker;
+	poseLandmarker: PoseLandmarker;
+	handLandmarker: HandLandmarker;
+}> {
 	// Return cached models if available
 	if (cache.faceLandmarker && cache.poseLandmarker && cache.handLandmarker) {
 		console.log("Using cached MediaPipe models");
@@ -38,6 +42,10 @@ export async function getMediaPipeModels() {
 			faceLandmarker: cache.faceLandmarker,
 			poseLandmarker: cache.poseLandmarker,
 			handLandmarker: cache.handLandmarker,
+		} as {
+			faceLandmarker: FaceLandmarker;
+			poseLandmarker: PoseLandmarker;
+			handLandmarker: HandLandmarker;
 		};
 	}
 
@@ -45,10 +53,17 @@ export async function getMediaPipeModels() {
 	if (cache.loading) {
 		console.log("Waiting for MediaPipe models to load...");
 		await cache.loading;
+		if (
+			!cache.faceLandmarker ||
+			!cache.poseLandmarker ||
+			!cache.handLandmarker
+		) {
+			throw new Error("MediaPipe models failed to load from cache");
+		}
 		return {
-			faceLandmarker: cache.faceLandmarker!,
-			poseLandmarker: cache.poseLandmarker!,
-			handLandmarker: cache.handLandmarker!,
+			faceLandmarker: cache.faceLandmarker,
+			poseLandmarker: cache.poseLandmarker,
+			handLandmarker: cache.handLandmarker,
 		};
 	}
 
@@ -59,42 +74,52 @@ export async function getMediaPipeModels() {
 			// Load WASM runtime (cached by browser)
 			if (!cache.vision) {
 				cache.vision = await FilesetResolver.forVisionTasks(
-					"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm"
+					"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm",
 				);
 			}
 
 			// Load models in parallel
-			const [faceLandmarker, poseLandmarker, handLandmarker] = await Promise.all([
-				FaceLandmarker.createFromOptions(cache.vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-					numFaces: 1,
-				}),
-				PoseLandmarker.createFromOptions(cache.vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-				}),
-				HandLandmarker.createFromOptions(cache.vision, {
-					baseOptions: {
-						modelAssetPath:
-							"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-						delegate: "GPU",
-					},
-					runningMode: "VIDEO",
-					numHands: 2,
-					minHandDetectionConfidence: 0.3,
-					minHandPresenceConfidence: 0.3,
-					minTrackingConfidence: 0.3,
-				}),
-			]);
+			const [faceLandmarker, poseLandmarker, handLandmarker] =
+				await Promise.all([
+					FaceLandmarker.createFromOptions(cache.vision, {
+						baseOptions: {
+							modelAssetPath:
+								"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+							delegate: "GPU",
+						},
+						runningMode: "VIDEO",
+						numFaces: 1,
+						minFaceDetectionConfidence: 0.3,
+						minFacePresenceConfidence: 0.3,
+						minTrackingConfidence: 0.3,
+					} as const satisfies Parameters<
+						typeof FaceLandmarker.createFromOptions
+					>[1]),
+					PoseLandmarker.createFromOptions(cache.vision, {
+						baseOptions: {
+							modelAssetPath:
+								"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+							delegate: "GPU",
+						},
+						runningMode: "VIDEO",
+					} as const satisfies Parameters<
+						typeof PoseLandmarker.createFromOptions
+					>[1]),
+					HandLandmarker.createFromOptions(cache.vision, {
+						baseOptions: {
+							modelAssetPath:
+								"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+							delegate: "GPU",
+						},
+						runningMode: "VIDEO",
+						numHands: 2,
+						minHandDetectionConfidence: 0.3,
+						minHandPresenceConfidence: 0.3,
+						minTrackingConfidence: 0.3,
+					} as const satisfies Parameters<
+						typeof HandLandmarker.createFromOptions
+					>[1]),
+				]);
 
 			cache.faceLandmarker = faceLandmarker;
 			cache.poseLandmarker = poseLandmarker;
@@ -111,10 +136,13 @@ export async function getMediaPipeModels() {
 
 	await cache.loading;
 
+	if (!cache.faceLandmarker || !cache.poseLandmarker || !cache.handLandmarker) {
+		throw new Error("MediaPipe models are not available after loading");
+	}
 	return {
-		faceLandmarker: cache.faceLandmarker!,
-		poseLandmarker: cache.poseLandmarker!,
-		handLandmarker: cache.handLandmarker!,
+		faceLandmarker: cache.faceLandmarker,
+		poseLandmarker: cache.poseLandmarker,
+		handLandmarker: cache.handLandmarker,
 	};
 }
 

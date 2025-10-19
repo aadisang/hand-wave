@@ -1,6 +1,6 @@
 # Hand Wave with Meta AI Glasses
 
-Real-time ASL (American Sign Language) fingerspelling recognition from Meta AI glasses, streamed via WhatsApp Desktop to a web app. Uses MediaPipe for hand landmark detection and a TFLite model for gesture-to-text translation.
+Real-time ASL (American Sign Language) recognition from Meta AI glasses, streamed via WhatsApp Desktop (or macOS continuity camera) to a web app. Uses MediaPipe Tasks (browser) to extract landmarks and a TFLite model (Python FastAPI) to translate landmarks to text.
 
 ## Demo
 
@@ -14,11 +14,15 @@ Real-time ASL (American Sign Language) fingerspelling recognition from Meta AI g
 
 ## Status
 
-- Hackathon-grade prototype; not production-ready
-- Transport moved from Instagram Live to WhatsApp → ~10–20× lower latency
-- No Python streaming server or mobile app required
-- Hand landmark detection and translation working
-- In-glasses audio readout in progress
+- Prototype; not production-ready
+- WhatsApp transport (lower latency than Instagram Live)
+- Hand landmark detection and translation working end-to-end
+- Audio readout to glasses in progress
+
+### Model status and attribution
+- We are actively training a better ASL model tailored to our pipeline and dataset.
+- For demo purposes, we temporarily use models inspired by and structured after CMU ETC Questure’s open-source work. Please see their repository for details and credit: [Questure Tracker (Apache-2.0)](https://github.com/ZWeiweiY/Questure_Tracker/tree/main).
+- If you use our demo configuration, attribute Questure appropriately and respect their license.
 
 ## Quick Start
 
@@ -55,9 +59,9 @@ This starts:
 
 **Video & Detection Path:**
 - Video: Glasses → Phone → WhatsApp → Laptop → Browser screen share
-- Detection: Browser MediaPipe HandLandmarker (WASM/WebGL) extracts landmarks
-- Translation: Landmarks → tRPC Backend → FastAPI Inference Service → TFLite Model
-- Output: Translated text displayed in browser; audio TTS to glasses (WIP)
+- Detection: Browser MediaPipe Tasks: Face, Pose, Hand landmarkers (WASM) combined in-app
+- Translation: Landmarks (not raw frames) → FastAPI Inference Service → TFLite models (static and movement)
+- Output: Text in browser; TTS back to glasses (WIP)
 
 **Privacy:**
 - No raw video frames are uploaded
@@ -70,16 +74,14 @@ Meta AI Glasses
     ↓ video stream
 WhatsApp Call
     ↓ screen share
-Browser (MediaPipe)
-    ↓ landmarks [num_frames, 130, 3]
-tRPC Backend (port 3000)
-    ↓ HTTP POST
+Browser (MediaPipe Face/Pose/Hand)
+    ↓ landmarks [frames, keypoints, (x,y,z)]
 FastAPI Inference (port 8000)
-    ↓ TFLite Model
+    ↓ TFLite Models (static_model.tflite, movement_model.tflite)
     ↓ prediction
-Backend → Browser
+Browser UI (tRPC optional)
     ↓ (future) TTS
-WhatsApp API → Meta Glasses
+Meta Glasses audio
 ```
 
 ## Tech Stack
@@ -87,17 +89,17 @@ WhatsApp API → Meta Glasses
 **Web (apps/web):**
 - Next.js 15, React 19, TypeScript
 - Tailwind CSS 4, shadcn/ui
-- MediaPipe Tasks Vision (HandLandmarker)
+- MediaPipe Tasks Vision (Face, Pose, Hand landmarkers; combined holistically)
 - Zustand, TanStack Query 5
 
 **Backend (apps/server):**
 - tRPC 11 over Hono (Bun runtime)
-- Built with tsdown
+- Optional in this flow; browser can call FastAPI directly
 
 **Inference (apps/inference):**
 - FastAPI (Python)
 - TensorFlow Lite
-- ASL Fingerspelling Recognition model from Kaggle
+- Static and movement models (TFLite). While we train our own, demo may use models aligned with Questure’s structure. See Attribution above.
 
 **Monorepo:**
 - Turbo + Bun workspaces
@@ -146,35 +148,14 @@ CORS_ORIGIN=https://localhost:3001
 - `PORT` – Server port (default: 3000)
 - `CORS_ORIGIN` – Allowed CORS origin
 
-## Getting the ASL Model
+## Models
 
-The inference service needs a TFLite model for ASL recognition.
+Place the following in `apps/inference/models/`:
+- `static_model.tflite` – single-frame classifier
+- `movement_model.tflite` – sequence classifier
+- `label.csv` – label mapping
 
-### Option 1: Download Pre-trained Model
-
-If available, download the trained model from the Kaggle competition:
-- `model.tflite`
-- `inference_args.json`
-
-Place them in `apps/inference/models/`
-
-### Option 2: Train Your Own
-
-Follow the Kaggle competition instructions to train the model:
-
-```bash
-cd kaggle_reference
-
-# Train round 2 (round 1 outputs already provided)
-python train.py -C cfg_2 --fold -1
-
-# Convert to TFLite
-python scripts/convert_cfg_2_to_tf_lite.py
-
-# Copy the output
-cp datamount/weights/cfg_2/fold-1/model.tflite ../apps/inference/models/
-cp datamount/weights/cfg_2/fold-1/inference_args.json ../apps/inference/models/
-```
+We are training new models. For demos, you may mirror the file layout informed by Questure’s repo. Credit: [Questure Tracker (Apache-2.0)](https://github.com/ZWeiweiY/Questure_Tracker/tree/main).
 
 ## Troubleshooting
 
@@ -185,9 +166,9 @@ cp datamount/weights/cfg_2/fold-1/inference_args.json ../apps/inference/models/
 
 **Model not found:**
 ```
-Warning: No model found at .../models/model.tflite
+Warning: No model found at .../models/static_model.tflite
 ```
-Place `model.tflite` and `inference_args.json` in `apps/inference/models/`
+Place `static_model.tflite`, `movement_model.tflite`, and `label.csv` in `apps/inference/models/`
 
 **TensorFlow errors:**
 ```bash

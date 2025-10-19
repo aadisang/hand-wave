@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
         base_dir = Path(__file__).parent.parent
         static_model_path = base_dir / "models" / "static_model.tflite"
         movement_model_path = base_dir / "models" / "movement_model.tflite"
-        label_path = base_dir / "label.csv"
+        label_path = base_dir / "models" / "label.csv"
 
         if not static_model_path.exists():
             print(f"⚠️  Static model file not found: {static_model_path}")
