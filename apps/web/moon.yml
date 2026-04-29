@@ -1,0 +1,31 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "application"
+language: "typescript"
+
+tasks:
+  dev:
+    command: "pnpm exec vite dev"
+    preset: "server"
+
+  build:
+    command: "pnpm exec vite build"
+    inputs:
+      - "src/**/*"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "package.json"
+    outputs:
+      - ".output"
+
+  preview:
+    command: "pnpm exec vite preview"
+    preset: "server"
+
+  start:
+    command: "node .output/server/index.mjs"
+    env:
+      PORT: "3000"
+    deps:
+      - "build"
+    preset: "server"
