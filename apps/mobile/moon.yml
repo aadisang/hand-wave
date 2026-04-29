@@ -1,0 +1,41 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "application"
+language: "swift"
+platform: "system"
+
+# These tasks assume you've created an Xcode project at this path with the
+# scheme name `HandWaveBridge`. Adjust the scheme/destination flags below to
+# match what you pick in Xcode (Product > Scheme > Edit Scheme).
+tasks:
+  build:
+    command:
+      - "xcodebuild"
+      - "-scheme"
+      - "HandWaveBridge"
+      - "-destination"
+      - "generic/platform=iOS Simulator"
+      - "-configuration"
+      - "Debug"
+      - "build"
+    inputs:
+      - "**/*.swift"
+      - "**/*.xcodeproj/**"
+      - "**/Info.plist"
+      - "**/Assets.xcassets/**"
+
+  test:
+    command:
+      - "xcodebuild"
+      - "-scheme"
+      - "HandWaveBridge"
+      - "-destination"
+      - "platform=iOS Simulator,name=iPhone 16"
+      - "test"
+    inputs:
+      - "**/*.swift"
+      - "**/*.xcodeproj/**"
+
+  open:
+    command: "xed ."
+    local: true
