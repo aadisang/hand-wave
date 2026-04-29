@@ -1,0 +1,35 @@
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+inheritedBy:
+  languages: ['typescript', 'javascript']
+
+fileGroups:
+  sources:
+    - 'src/**/*'
+  configs:
+    - '*.config.{ts,js,mjs}'
+    - 'tsconfig.json'
+    - 'tsconfig.*.json'
+    - 'package.json'
+
+tasks:
+  format:
+    command: 'pnpm exec prettier --write --ignore-path ../../.prettierignore .'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
+      - '/.prettierrc'
+      - '/.prettierignore'
+
+  lint:
+    command: 'pnpm exec eslint --fix --no-error-on-unmatched-pattern .'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
+      - 'eslint.config.*'
+
+  typecheck:
+    command: 'pnpm exec tsc --noEmit --pretty'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
