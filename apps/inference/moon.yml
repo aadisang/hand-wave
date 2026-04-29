@@ -1,0 +1,20 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+layer: 'application'
+language: 'python'
+
+tasks:
+  dev:
+    command:
+      - 'uv'
+      - 'run'
+      - 'python'
+      - '-m'
+      - 'uvicorn'
+      - 'inference.main:app'
+      - '--reload'
+      - '--host'
+      - '0.0.0.0'
+      - '--port'
+      - '8000'
+    preset: 'server'
