@@ -1,0 +1,33 @@
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+inheritedBy:
+  languages: ['python']
+
+fileGroups:
+  sources:
+    - 'src/**/*.py'
+
+tasks:
+  format:
+    command: 'uv run ruff format .'
+    inputs:
+      - '@group(sources)'
+      - 'pyproject.toml'
+
+  lint:
+    command: 'uv run ruff check --fix .'
+    inputs:
+      - '@group(sources)'
+      - 'pyproject.toml'
+
+  typecheck:
+    command: 'uv run pyright'
+    inputs:
+      - '@group(sources)'
+      - 'pyproject.toml'
+
+  test:
+    command: 'uv run pytest'
+    inputs:
+      - '@group(sources)'
+      - 'pyproject.toml'
