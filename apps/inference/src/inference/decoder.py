@@ -1,24 +1,3 @@
-from collections.abc import Sequence
-
-
-class CTCDecoder:
-    def __init__(self, vocab: Sequence[str], blank: str = "_") -> None:
-        self.vocab = list(vocab)
-        self.blank = blank
-
-    def greedy_decode_ids(self, ids: Sequence[int]) -> str:
-        chars: list[str] = []
-        last: str | None = None
-        for idx in ids:
-            if idx < 0 or idx >= len(self.vocab):
-                continue
-            char = self.vocab[idx]
-            if char != self.blank and char != last:
-                chars.append(char)
-            last = char
-        return "".join(chars)
-
-
 class StablePrefixTracker:
     """Commits text only after repeated agreement across rolling-window decodes."""
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
 
-from inference.schemas import LandmarkFrame, Prediction, PredictResponse
+from inference.schemas import LandmarkFrame, Prediction, PredictionSpan, PredictResponse
 
 DEFAULT_VOCAB = ["_"] + list("abcdefghijklmnopqrstuvwxyz0123456789 &'@.")
 DEFAULT_CHECKPOINT_PATH = Path(__file__).resolve().parents[2] / "models" / "best.ckpt"
@@ -50,11 +50,36 @@ class CheckpointBackend(ModelBackend):
         )
 
     async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictResponse:
-        text, confidence = self.runtime.predict(list(frames))
+        decoded = self.runtime.predict(list(frames))
         return PredictResponse(
-            prediction=Prediction(label=text, confidence=confidence),
-            alternatives=[],
-            partial_text=text,
+            prediction=Prediction(
+                label=decoded.text,
+                confidence=decoded.confidence,
+                logit_score=decoded.alternatives[0].logit_score if decoded.alternatives else None,
+                lm_score=decoded.alternatives[0].lm_score if decoded.alternatives else None,
+            ),
+            alternatives=[
+                Prediction(
+                    label=item.text,
+                    confidence=item.confidence,
+                    logit_score=item.logit_score,
+                    lm_score=item.lm_score,
+                )
+                for item in decoded.alternatives[1:]
+            ],
+            spans=[
+                PredictionSpan(
+                    text=span.text,
+                    start_frame=span.start_frame,
+                    end_frame=span.end_frame,
+                )
+                for span in decoded.spans
+            ],
+            greedy_text=decoded.greedy_text,
+            blank_ratio=decoded.blank_ratio,
+            tail_blank_ratio=decoded.tail_blank_ratio,
+            tail_blank_frames=decoded.tail_blank_frames,
+            partial_text=decoded.text,
             stable_text="",
         )
 
