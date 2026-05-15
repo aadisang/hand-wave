@@ -49,12 +49,12 @@ export type DecodeTrace = {
   selectedSource: string;
   selectedConfidence: number;
   selectedScore: number;
-  previousBestText: string;
-  bestText: string;
-  bestScore: number;
+  previousDisplayText: string;
+  displayText: string;
+  displayScore: number;
   seenCount: number;
   selectedStreak: number;
-  bestMisses: number;
+  displayMisses: number;
   idleFrames: number;
   motion: number;
   latencyMs: number;
@@ -67,7 +67,7 @@ export type FinalizeTrace = {
   seenCount: number;
   committed: boolean;
   idleFrames: number;
-  bestScore: number;
+  displayScore: number;
 };
 
 export type ArbitrationUpdate = {
@@ -85,21 +85,21 @@ export type FinalizedPrediction = {
 
 export class InferenceArbitrator {
   private latestPrediction: DetectionPrediction | null = null;
-  private bestPrediction: DetectionPrediction | null = null;
-  private bestPredictionScore = Number.NEGATIVE_INFINITY;
+  private displayPrediction: DetectionPrediction | null = null;
+  private displayPredictionScore = Number.NEGATIVE_INFINITY;
   private candidateCounts = new Map<string, number>();
   private selectedCandidateText = "";
   private selectedCandidateStreak = 0;
-  private bestMisses = 0;
+  private displayMisses = 0;
 
   reset() {
     this.latestPrediction = null;
-    this.bestPrediction = null;
-    this.bestPredictionScore = Number.NEGATIVE_INFINITY;
+    this.displayPrediction = null;
+    this.displayPredictionScore = Number.NEGATIVE_INFINITY;
     this.candidateCounts.clear();
     this.selectedCandidateText = "";
     this.selectedCandidateStreak = 0;
-    this.bestMisses = 0;
+    this.displayMisses = 0;
   }
 
   accept(
@@ -112,7 +112,7 @@ export class InferenceArbitrator {
     const alternatives = response.alternatives.map((alternative) =>
       alternative.label.trim(),
     );
-    const previousBestText = this.bestPrediction?.text ?? "";
+    const previousDisplayText = this.displayPrediction?.text ?? "";
     const candidate = selectPredictionCandidate(
       [
         {
@@ -140,7 +140,7 @@ export class InferenceArbitrator {
           lmScore: alternative.lm_score ?? undefined,
         })),
       ],
-      previousBestText,
+      previousDisplayText,
     );
 
     const seenCount = candidate
@@ -151,10 +151,10 @@ export class InferenceArbitrator {
     const selectedStreak = candidate
       ? this.updateSelectedCandidateStreak(candidate.text)
       : 0;
-    const currentBest = this.bestPrediction;
-    const bestMisses =
-      candidate && currentBest && candidate.text !== currentBest.text
-        ? this.bestMisses + 1
+    const currentDisplay = this.displayPrediction;
+    const displayMisses =
+      candidate && currentDisplay && candidate.text !== currentDisplay.text
+        ? this.displayMisses + 1
         : 0;
     const prediction = candidate
       ? {
@@ -170,26 +170,26 @@ export class InferenceArbitrator {
     if (candidate && prediction) {
       this.latestPrediction = prediction;
       if (
-        shouldReplaceBest(
+        shouldReplaceDisplayCandidate(
           candidate,
           score,
           seenCount,
           selectedStreak,
-          bestMisses,
+          displayMisses,
           context.idleFrames,
-          currentBest,
-          this.bestPredictionScore,
+          currentDisplay,
+          this.displayPredictionScore,
         )
       ) {
-        this.bestPrediction = prediction;
-        this.bestPredictionScore = score;
-        this.bestMisses = 0;
+        this.displayPrediction = prediction;
+        this.displayPredictionScore = score;
+        this.displayMisses = 0;
       } else {
-        this.bestMisses = bestMisses;
+        this.displayMisses = displayMisses;
       }
     }
 
-    const displayPrediction = this.bestPrediction ?? prediction;
+    const displayPrediction = this.displayPrediction ?? prediction;
     return {
       prediction,
       displayPrediction: displayPrediction
@@ -213,14 +213,14 @@ export class InferenceArbitrator {
         selectedSource: candidate?.source ?? "",
         selectedConfidence: candidate?.confidence ?? 0,
         selectedScore: Number.isFinite(score) ? score : 0,
-        previousBestText,
-        bestText: this.bestPrediction?.text ?? "",
-        bestScore: Number.isFinite(this.bestPredictionScore)
-          ? this.bestPredictionScore
+        previousDisplayText,
+        displayText: this.displayPrediction?.text ?? "",
+        displayScore: Number.isFinite(this.displayPredictionScore)
+          ? this.displayPredictionScore
           : 0,
         seenCount,
         selectedStreak,
-        bestMisses: this.bestMisses,
+        displayMisses: this.displayMisses,
         idleFrames: context.idleFrames,
         motion: context.motion,
         latencyMs: context.latencyMs,
@@ -229,7 +229,7 @@ export class InferenceArbitrator {
   }
 
   finalize(idleFrames: number): FinalizedPrediction {
-    const prediction = this.bestPrediction ?? this.latestPrediction;
+    const prediction = this.displayPrediction ?? this.latestPrediction;
     const seenCount = prediction
       ? (this.candidateCounts.get(prediction.text) ?? 0)
       : 0;
@@ -250,8 +250,8 @@ export class InferenceArbitrator {
         seenCount,
         committed,
         idleFrames,
-        bestScore: Number.isFinite(this.bestPredictionScore)
-          ? this.bestPredictionScore
+        displayScore: Number.isFinite(this.displayPredictionScore)
+          ? this.displayPredictionScore
           : 0,
       },
     };
@@ -270,25 +270,25 @@ export class InferenceArbitrator {
 
 export function logDecodeTrace(trace: DecodeTrace) {
   console.groupCollapsed(
-    `[handwave:decode] selected="${trace.selectedText || "(empty)"}" source="${trace.selectedSource || "(none)"}" raw="${trace.rawLabel || "(empty)"}" best="${trace.bestText || "(empty)"}"`,
+    `[handwave:decode] raw="${trace.rawLabel || "(empty)"}" greedy="${trace.greedyText || "(empty)"}" selected="${trace.selectedText || "(empty)"}" display="${trace.displayText || "(empty)"}"`,
   );
   console.log({
-    selected: trace.selectedText,
-    selectedDisplay: trace.selectedDisplayText,
-    selectedSource: trace.selectedSource,
-    selectedConfidence: trace.selectedConfidence,
-    selectedScore: trace.selectedScore,
-    previousBest: trace.previousBestText,
-    best: trace.bestText,
-    bestScore: trace.bestScore,
-    seenCount: trace.seenCount,
-    selectedStreak: trace.selectedStreak,
-    bestMisses: trace.bestMisses,
     raw: trace.rawLabel,
     greedy: trace.greedyText,
     partial: trace.partialText,
     stable: trace.stableText,
     alternatives: trace.alternatives,
+    selected: trace.selectedText,
+    selectedDisplay: trace.selectedDisplayText,
+    selectedSource: trace.selectedSource,
+    selectedConfidence: trace.selectedConfidence,
+    selectedScore: trace.selectedScore,
+    previousDisplay: trace.previousDisplayText,
+    display: trace.displayText,
+    displayScore: trace.displayScore,
+    seenCount: trace.seenCount,
+    selectedStreak: trace.selectedStreak,
+    displayMisses: trace.displayMisses,
     spans: trace.spans,
     blankRatio: trace.blankRatio,
     tailBlankRatio: trace.tailBlankRatio,
@@ -378,7 +378,7 @@ function shouldCommitPrediction(
 
 function selectPredictionCandidate(
   candidates: PredictionCandidateInput[],
-  previousBestText: string,
+  previousDisplayText: string,
 ) {
   const primaryText = cleanPredictionText(
     candidates.find((candidate) => candidate.source === "raw")?.rawText ?? "",
@@ -387,9 +387,9 @@ function selectPredictionCandidate(
     candidates.find((candidate) => candidate.source === "greedy")?.rawText ??
       "",
   );
-  return candidates.reduce<PredictionCandidate | null>((best, candidate) => {
+  return candidates.reduce<PredictionCandidate | null>((winner, candidate) => {
     const text = cleanPredictionText(candidate.rawText);
-    if (text.length < 1) return best;
+    if (text.length < 1) return winner;
     if (
       isSuspiciousAlternativeTail(
         candidate.source,
@@ -398,7 +398,7 @@ function selectPredictionCandidate(
         greedyText,
       )
     ) {
-      return best;
+      return winner;
     }
     const scored = {
       ...candidate,
@@ -407,107 +407,107 @@ function selectPredictionCandidate(
         candidate.rawText,
         text,
         candidate.confidence,
-        previousBestText,
+        previousDisplayText,
         primaryText,
         greedyText,
         candidate.source,
       ),
     };
-    if (!best || scored.score > best.score) return scored;
-    return best;
+    if (!winner || scored.score > winner.score) return scored;
+    return winner;
   }, null);
 }
 
-function shouldReplaceBest(
+function shouldReplaceDisplayCandidate(
   candidate: PredictionCandidate,
   score: number,
   seenCount: number,
   selectedStreak: number,
-  bestMisses: number,
+  displayMisses: number,
   idleFrames: number,
-  best: DetectionPrediction | null,
-  bestScore: number,
+  displayed: DetectionPrediction | null,
+  displayScore: number,
 ) {
-  if (!best) return true;
-  if (!Number.isFinite(bestScore)) return true;
-  const sharedPrefixLength = commonPrefixLength(candidate.text, best.text);
+  if (!displayed) return true;
+  if (!Number.isFinite(displayScore)) return true;
+  const sharedPrefixLength = commonPrefixLength(candidate.text, displayed.text);
   const isOneCharTailExtension =
-    best.text.length >= 4 &&
-    candidate.text.startsWith(best.text) &&
-    candidate.text.length === best.text.length + 1;
+    displayed.text.length >= 4 &&
+    candidate.text.startsWith(displayed.text) &&
+    candidate.text.length === displayed.text.length + 1;
   if (isOneCharTailExtension) {
     const requiredMargin = idleFrames > 0 ? 2.2 : 1.25;
     return (
       candidate.source === "raw" &&
       seenCount >= 3 &&
       selectedStreak >= 3 &&
-      score >= bestScore + requiredMargin
+      score >= displayScore + requiredMargin
     );
   }
   if (
     candidate.source === "greedy" &&
     sharedPrefixLength >= 3 &&
-    candidate.text.length >= best.text.length - 1
+    candidate.text.length >= displayed.text.length - 1
   ) {
-    return score >= bestScore - 2 || selectedStreak >= 2;
+    return score >= displayScore - 2 || selectedStreak >= 2;
   }
   if (
     candidate.source === "raw" &&
     selectedStreak >= 2 &&
-    bestMisses >= 3 &&
+    displayMisses >= 3 &&
     candidate.text.length >= 3
   ) {
-    return score >= bestScore - 4;
+    return score >= displayScore - 4;
   }
   if (
     candidate.source === "raw" &&
     sharedPrefixLength < 2 &&
     selectedStreak >= 2 &&
     seenCount >= 2 &&
-    bestMisses >= 4 &&
-    candidate.text.length >= Math.min(4, best.text.length)
+    displayMisses >= 4 &&
+    candidate.text.length >= Math.min(4, displayed.text.length)
   ) {
-    return score >= bestScore - 6;
+    return score >= displayScore - 6;
   }
   if (
     candidate.source === "raw" &&
     sharedPrefixLength >= 3 &&
-    candidate.text.length >= best.text.length + 2
+    candidate.text.length >= displayed.text.length + 2
   ) {
-    return score >= bestScore - 1.5 || seenCount >= 2;
+    return score >= displayScore - 1.5 || seenCount >= 2;
   }
   if (
     candidate.source === "raw" &&
     seenCount >= 2 &&
     candidate.text.length >= 3 &&
-    candidate.text.length >= best.text.length - 1
+    candidate.text.length >= displayed.text.length - 1
   ) {
-    return score >= bestScore - 3;
+    return score >= displayScore - 3;
   }
   if (
     candidate.source.startsWith("alt") &&
-    candidate.text.startsWith(best.text) &&
-    candidate.text.length > best.text.length
+    candidate.text.startsWith(displayed.text) &&
+    candidate.text.length > displayed.text.length
   ) {
-    return selectedStreak >= 4 && score >= bestScore + 3;
+    return selectedStreak >= 4 && score >= displayScore + 3;
   }
-  if (candidate.text.startsWith(best.text)) {
-    return score >= bestScore - 1.2;
+  if (candidate.text.startsWith(displayed.text)) {
+    return score >= displayScore - 1.2;
   }
   if (
-    best.text.startsWith(candidate.text) &&
-    best.text.length - candidate.text.length <= 2 &&
+    displayed.text.startsWith(candidate.text) &&
+    displayed.text.length - candidate.text.length <= 2 &&
     seenCount >= 2
   ) {
-    return score >= bestScore - 1;
+    return score >= displayScore - 1;
   }
   if (
     sharedPrefixLength >= 4 &&
-    Math.abs(candidate.text.length - best.text.length) <= 3
+    Math.abs(candidate.text.length - displayed.text.length) <= 3
   ) {
-    return score >= bestScore - 0.8;
+    return score >= displayScore - 0.8;
   }
-  return score >= bestScore + 0.25;
+  return score >= displayScore + 0.25;
 }
 
 function isSuspiciousAlternativeTail(
@@ -540,7 +540,7 @@ function scorePredictionCandidate(
   rawText: string,
   text: string,
   confidence: number,
-  previousBestText: string,
+  previousDisplayText: string,
   primaryText: string,
   greedyText: string,
   source: string,
@@ -560,11 +560,11 @@ function scorePredictionCandidate(
     text.length - primaryText.length <= 2
       ? 1.4
       : 0;
-  const alternativeBestExtensionPenalty =
+  const alternativeDisplayExtensionPenalty =
     source.startsWith("alt") &&
-    previousBestText.length >= 3 &&
-    text.startsWith(previousBestText) &&
-    text.length > previousBestText.length
+    previousDisplayText.length >= 3 &&
+    text.startsWith(previousDisplayText) &&
+    text.length > previousDisplayText.length
       ? 3.6
       : 0;
   const greedyAgreementBonus =
@@ -573,21 +573,21 @@ function scorePredictionCandidate(
     (source === "raw" || source === "greedy")
       ? 0.7
       : 0;
-  const prefixLength = commonPrefixLength(text, previousBestText);
+  const prefixLength = commonPrefixLength(text, previousDisplayText);
   const extensionBonus =
     source === "raw" &&
-    previousBestText.length >= 3 &&
-    text.startsWith(previousBestText)
+    previousDisplayText.length >= 3 &&
+    text.startsWith(previousDisplayText)
       ? 1.1
       : 0;
   const tailCorrectionBonus =
     text.length >= 4 &&
-    previousBestText.startsWith(text) &&
-    previousBestText.length - text.length <= 2
+    previousDisplayText.startsWith(text) &&
+    previousDisplayText.length - text.length <= 2
       ? 0.65
       : 0;
   const prefixRegressionPenalty =
-    previousBestText.length >= 4 && prefixLength < 3 ? 2.5 : 0;
+    previousDisplayText.length >= 4 && prefixLength < 3 ? 2.5 : 0;
   return (
     confidence * 2 +
     Math.min(text.length, 14) * 0.08 +
@@ -599,7 +599,7 @@ function scorePredictionCandidate(
     punctuationPenalty -
     alternativePenalty -
     alternativeTailPenalty -
-    alternativeBestExtensionPenalty -
+    alternativeDisplayExtensionPenalty -
     repeatedTailPenalty -
     shortFragmentPenalty +
     singleCharacterBonus -

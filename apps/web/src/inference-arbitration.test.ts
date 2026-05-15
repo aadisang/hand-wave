@@ -86,7 +86,7 @@ describe("InferenceArbitrator", () => {
     expect(update.trace.selectedSource).toBe("greedy");
   });
 
-  test("lets a stable later raw candidate recover from a bad early best", () => {
+  test("lets a stable later raw candidate replace a bad early display", () => {
     const arbitrator = new InferenceArbitrator();
     arbitrator.accept(
       streamPrediction({ raw: "mayse", greedy: "mayse", confidence: 0.95 }),
