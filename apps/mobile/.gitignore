@@ -14,6 +14,8 @@ DerivedData/
 *.xcuserstate
 *.xcscmblueprint
 *.xccheckout
+Pods/
+Podfile.lock
 
 # Swift Package Manager
 Packages/
