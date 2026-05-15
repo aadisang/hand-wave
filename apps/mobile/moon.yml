@@ -2,40 +2,85 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 
 layer: "application"
 language: "swift"
-platform: "system"
 
-# These tasks assume you've created an Xcode project at this path with the
-# scheme name `HandWaveBridge`. Adjust the scheme/destination flags below to
-# match what you pick in Xcode (Product > Scheme > Edit Scheme).
+# Tuist owns project generation. Manifests in Project.swift + Tuist/ are the
+# source of truth; the .xcodeproj is generated and gitignored.
 tasks:
+  install:
+    command: "tuist install"
+    inputs:
+      - "Tuist/Package.swift"
+      - "Tuist/Package.resolved"
+    preset: "utility"
+
+  generate:
+    command: "tuist generate --no-open"
+    inputs:
+      - "Project.swift"
+      - "Tuist/**/*"
+      - "HandWave/**/*"
+    deps:
+      - "install"
+
   build:
     command:
-      - "xcodebuild"
-      - "-scheme"
-      - "HandWaveBridge"
-      - "-destination"
-      - "generic/platform=iOS Simulator"
-      - "-configuration"
-      - "Debug"
+      - "tuist"
       - "build"
+      - "HandWave"
+      - "--configuration"
+      - "Debug"
+    deps:
+      - "generate"
     inputs:
-      - "**/*.swift"
-      - "**/*.xcodeproj/**"
-      - "**/Info.plist"
-      - "**/Assets.xcassets/**"
+      - "Project.swift"
+      - "Tuist/**/*"
+      - "HandWave/**/*"
 
   test:
     command:
-      - "xcodebuild"
-      - "-scheme"
-      - "HandWaveBridge"
-      - "-destination"
-      - "platform=iOS Simulator,name=iPhone 16"
+      - "tuist"
       - "test"
+      - "HandWave"
+    deps:
+      - "generate"
     inputs:
-      - "**/*.swift"
-      - "**/*.xcodeproj/**"
+      - "Project.swift"
+      - "Tuist/**/*"
+      - "HandWave/**/*"
+
+  edit:
+    command: "tuist edit"
+    preset: "utility"
 
   open:
-    command: "xed ."
-    local: true
+    command: "xed HandWave.xcworkspace"
+    deps:
+      - "generate"
+    preset: "utility"
+
+  format:
+    command:
+      - "swift"
+      - "format"
+      - "--recursive"
+      - "--in-place"
+      - "HandWave"
+      - "Project.swift"
+      - "Tuist.swift"
+    inputs:
+      - "**/*.swift"
+      - ".swift-format"
+
+  lint:
+    command:
+      - "swift"
+      - "format"
+      - "lint"
+      - "--recursive"
+      - "--strict"
+      - "HandWave"
+      - "Project.swift"
+      - "Tuist.swift"
+    inputs:
+      - "**/*.swift"
+      - ".swift-format"
