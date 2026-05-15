@@ -8,8 +8,15 @@ export function DevPanel() {
 
   if (!enabled) return null;
 
-  const hands = frame?.landmarks ?? [];
-  const handedness = frame?.handedness ?? [];
+  const hands = [
+    ...(frame?.rightHandLandmarks ?? []),
+    ...(frame?.leftHandLandmarks ?? []),
+  ];
+  const labels = [
+    ...Array(frame?.rightHandLandmarks.length ?? 0).fill("Right"),
+    ...Array(frame?.leftHandLandmarks.length ?? 0).fill("Left"),
+  ];
+  const poseCount = frame?.poseLandmarks[0]?.length ?? 0;
 
   return (
     <div className="pointer-events-none absolute top-4 left-4 z-20 w-dev-panel max-w-full">
@@ -17,19 +24,12 @@ export function DevPanel() {
         <Row label="FPS" value={fps.toFixed(1)} />
         <Row label="Inference" value={`${inferenceMs.toFixed(1)} ms`} />
         <Row label="Hands" value={hands.length.toString()} />
+        <Row label="Pose" value={poseCount.toString()} />
         {hands.map((hand, i) => {
-          const meta = handedness[i]?.[0];
           const wrist = hand[0];
           return (
             <div key={i} className="mt-1.5 border-t pt-1.5">
-              <Row
-                label={`#${i}`}
-                value={
-                  meta
-                    ? `${meta.categoryName} ${(meta.score * 100).toFixed(0)}%`
-                    : "—"
-                }
-              />
+              <Row label={`#${i}`} value={labels[i] ?? "—"} />
               <Row label="pts" value={hand.length.toString()} />
               {wrist ? (
                 <Row

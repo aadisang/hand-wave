@@ -3,7 +3,10 @@
 import { createRootRoute } from "@tanstack/react-router";
 import { NotFound } from "@/components/app/NotFound";
 import { RootRoute } from "@/components/app/RootRoute";
-import { handLandmarkerModelPath } from "@/hooks/use-hand-landmarker";
+import {
+  handLandmarkerModelPath,
+  poseLandmarkerModelPath,
+} from "@/hooks/use-hand-landmarker";
 import appCss from "./globals.css?url";
 
 export const Route = createRootRoute({
@@ -53,6 +56,12 @@ export const Route = createRootRoute({
         rel: "preload",
         as: "fetch",
         href: handLandmarkerModelPath,
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        as: "fetch",
+        href: poseLandmarkerModelPath,
         crossOrigin: "anonymous",
       },
     ],
