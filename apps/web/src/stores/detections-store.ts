@@ -20,28 +20,9 @@ type DetectionsState = {
   clearHistory: () => void;
 };
 
-const seedHistory = (): HistoryItem[] => {
-  const now = Date.now();
-  const samples: Array<[string, number, number, number]> = [
-    ["Hello", 0.97, 42, 4_000],
-    ["Thank you", 0.91, 58, 12_500],
-    ["Yes", 0.88, 36, 24_000],
-    ["Please", 0.83, 49, 41_000],
-    ["I love you", 0.95, 53, 67_000],
-  ];
-
-  return samples.map(([text, confidence, processingTimeMs, ago], i) => ({
-    id: `seed-${i}`,
-    text,
-    confidence,
-    processingTimeMs,
-    timestamp: new Date(now - ago),
-  }));
-};
-
 export const useDetectionsStore = create<DetectionsState>((set) => ({
   currentPrediction: null,
-  history: seedHistory(),
+  history: [],
 
   pushPrediction: (prediction) =>
     set((state) => {
