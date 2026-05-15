@@ -97,18 +97,3 @@ moon run inference:lint   # python via ruff
 | Python | Ruff (format + lint), Pyright, pytest |
 
 moon caches each task by input hash, so re-runs without changes finish in tens of milliseconds.
-
-## Deployment
-
-- Deploy `apps/web` to Vercel.
-- Deploy `apps/inference` to Railway as a Python app, or to Runpod with `apps/inference/Dockerfile`.
-- Set `VITE_INFERENCE_URL` for the web app to the deployed inference URL.
-
-## Principles
-
-- No compatibility layer for deleted code.
-- No tRPC between TypeScript and Python.
-- No model files in git by default.
-- Generate typed OpenAPI clients only once the inference API stabilizes.
-- Use TanStack Start for the app shell.
-- moon owns task orchestration; per-tool config (Vite, ESLint, Ruff, Pyright) lives in each project's standard files.
