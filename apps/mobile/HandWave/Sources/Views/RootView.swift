@@ -8,7 +8,7 @@ struct RootView: View {
     @Bindable var stream = appModel.stream
     NavigationStack {
       Group {
-        if appModel.stream.isStreaming {
+        if appModel.stream.isActive {
           StreamView()
         } else {
           PairingView()
