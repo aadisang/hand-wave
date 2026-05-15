@@ -1,0 +1,9 @@
+// Copy this file to HandWave.xcconfig and fill in your own values.
+// HandWave.xcconfig is gitignored.
+
+META_APP_ID = REPLACE_WITH_META_APP_ID
+CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
+DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1

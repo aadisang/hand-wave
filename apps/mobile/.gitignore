@@ -1,25 +1,24 @@
-# Xcode
+# Tuist generates these — manifests are the source of truth
+*.xcodeproj/
+*.xcworkspace/
+Derived/
+.build/
+.swiftpm/
+
+# Local credentials — copy HandWave.xcconfig.example and fill in your own.
+Configurations/HandWave.xcconfig
+
+# Xcode build artifacts
 build/
 DerivedData/
-*.xcuserdatad/
-xcuserdata/
 *.xcuserstate
 *.xcscmblueprint
 *.xccheckout
 
 # Swift Package Manager
-.swiftpm/
-.build/
 Packages/
 Package.pins
 Package.resolved
-*.xcodeproj/project.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
-
-# CocoaPods (if ever introduced)
-Pods/
-*.podspec.json
 
 # fastlane
 fastlane/report.xml
