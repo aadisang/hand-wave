@@ -16,7 +16,7 @@ export function DetectionEmpty() {
         </EmptyMedia>
         <EmptyTitle>No detections yet</EmptyTitle>
         <EmptyDescription>
-          Start the camera and show an ASL sign to build the history.
+          Start the camera and fingerspell a phrase to build the history.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
