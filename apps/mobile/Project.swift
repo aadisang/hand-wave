@@ -25,6 +25,10 @@ let infoPlist: [String: Plist.Value] = [
     "ClientToken": "$(CLIENT_TOKEN)",
     "TeamID": "$(DEVELOPMENT_TEAM)",
   ],
+  "HandWaveInferenceURL": "$(HANDWAVE_INFERENCE_URL)",
+  "NSAppTransportSecurity": [
+    "NSAllowsArbitraryLoads": true
+  ],
   "UIBackgroundModes": [
     "processing",
     "bluetooth-central",
@@ -34,8 +38,8 @@ let infoPlist: [String: Plist.Value] = [
   "NSBluetoothAlwaysUsageDescription":
     "Hand Wave connects to your Meta wearable over Bluetooth.",
   "NSLocalNetworkUsageDescription":
-    "Hand Wave finds and connects to your wearable over Wi-Fi.",
-  "NSBonjourServices": ["_bonjour._tcp"],
+    "Hand Wave connects to the local inference server while recognizing signs.",
+  "NSBonjourServices": ["_http._tcp"],
   "UISupportedExternalAccessoryProtocols": ["com.meta.ar.wearable"],
   "NSCameraUsageDescription":
     "Hand Wave bridges the camera on your Meta wearable to interpret signs.",
@@ -66,6 +70,7 @@ let project = Project(
       "SWIFT_VERSION": "6.0",
       "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
       "DEVELOPMENT_TEAM": "$(DEVELOPMENT_TEAM)",
+      "HANDWAVE_INFERENCE_URL": "http://localhost:8000",
     ],
     configurations: [
       .debug(name: "Debug", xcconfig: "Configurations/HandWave.xcconfig"),
