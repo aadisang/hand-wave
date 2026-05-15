@@ -21,6 +21,14 @@ class LandmarkFrame(BaseModel):
 class Prediction(BaseModel):
     label: str
     confidence: float = Field(ge=0, le=1)
+    logit_score: float | None = None
+    lm_score: float | None = None
+
+
+class PredictionSpan(BaseModel):
+    text: str
+    start_frame: int
+    end_frame: int
 
 
 class PredictRequest(BaseModel):
@@ -32,6 +40,11 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     prediction: Prediction
     alternatives: list[Prediction] = Field(default_factory=list)
+    spans: list[PredictionSpan] = Field(default_factory=list)
+    greedy_text: str = ""
+    blank_ratio: float = Field(default=0.0, ge=0, le=1)
+    tail_blank_ratio: float = Field(default=0.0, ge=0, le=1)
+    tail_blank_frames: int = 0
     partial_text: str = ""
     stable_text: str = ""
 

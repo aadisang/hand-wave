@@ -50,6 +50,39 @@ moon run inference:dev
 
 Open `http://localhost:3000` for the web app and `http://localhost:8000/docs` for the inference API.
 
+## Inference API
+
+The inference service is session-based because live CTC recognition is not a
+stateless single-frame classifier. Clients create a session, append landmark
+frames, and receive both a revisable `partial_text` and conservative
+`stable_text`.
+
+```sh
+moon run inference:dev
+```
+
+Core endpoints:
+
+| Method | Path | Use |
+|---|---|---|
+| `POST` | `/v1/sessions` | Create a streaming recognition session |
+| `POST` | `/v1/sessions/{id}/frames` | Append landmark frames and decode the rolling window |
+| `POST` | `/v1/sessions/{id}/reset` | Clear buffer/decoder state |
+| `DELETE` | `/v1/sessions/{id}` | End a session |
+| `POST` | `/v1/predict` | Compatibility endpoint for one-off checks |
+
+To serve a real checkpoint, the backend needs more than the `.ckpt` file:
+
+- the Lightning checkpoint, usually `last.ckpt` or best `step*-cer*.ckpt`
+- the exact model class and config used for training
+- vocab order, including the CTC blank token
+- feature layout, e.g. which MediaPipe landmarks and coordinate order
+- preprocessing rules, especially normalization and frame masking
+
+Set `HANDWAVE_CHECKPOINT_PATH` only after that bundle is available inside
+`apps/inference`; otherwise the service fails loudly rather than returning fake
+predictions.
+
 ## Quality
 
 ```sh

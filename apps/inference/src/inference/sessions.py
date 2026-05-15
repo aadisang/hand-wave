@@ -89,6 +89,11 @@ def stream_response(
         buffered_frames=len(session.frames),
         prediction=prediction.prediction,
         alternatives=prediction.alternatives,
+        spans=prediction.spans,
+        greedy_text=prediction.greedy_text,
+        blank_ratio=prediction.blank_ratio,
+        tail_blank_ratio=prediction.tail_blank_ratio,
+        tail_blank_frames=prediction.tail_blank_frames,
         partial_text=partial_text,
         stable_text=stable_text,
     )
