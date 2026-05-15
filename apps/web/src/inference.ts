@@ -23,11 +23,24 @@ export type LandmarkFrame = {
 export type Prediction = {
   label: string;
   confidence: number;
+  logit_score?: number | null;
+  lm_score?: number | null;
+};
+
+export type PredictionSpan = {
+  text: string;
+  start_frame: number;
+  end_frame: number;
 };
 
 export type PredictResponse = {
   prediction: Prediction;
   alternatives: Prediction[];
+  spans: PredictionSpan[];
+  greedy_text: string;
+  blank_ratio: number;
+  tail_blank_ratio: number;
+  tail_blank_frames: number;
   partial_text: string;
   stable_text: string;
 };
@@ -37,6 +50,11 @@ export type StreamPrediction = {
   buffered_frames: number;
   prediction: Prediction;
   alternatives: Prediction[];
+  spans: PredictionSpan[];
+  greedy_text: string;
+  blank_ratio: number;
+  tail_blank_ratio: number;
+  tail_blank_frames: number;
   partial_text: string;
   stable_text: string;
 };
@@ -74,7 +92,7 @@ export async function createInferenceSession() {
   const response = await fetch(sessionsUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ max_window_frames: 160, min_stable_frames: 3 }),
+    body: JSON.stringify({ max_window_frames: 128, min_stable_frames: 3 }),
   });
 
   if (!response.ok) {

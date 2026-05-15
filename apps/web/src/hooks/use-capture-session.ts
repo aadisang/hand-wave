@@ -43,7 +43,7 @@ async function openStream({ kind, deviceId }: CaptureRequest) {
     video: {
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      frameRate: { ideal: 60, min: 30 },
+      frameRate: { ideal: 30, min: 24, max: 30 },
       ...(deviceId
         ? { deviceId: { exact: deviceId } }
         : { facingMode: "user" }),
