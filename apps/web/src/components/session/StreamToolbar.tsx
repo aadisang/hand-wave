@@ -2,7 +2,6 @@ import {
   Bug,
   CircleStop,
   Maximize,
-  MessageCircle,
   Minimize,
   Share2,
   Video,
@@ -15,7 +14,6 @@ import {
 } from "@/components/ui/toolbar";
 import type { CaptureSession } from "@/hooks/use-capture-session";
 import type { FullscreenControls } from "@/hooks/use-fullscreen";
-import { useDetectionsStore } from "@/stores/detections-store";
 import { useDevStore } from "@/stores/dev-store";
 import { CameraSelect } from "./CameraSelect";
 
@@ -25,7 +23,6 @@ type Props = {
 };
 
 export function StreamToolbar({ capture, fullscreen }: Props) {
-  const hasPrediction = useDetectionsStore((s) => s.currentPrediction != null);
   const devEnabled = useDevStore((s) => s.enabled);
   const toggleDev = useDevStore((s) => s.toggle);
   const { state } = capture;
@@ -69,13 +66,6 @@ export function StreamToolbar({ capture, fullscreen }: Props) {
         {isCamera && <CameraSelect capture={capture} />}
 
         <ToolbarSeparator orientation="vertical" />
-
-        {isCapturing && hasPrediction && (
-          <Button onClick={() => undefined} size="sm" variant="secondary">
-            <MessageCircle />
-            Send
-          </Button>
-        )}
 
         <Button
           aria-label={devEnabled ? "Hide dev panel" : "Show dev panel"}

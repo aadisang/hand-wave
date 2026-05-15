@@ -9,12 +9,14 @@ export function DevPanel() {
   if (!enabled) return null;
 
   const hands = [
-    ...(frame?.rightHandLandmarks ?? []),
-    ...(frame?.leftHandLandmarks ?? []),
-  ];
-  const labels = [
-    ...Array(frame?.rightHandLandmarks.length ?? 0).fill("Right"),
-    ...Array(frame?.leftHandLandmarks.length ?? 0).fill("Left"),
+    ...(frame?.rightHandLandmarks ?? []).map((landmarks) => ({
+      label: "Right",
+      landmarks,
+    })),
+    ...(frame?.leftHandLandmarks ?? []).map((landmarks) => ({
+      label: "Left",
+      landmarks,
+    })),
   ];
   const poseCount = frame?.poseLandmarks[0]?.length ?? 0;
 
@@ -25,12 +27,12 @@ export function DevPanel() {
         <Row label="Inference" value={`${inferenceMs.toFixed(1)} ms`} />
         <Row label="Hands" value={hands.length.toString()} />
         <Row label="Pose" value={poseCount.toString()} />
-        {hands.map((hand, i) => {
-          const wrist = hand[0];
+        {hands.map((hand) => {
+          const wrist = hand.landmarks[0];
           return (
-            <div key={i} className="mt-1.5 border-t pt-1.5">
-              <Row label={`#${i}`} value={labels[i] ?? "—"} />
-              <Row label="pts" value={hand.length.toString()} />
+            <div key={handKey(hand)} className="mt-1.5 border-t pt-1.5">
+              <Row label="type" value={hand.label} />
+              <Row label="pts" value={hand.landmarks.length.toString()} />
               {wrist ? (
                 <Row
                   label="wrist"
@@ -43,6 +45,13 @@ export function DevPanel() {
       </div>
     </div>
   );
+}
+
+function handKey(hand: { label: string; landmarks: { x: number; y: number }[] }) {
+  const wrist = hand.landmarks[0];
+  return wrist
+    ? `${hand.label}-${wrist.x.toFixed(3)}-${wrist.y.toFixed(3)}`
+    : hand.label;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
