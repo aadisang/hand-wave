@@ -3,7 +3,6 @@ import {
   CircleStop,
   Maximize,
   MessageCircle,
-  Radio,
   Minimize,
   Share2,
   Video,
@@ -22,19 +21,10 @@ import { CameraSelect } from "./CameraSelect";
 
 type Props = {
   capture: CaptureSession;
-  clip: {
-    bufferedFrames: number;
-    isDecoding: boolean;
-    isRecording: boolean;
-    startRecording: () => void;
-    stopRecording: () => void;
-    stopAndDecode: () => void;
-    decode: () => void;
-  };
   fullscreen: FullscreenControls;
 };
 
-export function StreamToolbar({ capture, clip, fullscreen }: Props) {
+export function StreamToolbar({ capture, fullscreen }: Props) {
   const hasPrediction = useDetectionsStore((s) => s.currentPrediction != null);
   const devEnabled = useDevStore((s) => s.enabled);
   const toggleDev = useDevStore((s) => s.toggle);
@@ -77,41 +67,6 @@ export function StreamToolbar({ capture, clip, fullscreen }: Props) {
         </ToolbarGroup>
 
         {isCamera && <CameraSelect capture={capture} />}
-
-        {isCamera && (
-          <ToolbarGroup>
-            {clip.isRecording ? (
-              <Button
-                onClick={clip.stopAndDecode}
-                size="sm"
-                variant="destructive"
-              >
-                <CircleStop />
-                Stop & Decode
-              </Button>
-            ) : (
-              <Button
-                onClick={clip.startRecording}
-                size="sm"
-                variant="secondary"
-              >
-                <Radio />
-                Record
-              </Button>
-            )}
-            {!clip.isRecording && clip.bufferedFrames > 0 && (
-              <Button
-                disabled={clip.isDecoding}
-                onClick={clip.decode}
-                size="sm"
-                variant="outline"
-              >
-                <MessageCircle />
-                Decode
-              </Button>
-            )}
-          </ToolbarGroup>
-        )}
 
         <ToolbarSeparator orientation="vertical" />
 

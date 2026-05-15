@@ -16,6 +16,7 @@ const maxHistoryItems = 20;
 type DetectionsState = {
   currentPrediction: Prediction | null;
   history: HistoryItem[];
+  setCurrentPrediction: (prediction: Prediction | null) => void;
   pushPrediction: (prediction: Prediction) => void;
   clearHistory: () => void;
 };
@@ -23,6 +24,8 @@ type DetectionsState = {
 export const useDetectionsStore = create<DetectionsState>((set) => ({
   currentPrediction: null,
   history: [],
+
+  setCurrentPrediction: (prediction) => set({ currentPrediction: prediction }),
 
   pushPrediction: (prediction) =>
     set((state) => {

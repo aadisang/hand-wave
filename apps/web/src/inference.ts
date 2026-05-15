@@ -124,3 +124,21 @@ export async function deleteInferenceSession(sessionId: string) {
     method: "DELETE",
   });
 }
+
+export async function resetInferenceSession(sessionId: string) {
+  const response = await fetch(
+    new URL(`/v1/sessions/${sessionId}/reset`, env.VITE_INFERENCE_URL),
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Inference reset failed: ${response.status}`);
+  }
+
+  return (await response.json()) as {
+    session_id: string;
+    buffered_frames: number;
+    partial_text: string;
+    stable_text: string;
+  };
+}
