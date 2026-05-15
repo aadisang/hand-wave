@@ -1,0 +1,9 @@
+platform :ios, '16.0'
+
+project 'HandWave.xcodeproj'
+
+target 'HandWave' do
+  use_frameworks!
+
+  pod 'MediaPipeTasksVision'
+end
