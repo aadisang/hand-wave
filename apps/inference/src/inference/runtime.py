@@ -282,13 +282,7 @@ def _inner_model_state(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.T
 def frames_to_features(frames: list[LandmarkFrame]) -> np.ndarray:
     if not frames:
         raise ValueError("at least one frame is required")
-    landmarks = np.array(
-        [
-            [[point.x, point.y, 0.0 if point.z is None else point.z] for point in frame.landmarks]
-            for frame in frames
-        ],
-        dtype=np.float32,
-    )
+    landmarks = np.asarray(frames, dtype=np.float32).reshape(len(frames), N_JOINTS, 3)
     if landmarks.shape[1:] != (N_JOINTS, 3):
         raise ValueError(
             f"expected each frame to contain {N_JOINTS} landmarks "

@@ -3,14 +3,8 @@ from fastapi.testclient import TestClient
 from inference.main import app
 
 
-def landmark_frame(index: int = 0) -> dict:
-    return {
-        "timestamp_ms": 1_700_000_000_000 + index,
-        "landmarks": [
-            {"x": 0.1 + index, "y": 0.2, "z": 0.0},
-            {"x": 0.3, "y": 0.4, "z": 0.0},
-        ],
-    }
+def landmark_frame(index: int = 0) -> list[float]:
+    return [0.1 + index, 0.2, 0.0] * 54
 
 
 def test_health_returns_ok(monkeypatch) -> None:
@@ -21,12 +15,12 @@ def test_health_returns_ok(monkeypatch) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_predict_accepts_legacy_landmarks(monkeypatch) -> None:
+def test_predict_accepts_frame_features(monkeypatch) -> None:
     monkeypatch.setenv("HANDWAVE_BACKEND", "placeholder")
     with TestClient(app) as client:
         response = client.post(
             "/v1/predict",
-            json={"mode": "static", "landmarks": landmark_frame()["landmarks"]},
+            json={"frames": [landmark_frame()]},
         )
 
     assert response.status_code == 200
