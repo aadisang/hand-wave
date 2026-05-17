@@ -2,6 +2,13 @@ $schema: 'https://moonrepo.dev/schemas/project.json'
 
 layer: 'application'
 language: 'python'
+stack: 'backend'
+tags:
+  - 'fastapi'
+  - 'inference'
+
+project:
+  description: 'FastAPI service that owns model loading and CTC decoding.'
 
 tasks:
   dev:

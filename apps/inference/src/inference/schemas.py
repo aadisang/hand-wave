@@ -1,21 +1,13 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+N_FEATURES = 162
+LandmarkFrame = Annotated[list[float], Field(min_length=N_FEATURES, max_length=N_FEATURES)]
 
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
-
-
-class Landmark(BaseModel):
-    x: float
-    y: float
-    z: float | None = None
-
-
-class LandmarkFrame(BaseModel):
-    landmarks: list[Landmark] = Field(min_length=1)
-    timestamp_ms: int | None = None
 
 
 class Prediction(BaseModel):
@@ -32,9 +24,7 @@ class PredictionSpan(BaseModel):
 
 
 class PredictRequest(BaseModel):
-    mode: Literal["static", "sequence"] = "sequence"
-    landmarks: list[Landmark] = Field(default_factory=list)
-    frames: list[LandmarkFrame] = Field(default_factory=list)
+    frames: list[LandmarkFrame] = Field(min_length=1)
 
 
 class PredictResponse(BaseModel):
