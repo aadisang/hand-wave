@@ -1,18 +1,26 @@
 import { create } from "zustand";
 import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
+import type { DecodeTrace, FinalizeTrace } from "@/lib/inference/arbitration";
+
+export type DevTrace =
+  | ({ type: "decode"; at: string } & DecodeTrace)
+  | ({ type: "finalize"; at: string } & FinalizeTrace);
 
 type State = {
   enabled: boolean;
   frame: HandLandmarksFrame | null;
   fps: number;
   inferenceMs: number;
+  traces: DevTrace[];
   toggle: () => void;
   push: (frame: HandLandmarksFrame, inferenceMs: number) => void;
+  pushTrace: (trace: DevTrace) => void;
 };
 
 const ema = (prev: number, next: number) =>
   prev ? prev * 0.85 + next * 0.15 : next;
 
+const maxTraces = 500;
 let lastAt = 0;
 
 export const useDevStore = create<State>((set) => ({
@@ -20,6 +28,7 @@ export const useDevStore = create<State>((set) => ({
   frame: null,
   fps: 0,
   inferenceMs: 0,
+  traces: [],
   toggle: () =>
     set((s) => ({ enabled: !s.enabled, frame: null, fps: 0, inferenceMs: 0 })),
   push: (frame, ms) => {
@@ -32,4 +41,6 @@ export const useDevStore = create<State>((set) => ({
       fps: dt ? ema(s.fps, 1000 / dt) : s.fps,
     }));
   },
+  pushTrace: (trace) =>
+    set((s) => ({ traces: [...s.traces, trace].slice(-maxTraces) })),
 }));

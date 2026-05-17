@@ -2,6 +2,14 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 
 layer: "application"
 language: "typescript"
+stack: "frontend"
+tags:
+  - "react"
+  - "tanstack-start"
+  - "mediapipe"
+
+project:
+  description: "Browser capture and realtime recognition UI."
 
 tasks:
   dev:
@@ -17,6 +25,15 @@ tasks:
       - "package.json"
     outputs:
       - ".output"
+
+  test:
+    command: "pnpm exec vitest run"
+    inputs:
+      - "src/**/*.test.{ts,tsx}"
+      - "src/**/*.{ts,tsx}"
+      - "tsconfig.json"
+      - "vitest.config.ts"
+      - "package.json"
 
   preview:
     command: "pnpm exec vite preview"

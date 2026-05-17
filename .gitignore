@@ -4,6 +4,10 @@
 !.env.example
 
 node_modules/
+bun.lock
+bun.lockb
+package-lock.json
+yarn.lock
 .output/
 .tanstack/
 .vite-hooks/

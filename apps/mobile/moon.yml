@@ -2,6 +2,14 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 
 layer: "application"
 language: "swift"
+stack: "frontend"
+tags:
+  - "ios"
+  - "swiftui"
+  - "meta-wearables"
+
+project:
+  description: "iOS client for glasses and camera-stream recognition."
 
 # Tuist owns project generation. Manifests in Project.swift + Tuist/ are the
 # source of truth; the .xcodeproj is generated and gitignored.

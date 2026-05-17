@@ -1,3 +1,4 @@
+import type { UseFullscreenElementReturnValue } from "@mantine/hooks";
 import {
   Bug,
   CircleStop,
@@ -13,9 +14,13 @@ import {
   ToolbarSeparator,
 } from "@/components/ui/toolbar";
 import type { CaptureSession } from "@/hooks/use-capture-session";
-import type { FullscreenControls } from "@/hooks/use-fullscreen";
 import { useDevStore } from "@/stores/dev-store";
-import { CameraSelect } from "./CameraSelect";
+import { CameraSelect } from "./camera-select";
+
+type FullscreenControls = Pick<
+  UseFullscreenElementReturnValue,
+  "fullscreen" | "toggle"
+>;
 
 type Props = {
   capture: CaptureSession;
@@ -79,13 +84,13 @@ export function StreamToolbar({ capture, fullscreen }: Props) {
 
         <Button
           aria-label={
-            fullscreen.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"
+            fullscreen.fullscreen ? "Exit fullscreen" : "Enter fullscreen"
           }
           onClick={fullscreen.toggle}
           size="icon-sm"
           variant="ghost"
         >
-          {fullscreen.isFullscreen ? <Minimize /> : <Maximize />}
+          {fullscreen.fullscreen ? <Minimize /> : <Maximize />}
         </Button>
       </Toolbar>
     </div>

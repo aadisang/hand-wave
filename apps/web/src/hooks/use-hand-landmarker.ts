@@ -4,7 +4,9 @@ import {
   PoseLandmarker,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallbackRef } from "@mantine/hooks";
+import { useEffect, type RefObject } from "react";
+import { createLandmarkSmoother } from "@/lib/mediapipe/landmark-smoother";
 
 const wasmPath =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
@@ -12,6 +14,7 @@ export const handLandmarkerModelPath =
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 export const poseLandmarkerModelPath =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
+const landmarkConfidence = 0.5;
 
 type Landmarkers = {
   hand: HandLandmarker;
@@ -35,17 +38,17 @@ const loadLandmarkers = async () => {
       baseOptions: { modelAssetPath: handLandmarkerModelPath, delegate: "GPU" },
       runningMode: "VIDEO",
       numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.3,
-      minTrackingConfidence: 0.3,
+      minHandDetectionConfidence: landmarkConfidence,
+      minHandPresenceConfidence: landmarkConfidence,
+      minTrackingConfidence: landmarkConfidence,
     }),
     PoseLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: poseLandmarkerModelPath, delegate: "GPU" },
       runningMode: "VIDEO",
       numPoses: 1,
-      minPoseDetectionConfidence: 0.3,
-      minPosePresenceConfidence: 0.3,
-      minTrackingConfidence: 0.3,
+      minPoseDetectionConfidence: landmarkConfidence,
+      minPosePresenceConfidence: landmarkConfidence,
+      minTrackingConfidence: landmarkConfidence,
     }),
   ]);
   const canvas = document.createElement("canvas");
@@ -61,15 +64,19 @@ function detectFrame(
   landmarkers: Landmarkers,
   video: HTMLVideoElement,
   timestamp: number,
+  mirrored: boolean,
 ) {
-  const input = mirroredVideoFrame(landmarkers, video);
+  const input = mirrored ? mirroredVideoFrame(landmarkers, video) : video;
   const hand = landmarkers.hand.detectForVideo(input, timestamp);
   const pose = landmarkers.pose.detectForVideo(input, timestamp);
   const rightHandLandmarks: NormalizedLandmark[][] = [];
   const leftHandLandmarks: NormalizedLandmark[][] = [];
 
   hand.landmarks.forEach((landmarks, index) => {
-    const category = hand.handedness[index]?.[0]?.categoryName;
+    const category = anatomicalHand(
+      hand.handedness[index]?.[0]?.categoryName,
+      mirrored,
+    );
     if (category === "Left") {
       leftHandLandmarks.push(landmarks);
     } else {
@@ -82,6 +89,13 @@ function detectFrame(
     leftHandLandmarks,
     poseLandmarks: pose.landmarks,
   };
+}
+
+function anatomicalHand(category: string | undefined, mirrored: boolean) {
+  if (!mirrored) return category === "Left" ? "Left" : "Right";
+  if (category === "Left") return "Right";
+  if (category === "Right") return "Left";
+  return "Right";
 }
 
 function mirroredVideoFrame(landmarkers: Landmarkers, video: HTMLVideoElement) {
@@ -111,10 +125,10 @@ type Listener = (frame: HandLandmarksFrame, inferenceMs: number) => void;
 export function useHandLandmarks(
   videoRef: RefObject<HTMLVideoElement | null>,
   active: boolean,
+  mirrored: boolean,
   onFrame: Listener,
 ): void {
-  const onFrameRef = useRef(onFrame);
-  onFrameRef.current = onFrame;
+  const onFrameRef = useCallbackRef(onFrame);
 
   useEffect(() => {
     if (!active) return;
@@ -123,6 +137,7 @@ export function useHandLandmarks(
     let rafId = 0;
     let lastVideoTime = -1;
     let landmarkers: Landmarkers | null = null;
+    const smoother = createLandmarkSmoother();
 
     const tick = () => {
       if (cancelled) return;
@@ -135,8 +150,11 @@ export function useHandLandmarks(
 
       lastVideoTime = video.currentTime;
       const start = performance.now();
-      const frame = detectFrame(landmarkers, video, start);
-      onFrameRef.current(frame, performance.now() - start);
+      const frame = smoother.smooth(
+        detectFrame(landmarkers, video, start, mirrored),
+        start,
+      );
+      onFrameRef(frame, performance.now() - start);
     };
 
     void getHandLandmarker().then((instance) => {
@@ -147,7 +165,8 @@ export function useHandLandmarks(
 
     return () => {
       cancelled = true;
+      smoother.reset();
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [videoRef, active]);
+  }, [videoRef, active, mirrored, onFrameRef]);
 }

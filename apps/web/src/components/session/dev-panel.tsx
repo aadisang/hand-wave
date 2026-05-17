@@ -1,10 +1,8 @@
-import { useDevStore } from "@/stores/dev-store";
+import { DownloadIcon } from "lucide-react";
+import { useDevStore, type DevTrace } from "@/stores/dev-store";
 
 export function DevPanel() {
-  const enabled = useDevStore((s) => s.enabled);
-  const frame = useDevStore((s) => s.frame);
-  const fps = useDevStore((s) => s.fps);
-  const inferenceMs = useDevStore((s) => s.inferenceMs);
+  const { enabled, frame, fps, inferenceMs, traces } = useDevStore();
 
   if (!enabled) return null;
 
@@ -22,11 +20,24 @@ export function DevPanel() {
 
   return (
     <div className="pointer-events-none absolute top-4 left-4 z-20 w-dev-panel max-w-full">
-      <div className="rounded-lg border bg-overlay p-3 font-mono text-foreground text-xs leading-relaxed shadow-sm backdrop-blur-sm">
+      <div className="pointer-events-auto rounded-lg border bg-overlay p-3 font-mono text-foreground text-xs leading-relaxed shadow-sm backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">Dev</span>
+          <button
+            className="inline-flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={traces.length === 0}
+            onClick={() => downloadTraces(traces)}
+            type="button"
+          >
+            <DownloadIcon className="size-3" />
+            Trace
+          </button>
+        </div>
         <Row label="FPS" value={fps.toFixed(1)} />
         <Row label="Inference" value={`${inferenceMs.toFixed(1)} ms`} />
         <Row label="Hands" value={hands.length.toString()} />
         <Row label="Pose" value={poseCount.toString()} />
+        <Row label="Trace" value={traces.length.toString()} />
         {hands.map((hand) => {
           const wrist = hand.landmarks[0];
           return (
@@ -47,7 +58,22 @@ export function DevPanel() {
   );
 }
 
-function handKey(hand: { label: string; landmarks: { x: number; y: number }[] }) {
+function downloadTraces(traces: DevTrace[]) {
+  const blob = new Blob([JSON.stringify(traces, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `handwave-trace-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function handKey(hand: {
+  label: string;
+  landmarks: { x: number; y: number }[];
+}) {
   const wrist = hand.landmarks[0];
   return wrist
     ? `${hand.label}-${wrist.x.toFixed(3)}-${wrist.y.toFixed(3)}`

@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import type { StreamPrediction } from "./inference";
-import { InferenceArbitrator } from "./inference-arbitration";
+import { describe, expect, test } from "vitest";
+import { createInferenceArbitrator } from "@/lib/inference/arbitration";
+import type { StreamPrediction } from "@/types/inference";
 
 function streamPrediction({
   raw,
@@ -32,7 +32,7 @@ const context = { latencyMs: 40, idleFrames: 0, motion: 0.01 };
 
 describe("InferenceArbitrator", () => {
   test("ignores beam-only one-character tail extensions when raw and greedy agree", () => {
-    const arbitrator = new InferenceArbitrator();
+    const arbitrator = createInferenceArbitrator();
     const update = arbitrator.accept(
       streamPrediction({
         raw: "hello",
@@ -47,7 +47,7 @@ describe("InferenceArbitrator", () => {
   });
 
   test("does not promote a weak raw tail extension after three repeats", () => {
-    const arbitrator = new InferenceArbitrator();
+    const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
       streamPrediction({ raw: "hello", greedy: "hello" }),
       context,
@@ -70,7 +70,7 @@ describe("InferenceArbitrator", () => {
   });
 
   test("uses greedy over an alt beam that repairs the prefix but adds a tail", () => {
-    const arbitrator = new InferenceArbitrator();
+    const arbitrator = createInferenceArbitrator();
     arbitrator.accept(streamPrediction({ raw: "hel", greedy: "hel" }), context);
 
     const update = arbitrator.accept(
@@ -87,7 +87,7 @@ describe("InferenceArbitrator", () => {
   });
 
   test("lets a stable later raw candidate replace a bad early display", () => {
-    const arbitrator = new InferenceArbitrator();
+    const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
       streamPrediction({ raw: "mayse", greedy: "mayse", confidence: 0.95 }),
       context,

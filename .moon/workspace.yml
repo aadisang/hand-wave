@@ -1,7 +1,9 @@
 $schema: 'https://moonrepo.dev/schemas/workspace.json'
 
 projects:
-  - 'apps/*'
+  web: 'apps/web'
+  inference: 'apps/inference'
+  mobile: 'apps/mobile'
 
 vcs:
   client: 'git'
