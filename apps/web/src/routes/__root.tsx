@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 import { createRootRoute } from "@tanstack/react-router";
-import { NotFound } from "@/components/app/NotFound";
-import { RootRoute } from "@/components/app/RootRoute";
+import { NotFound } from "@/components/app/not-found";
+import { RootRoute } from "@/components/app/root-route";
 import {
   handLandmarkerModelPath,
   poseLandmarkerModelPath,

@@ -1,5 +1,5 @@
 import { Outlet } from "@tanstack/react-router";
-import { RootDocument } from "./RootDocument";
+import { RootDocument } from "./root-document";
 
 export function RootRoute() {
   return (

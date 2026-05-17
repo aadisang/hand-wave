@@ -38,17 +38,27 @@ async function openStream({ kind, deviceId }: CaptureRequest) {
     });
   }
 
-  return navigator.mediaDevices.getUserMedia({
+  const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      frameRate: { ideal: 30, min: 24, max: 30 },
+      frameRate: { ideal: 60, max: 120 },
       ...(deviceId
         ? { deviceId: { exact: deviceId } }
         : { facingMode: "user" }),
     },
   });
+
+  const track = stream.getVideoTracks()[0];
+  const maxFrameRate = track?.getCapabilities().frameRate?.max;
+  if (track && maxFrameRate) {
+    await track.applyConstraints({
+      frameRate: { ideal: maxFrameRate, max: maxFrameRate },
+    });
+  }
+
+  return stream;
 }
 
 function captureErrorMessage(kind: CaptureKind, error: unknown) {
@@ -100,11 +110,9 @@ export function useCaptureSession(): CaptureSession {
           if (trackDeviceId) setDeviceIdState(trackDeviceId);
         }
 
-        next.getVideoTracks().forEach((track) =>
-          track.addEventListener("ended", () => setRequest(null), {
-            once: true,
-          }),
-        );
+        next.getVideoTracks().forEach((track) => {
+          track.onended = () => setRequest(null);
+        });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -114,6 +122,9 @@ export function useCaptureSession(): CaptureSession {
 
     return () => {
       cancelled = true;
+      active?.getVideoTracks().forEach((track) => {
+        track.onended = null;
+      });
       if (active) stopStream(active);
     };
   }, [request]);

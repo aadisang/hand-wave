@@ -97,13 +97,10 @@ body {
   --color-stage: var(--stage);
   --color-toolbar: var(--toolbar);
 
-  --spacing-app-content: 72rem;
+  --spacing-stage-content: 100rem;
   --spacing-action: 2.25rem;
   --spacing-control-center: 2.5rem;
   --spacing-control-select: 12.5rem;
-  --spacing-history-time: 10rem;
-  --spacing-history-confidence: 8.75rem;
-  --spacing-history-speed: 7.5rem;
   --spacing-dev-panel: 18rem;
 
   --radius-md: calc(var(--radius) * 0.8);

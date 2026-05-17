@@ -7,6 +7,7 @@ Clean-room rewrite of Hand Wave: a browser-first sign recognition app with a sma
 ```txt
 apps/web        TanStack Start frontend (Vite + Nitro v3)
 apps/inference  FastAPI inference service (uv)
+apps/mobile     SwiftUI iOS client (Tuist)
 ```
 
 The frontend owns camera capture and browser APIs. The inference app owns model loading and prediction. Keep the API boundary small: landmarks in, predictions out.
@@ -17,7 +18,7 @@ The repo is orchestrated by [moon](https://moonrepo.dev) as a polyglot task grap
 
 - pnpm 10.33+
 - Node 22+
-- Python 3.13+
+- Python 3.11 or 3.12
 - uv
 - moon (`pnpm add -g @moonrepo/cli`)
 
