@@ -4,7 +4,6 @@ import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
 
 const handLandmarks = 21;
 const poseLandmarks = 33;
-const featureCount = (handLandmarks + poseLandmarks) * 3;
 const requiredPoseLandmarks = [0, 11, 12];
 const lowerBound = -0.15;
 const upperBound = 1.15;
@@ -15,11 +14,17 @@ export function toInferenceFrame(
   const right = frame.rightHandLandmarks[0];
   const left = frame.leftHandLandmarks[0];
   const pose = frame.poseLandmarks[0];
-  if (!pose || (!right && !left)) return null;
+  if (!pose) return null;
 
-  const useLeft = !right;
-  const hand = useLeft ? mirrorLandmarks(left ?? []) : right;
-  const alignedPose = useLeft ? mirrorLandmarks(pose) : pose;
+  if (right) return packLandmarks(right, pose);
+  if (left) return packLandmarks(mirrorLandmarks(left), mirrorLandmarks(pose));
+  return null;
+}
+
+function packLandmarks(
+  hand: NormalizedLandmark[],
+  alignedPose: NormalizedLandmark[],
+) {
   if (
     hand.length !== handLandmarks ||
     alignedPose.length !== poseLandmarks ||
@@ -32,7 +37,7 @@ export function toInferenceFrame(
   const features: number[] = [];
   pushPoints(features, hand);
   pushPoints(features, alignedPose);
-  return features.length === featureCount ? features : null;
+  return features;
 }
 
 function mirrorLandmarks(points: NormalizedLandmark[]) {

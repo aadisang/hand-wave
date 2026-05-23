@@ -55,16 +55,20 @@ export function Stage() {
       {state.status === "live" && (
         <>
           <HandLandmarksOverlay
-            active={isLive}
-            fit={state.kind === "camera" ? "cover" : "contain"}
-            mirrored={state.kind === "camera"}
+            captureKind={state.kind}
             onFrame={onLandmarksFrame}
             videoRef={videoRef}
           />
-          <PredictionOverlay />
         </>
       )}
-      <DevPanel />
+      <div className="pointer-events-none absolute top-4 left-4 z-20 max-w-dev-panel">
+        <DevPanel />
+      </div>
+      {state.status === "live" && (
+        <div className="pointer-events-none absolute top-4 right-4 z-20 flex max-w-dev-panel justify-end">
+          <PredictionOverlay />
+        </div>
+      )}
       <StreamToolbar capture={capture} fullscreen={fullscreen} />
     </div>
   );

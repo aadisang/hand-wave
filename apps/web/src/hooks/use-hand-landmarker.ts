@@ -6,6 +6,8 @@ import {
 } from "@mediapipe/tasks-vision";
 import { useCallbackRef } from "@mantine/hooks";
 import { useEffect, type RefObject } from "react";
+import type { CaptureKind } from "@/hooks/use-capture-session";
+import { installMediapipeConsoleFilter } from "@/lib/mediapipe/console-filter";
 import { createLandmarkSmoother } from "@/lib/mediapipe/landmark-smoother";
 
 const wasmPath =
@@ -23,6 +25,8 @@ type Landmarkers = {
   context: CanvasRenderingContext2D;
 };
 
+type Handedness = "Left" | "Right";
+
 export type HandLandmarksFrame = {
   rightHandLandmarks: NormalizedLandmark[][];
   leftHandLandmarks: NormalizedLandmark[][];
@@ -30,8 +34,10 @@ export type HandLandmarksFrame = {
 };
 
 let landmarkerPromise: Promise<Landmarkers> | null = null;
+let lastLandmarkerTimestampMs = 0;
 
 const loadLandmarkers = async () => {
+  installMediapipeConsoleFilter();
   const fileset = await FilesetResolver.forVisionTasks(wasmPath);
   const [hand, pose] = await Promise.all([
     HandLandmarker.createFromOptions(fileset, {
@@ -64,9 +70,10 @@ function detectFrame(
   landmarkers: Landmarkers,
   video: HTMLVideoElement,
   timestamp: number,
-  mirrored: boolean,
+  captureKind: CaptureKind,
 ) {
-  const input = mirrored ? mirroredVideoFrame(landmarkers, video) : video;
+  const input =
+    captureKind === "camera" ? selfieInputFrame(landmarkers, video) : video;
   const hand = landmarkers.hand.detectForVideo(input, timestamp);
   const pose = landmarkers.pose.detectForVideo(input, timestamp);
   const rightHandLandmarks: NormalizedLandmark[][] = [];
@@ -74,8 +81,8 @@ function detectFrame(
 
   hand.landmarks.forEach((landmarks, index) => {
     const category = anatomicalHand(
-      hand.handedness[index]?.[0]?.categoryName,
-      mirrored,
+      hand.handedness[index][0].categoryName as Handedness,
+      captureKind,
     );
     if (category === "Left") {
       leftHandLandmarks.push(landmarks);
@@ -91,14 +98,13 @@ function detectFrame(
   };
 }
 
-function anatomicalHand(category: string | undefined, mirrored: boolean) {
-  if (!mirrored) return category === "Left" ? "Left" : "Right";
+function anatomicalHand(category: Handedness, captureKind: CaptureKind) {
+  if (captureKind === "screen") return category;
   if (category === "Left") return "Right";
-  if (category === "Right") return "Left";
-  return "Right";
+  return "Left";
 }
 
-function mirroredVideoFrame(landmarkers: Landmarkers, video: HTMLVideoElement) {
+function selfieInputFrame(landmarkers: Landmarkers, video: HTMLVideoElement) {
   const { canvas, context } = landmarkers;
   const { videoWidth, videoHeight } = video;
 
@@ -118,55 +124,105 @@ export const preloadHandLandmarker = () => {
   return landmarkerPromise;
 };
 
-const getHandLandmarker = preloadHandLandmarker;
+function nextLandmarkerTimestamp() {
+  lastLandmarkerTimestampMs = Math.max(
+    performance.now(),
+    lastLandmarkerTimestampMs + 1,
+  );
+  return lastLandmarkerTimestampMs;
+}
+
+function resetLandmarkers(instance: Landmarkers | null) {
+  instance?.hand.close();
+  instance?.pose.close();
+  landmarkerPromise = null;
+}
 
 type Listener = (frame: HandLandmarksFrame, inferenceMs: number) => void;
 
 export function useHandLandmarks(
   videoRef: RefObject<HTMLVideoElement | null>,
-  active: boolean,
-  mirrored: boolean,
+  captureKind: CaptureKind,
   onFrame: Listener,
 ): void {
   const onFrameRef = useCallbackRef(onFrame);
 
   useEffect(() => {
-    if (!active) return;
-
     let cancelled = false;
     let rafId = 0;
-    let lastVideoTime = -1;
+    let videoFrameId = 0;
+    let frameCallbackVideo: HTMLVideoElement | null = null;
     let landmarkers: Landmarkers | null = null;
+    let loading = false;
     const smoother = createLandmarkSmoother();
 
-    const tick = () => {
-      if (cancelled) return;
-      rafId = requestAnimationFrame(tick);
-
-      const video = videoRef.current;
-      if (!landmarkers || !video) return;
-      if (video.readyState < 2) return;
-      if (video.currentTime === lastVideoTime) return;
-
-      lastVideoTime = video.currentTime;
-      const start = performance.now();
-      const frame = smoother.smooth(
-        detectFrame(landmarkers, video, start, mirrored),
-        start,
-      );
-      onFrameRef(frame, performance.now() - start);
+    const load = () => {
+      if (loading || cancelled) return;
+      loading = true;
+      void preloadHandLandmarker()
+        .then((instance) => {
+          if (cancelled) return;
+          landmarkers = instance;
+          rafId = requestAnimationFrame(waitForVideo);
+        })
+        .finally(() => {
+          loading = false;
+        });
     };
 
-    void getHandLandmarker().then((instance) => {
+    const detect = (
+      instance: Landmarkers,
+      video: HTMLVideoElement,
+      timestamp: number,
+    ) => {
+      const start = performance.now();
+      try {
+        const frame = smoother.smooth(
+          detectFrame(instance, video, timestamp, captureKind),
+          timestamp,
+        );
+        onFrameRef(frame, performance.now() - start);
+      } catch {
+        resetLandmarkers(instance);
+        landmarkers = null;
+        smoother.reset();
+        load();
+      }
+    };
+
+    const tickVideoFrame: VideoFrameRequestCallback = () => {
       if (cancelled) return;
-      landmarkers = instance;
-      rafId = requestAnimationFrame(tick);
-    });
+
+      const video = videoRef.current;
+      if (!video) return;
+      if (landmarkers && video.readyState >= 2) {
+        detect(landmarkers, video, nextLandmarkerTimestamp());
+      }
+      videoFrameId = video.requestVideoFrameCallback(tickVideoFrame);
+    };
+
+    const waitForVideo = () => {
+      if (cancelled) return;
+
+      const video = videoRef.current;
+      if (!landmarkers || !video || video.readyState < 2) {
+        rafId = requestAnimationFrame(waitForVideo);
+        return;
+      }
+
+      frameCallbackVideo = video;
+      videoFrameId = video.requestVideoFrameCallback(tickVideoFrame);
+    };
+
+    load();
 
     return () => {
       cancelled = true;
       smoother.reset();
       if (rafId) cancelAnimationFrame(rafId);
+      if (videoFrameId && frameCallbackVideo) {
+        frameCallbackVideo.cancelVideoFrameCallback(videoFrameId);
+      }
     };
-  }, [videoRef, active, mirrored, onFrameRef]);
+  }, [videoRef, captureKind, onFrameRef]);
 }

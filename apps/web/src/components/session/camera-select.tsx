@@ -28,11 +28,11 @@ export function CameraSelect({ capture }: Props) {
     <>
       <ToolbarSeparator orientation="vertical" />
       <Select
-        onValueChange={(value) => capture.setDeviceId(value ?? undefined)}
-        value={capture.deviceId ?? null}
+        onValueChange={(value) => capture.setCameraId(value)}
+        value={capture.cameraId}
       >
         <SelectTrigger
-          className="w-auto max-w-control-select border-input bg-overlay"
+          className="w-control-select border-input bg-overlay"
           size="sm"
         >
           <SelectValue placeholder="Select camera">
