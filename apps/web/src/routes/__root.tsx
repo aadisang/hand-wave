@@ -1,8 +1,13 @@
 /// <reference types="vite/client" />
 
-import { createRootRoute } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+} from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { NotFound } from "@/components/app/not-found";
-import { RootRoute } from "@/components/app/root-route";
 import {
   handLandmarkerModelPath,
   poseLandmarkerModelPath,
@@ -38,6 +43,13 @@ export const Route = createRootRoute({
       { name: "twitter:image", content: "/favicon.svg" },
     ],
     links: [
+      {
+        rel: "preload",
+        href: "/fonts/Satoshi-Variable.woff2",
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "apple-touch-icon", href: "/favicon.svg" },
@@ -66,6 +78,25 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  component: RootRoute,
+  component: RootComponent,
   notFoundComponent: NotFound,
+  shellComponent: RootDocument,
 });
+
+function RootComponent() {
+  return <Outlet />;
+}
+
+function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <html className="dark" lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}

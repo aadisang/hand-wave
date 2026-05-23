@@ -1,4 +1,5 @@
 import { DownloadIcon } from "lucide-react";
+import { inferenceConfig } from "@/config/inference";
 import { useDevStore, type DevTrace } from "@/stores/dev-store";
 
 export function DevPanel() {
@@ -19,8 +20,8 @@ export function DevPanel() {
   const poseCount = frame?.poseLandmarks[0]?.length ?? 0;
 
   return (
-    <div className="pointer-events-none absolute top-4 left-4 z-20 w-dev-panel max-w-full">
-      <div className="pointer-events-auto rounded-lg border bg-overlay p-3 font-mono text-foreground text-xs leading-relaxed shadow-sm backdrop-blur-sm">
+    <div className="pointer-events-none w-dev-panel max-w-full">
+      <div className="pointer-events-auto rounded-xl border bg-toolbar p-3 font-mono text-card-foreground text-xs leading-relaxed shadow-sm backdrop-blur-md">
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="text-muted-foreground">Dev</span>
           <button
@@ -59,7 +60,7 @@ export function DevPanel() {
 }
 
 function downloadTraces(traces: DevTrace[]) {
-  const blob = new Blob([JSON.stringify(traces, null, 2)], {
+  const blob = new Blob([JSON.stringify(createTraceExport(traces), null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -68,6 +69,16 @@ function downloadTraces(traces: DevTrace[]) {
   link.download = `handwave-trace-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function createTraceExport(traces: DevTrace[]) {
+  return {
+    schemaVersion: 2,
+    exportedAt: new Date().toISOString(),
+    config: inferenceConfig,
+    userAgent: navigator.userAgent,
+    traces,
+  };
 }
 
 function handKey(hand: {
