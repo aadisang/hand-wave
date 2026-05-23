@@ -26,94 +26,33 @@ function streamPrediction({
     tail_blank_ratio: 0.7,
     tail_blank_frames: 4,
     partial_text: raw,
-    stable_text: raw.slice(0, Math.max(0, raw.length - 1)),
+    stable_text: raw,
   };
 }
 
 const context = { latencyMs: 40, idleFrames: 0, motion: 0.01 };
+const finalize = {
+  endpointReason: "idle" as const,
+  idleFrames: 16,
+  missingFrames: 0,
+  segmentFrames: 80,
+};
 
 describe("InferenceArbitrator", () => {
-  test("ignores beam-only one-character tail extensions when raw and greedy agree", () => {
+  test("shows the primary model label over a beam-only tail", () => {
     const arbitrator = createInferenceArbitrator();
     const update = arbitrator.accept(
       streamPrediction({
         raw: "hello",
-        greedy: "hello",
         alternatives: [{ label: "hellon", confidence: 0.99 }],
       }),
       context,
     );
 
     expect(update.displayPrediction?.text).toBe("hello");
-    expect(update.trace.selectedSource).toBe("raw");
   });
 
-  test("does not promote a weak raw tail extension after three repeats", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({ raw: "hello", greedy: "hello" }),
-      context,
-    );
-
-    let update = arbitrator.accept(
-      streamPrediction({ raw: "hellon", greedy: "hello" }),
-      context,
-    );
-    update = arbitrator.accept(
-      streamPrediction({ raw: "hellon", greedy: "hello" }),
-      context,
-    );
-    update = arbitrator.accept(
-      streamPrediction({ raw: "hellon", greedy: "hello" }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("hello");
-  });
-
-  test("promotes a repeated raw final-letter completion when model output agrees", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({
-        raw: "ligh",
-        greedy: "liga",
-        confidence: 0.07,
-        lmScore: -0.32,
-      }),
-      context,
-    );
-
-    let update = arbitrator.accept(
-      streamPrediction({
-        raw: "light",
-        greedy: "light",
-        confidence: 0.67,
-        lmScore: 0.75,
-      }),
-      context,
-    );
-    update = arbitrator.accept(
-      streamPrediction({
-        raw: "light",
-        greedy: "light",
-        confidence: 0.8,
-        lmScore: 0.75,
-      }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("light");
-    expect(
-      arbitrator.finalize({
-        endpointReason: "idle",
-        idleFrames: 16,
-        missingFrames: 0,
-        segmentFrames: 69,
-      }).displayPrediction?.text,
-    ).toBe("light");
-  });
-
-  test("hides low-confidence live hallucinations before they stabilize", () => {
+  test("suppresses low-confidence live output", () => {
     const arbitrator = createInferenceArbitrator();
     const update = arbitrator.accept(
       streamPrediction({
@@ -128,339 +67,83 @@ describe("InferenceArbitrator", () => {
     expect(update.displayPrediction).toBeNull();
   });
 
-  test("keeps greedy text diagnostic instead of using it for display", () => {
+  test("promotes a repeated final-letter completion", () => {
     const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(streamPrediction({ raw: "hel", greedy: "hel" }), context);
-
+    arbitrator.accept(
+      streamPrediction({ raw: "ligh", greedy: "liga", confidence: 0.07 }),
+      context,
+    );
+    arbitrator.accept(
+      streamPrediction({ raw: "light", confidence: 0.67 }),
+      context,
+    );
     const update = arbitrator.accept(
-      streamPrediction({
-        raw: "hello",
-        greedy: "uhhello",
-        alternatives: [{ label: "hellon", confidence: 0.93 }],
-      }),
+      streamPrediction({ raw: "light", confidence: 0.8 }),
       context,
     );
 
-    expect(update.displayPrediction?.text).toBe("hello");
-    expect(update.trace.selectedSource).toBe("raw");
-    expect(update.trace.greedyText).toBe("uhhello");
+    expect(update.displayPrediction?.text).toBe("light");
+    expect(arbitrator.finalize(finalize).displayPrediction?.text).toBe("light");
   });
 
-  test("lets a stable later raw candidate replace a bad early display", () => {
+  test("replaces a bad early display with a stable later label", () => {
     const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
-      streamPrediction({ raw: "mayse", greedy: "mayse", confidence: 0.95 }),
+      streamPrediction({ raw: "mayse", confidence: 0.95 }),
       context,
     );
 
     let update = arbitrator.accept(
-      streamPrediction({ raw: "myname", greedy: "myname" }),
+      streamPrediction({ raw: "myname" }),
       context,
     );
-    update = arbitrator.accept(
-      streamPrediction({ raw: "myname", greedy: "myname" }),
-      context,
-    );
-    update = arbitrator.accept(
-      streamPrediction({ raw: "myname", greedy: "myname" }),
-      context,
-    );
-    update = arbitrator.accept(
-      streamPrediction({ raw: "myname", greedy: "myname" }),
-      context,
-    );
+    update = arbitrator.accept(streamPrediction({ raw: "myname" }), context);
+    update = arbitrator.accept(streamPrediction({ raw: "myname" }), context);
 
     expect(update.displayPrediction?.text).toBe("myname");
   });
 
-  test("lets a more confident raw candidate replace a sticky wrong display", () => {
+  test("commits a confident long word at endpoint", () => {
     const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
-      streamPrediction({ raw: "tebu", greedy: "tebu", confidence: 0.08 }),
+      streamPrediction({ raw: "alligator", confidence: 0.32 }),
       context,
     );
 
-    const update = arbitrator.accept(
-      streamPrediction({ raw: "zebra", greedy: "zebra", confidence: 0.6 }),
-      context,
-    );
+    const result = arbitrator.finalize(finalize);
 
-    expect(update.displayPrediction?.text).toBe("zebra");
+    expect(result.committed).toBe(true);
+    expect(result.displayPrediction?.text).toBe("alligator");
   });
 
-  test("lets a longer backend correction replace a sticky short prefix", () => {
+  test("does not commit weak long hallucinations", () => {
     const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
-      streamPrediction({ raw: "alix", greedy: "alix", confidence: 0.52 }),
-      context,
-    );
-
-    const update = arbitrator.accept(
-      streamPrediction({
-        raw: "alligator",
-        greedy: "alligaton",
-        confidence: 0.46,
-      }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("alligator");
-  });
-
-  test("lets a raw streaming word grow beyond a stable prefix", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({ raw: "kanga", greedy: "kanga", confidence: 0.65 }),
-      context,
-    );
-
-    const update = arbitrator.accept(
-      streamPrediction({
-        raw: "kangaroo",
-        greedy: "kangaroo",
-        confidence: 0.33,
-      }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("kangaroo");
-  });
-
-  test("does not replace a compact word with a spaced spelling variant", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({ raw: "alligator", greedy: "alligator" }),
-      context,
-    );
-
-    const update = arbitrator.accept(
-      streamPrediction({
-        raw: "all i gatt or",
-        greedy: "alligator",
-        confidence: 0.9,
-      }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("alligator");
-  });
-
-  test("prefers backend lexical label over a noisy greedy collapse", () => {
-    const arbitrator = createInferenceArbitrator();
-
-    const update = arbitrator.accept(
-      streamPrediction({
-        raw: "whale",
-        greedy: "uhale",
-        confidence: 0.38,
-      }),
-      context,
-    );
-
-    expect(update.displayPrediction?.text).toBe("whale");
-    expect(update.trace.selectedSource).toBe("raw");
-  });
-
-  test("commits long single-token predictions after one confident decode", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({
-        raw: "alligator",
-        greedy: "alligator",
-        confidence: 0.32,
-      }),
-      context,
-    );
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "landmark-lost",
-      idleFrames: 10,
-      missingFrames: 10,
-      segmentFrames: 53,
-    });
-
-    expect(finalized.committed).toBe(true);
-    expect(finalized.displayPrediction?.text).toBe("alligator");
-  });
-
-  test("does not commit long low-language hallucinations without strong evidence", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({
-        raw: "hithisadi",
-        greedy: "hithisadi",
-        confidence: 0.48,
-        lmScore: -1.98,
-      }),
+      streamPrediction({ raw: "hithisadi", confidence: 0.48, lmScore: -1.98 }),
       context,
     );
     arbitrator.accept(
-      streamPrediction({
-        raw: "hithisadi",
-        greedy: "hithisadi",
-        confidence: 0.52,
-        lmScore: -1.98,
-      }),
+      streamPrediction({ raw: "hithisadi", confidence: 0.52, lmScore: -1.98 }),
       context,
     );
 
-    const finalized = arbitrator.finalize({
-      endpointReason: "idle",
-      idleFrames: 16,
-      missingFrames: 0,
-      segmentFrames: 133,
-    });
-
-    expect(finalized.committed).toBe(false);
-    expect(finalized.trace.lmScore).toBe(-1.98);
+    expect(arbitrator.finalize(finalize).committed).toBe(false);
   });
 
-  test("commits stable high-language phrases at moderate model confidence", () => {
-    const arbitrator = createInferenceArbitrator();
-    for (let i = 0; i < 3; i += 1) {
-      arbitrator.accept(
-        streamPrediction({
-          raw: "hello this chad",
-          greedy: "hello this chad",
-          confidence: 0.29,
-          lmScore: 2.01,
-        }),
-        context,
-      );
-    }
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "idle",
-      idleFrames: 16,
-      missingFrames: 0,
-      segmentFrames: 152,
-    });
-
-    expect(finalized.committed).toBe(true);
-    expect(finalized.displayPrediction?.text).toBe("hello this chad");
-  });
-
-  test("does not commit suspicious short-token phrases from language score alone", () => {
+  test("keeps the full phrase when the rolling window returns a suffix", () => {
     const arbitrator = createInferenceArbitrator();
     arbitrator.accept(
-      streamPrediction({
-        raw: "qu are you",
-        greedy: "qu are you",
-        confidence: 0.29,
-        lmScore: 2.64,
-      }),
-      context,
-    );
-    arbitrator.accept(
-      streamPrediction({
-        raw: "qu are you",
-        greedy: "qu are you",
-        confidence: 0.29,
-        lmScore: 2.64,
-      }),
-      context,
-    );
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "idle",
-      idleFrames: 16,
-      missingFrames: 0,
-      segmentFrames: 112,
-    });
-
-    expect(finalized.committed).toBe(false);
-  });
-
-  test("does not let a lower-confidence repeat erase commit confidence", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({
-        raw: "alligator",
-        greedy: "alligator",
-        confidence: 0.53,
-      }),
-      context,
-    );
-    arbitrator.accept(
-      streamPrediction({
-        raw: "alligator",
-        greedy: "alligator",
-        confidence: 0.17,
-      }),
-      context,
-    );
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "landmark-lost",
-      idleFrames: 10,
-      missingFrames: 10,
-      segmentFrames: 53,
-    });
-
-    expect(finalized.committed).toBe(true);
-    expect(finalized.trace.confidence).toBe(0.53);
-  });
-
-  test("does not commit repeated low-confidence short fragments", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(streamPrediction({ raw: "say", confidence: 0.18 }), context);
-    arbitrator.accept(streamPrediction({ raw: "say", confidence: 0.18 }), context);
-    arbitrator.accept(streamPrediction({ raw: "say", confidence: 0.18 }), context);
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "idle",
-      idleFrames: 16,
-      missingFrames: 0,
-      segmentFrames: 70,
-    });
-
-    expect(finalized.committed).toBe(false);
-    expect(finalized.displayPrediction).toBeNull();
-  });
-
-  test("does not commit repeated low-confidence phrase fragments", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(streamPrediction({ raw: "a or", confidence: 0.06 }), context);
-    arbitrator.accept(streamPrediction({ raw: "a or", confidence: 0.06 }), context);
-    arbitrator.accept(streamPrediction({ raw: "a or", confidence: 0.06 }), context);
-
-    const finalized = arbitrator.finalize({
-      endpointReason: "landmark-lost",
-      idleFrames: 10,
-      missingFrames: 10,
-      segmentFrames: 71,
-    });
-
-    expect(finalized.committed).toBe(false);
-    expect(finalized.displayPrediction).toBeNull();
-  });
-
-  test("keeps a full phrase when a rolling window later returns its suffix", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
-      streamPrediction({
-        raw: "helmynameischad",
-        greedy: "helmynameischad",
-        confidence: 0.39,
-      }),
+      streamPrediction({ raw: "helmynameischad", confidence: 0.39 }),
       context,
     );
 
     let update = arbitrator.accept(
-      streamPrediction({
-        raw: "myname ischad",
-        greedy: "myname ischad",
-        confidence: 0.98,
-      }),
-      { ...context, idleFrames: 10, motion: 0.001 },
+      streamPrediction({ raw: "myname ischad", confidence: 0.98 }),
+      { ...context, idleFrames: 10 },
     );
     update = arbitrator.accept(
-      streamPrediction({
-        raw: "myname ischad",
-        greedy: "myname ischad",
-        confidence: 0.95,
-      }),
-      { ...context, idleFrames: 14, motion: 0.001 },
+      streamPrediction({ raw: "myname ischad", confidence: 0.95 }),
+      { ...context, idleFrames: 14 },
     );
 
     expect(update.displayPrediction?.text).toBe("helmynameischad");
