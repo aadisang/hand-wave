@@ -9,10 +9,12 @@ import {
   acceptedFrameTime,
   createInferenceArbitrator,
   type DecodeTrace,
+  type EndpointReason,
   finalizedDisplayMs,
   type FinalizeTrace,
   frameMotion,
   idleFramesToFinalize,
+  lostFramesToFinalize,
   minDecodeFrames,
   motionThreshold,
   strideFrames,
@@ -33,6 +35,7 @@ export class InferenceStreamController {
   private endpointed = false;
   private generation = 0;
   private lastMotion = 0;
+  private missingFrames = 0;
   private lastAcceptedFrameMs = 0;
   private clearPredictionTimeout: number | null = null;
   private disposed = false;
@@ -61,21 +64,27 @@ export class InferenceStreamController {
   accept(frame: LandmarkFrame | null) {
     if (!this.sessionId) return;
     if (!frame) {
-      if (
-        !this.endpointed &&
-        this.hasMoved &&
-        this.framesSeen >= minDecodeFrames
-      ) {
-        this.finalize();
-      } else {
+      if (this.endpointed) return;
+      if (!this.hasMoved || this.framesSeen < minDecodeFrames) {
         this.clearDisplayReset();
         useDetectionsStore.getState().setCurrentPrediction(null);
         this.resetSegment();
         this.arbitrator.reset();
+        return;
+      }
+
+      this.missingFrames += 1;
+      this.idleFrames += 1;
+      if (
+        this.missingFrames >= lostFramesToFinalize ||
+        this.idleFrames >= idleFramesToFinalize
+      ) {
+        this.finalize("landmark-lost");
       }
       return;
     }
 
+    this.missingFrames = 0;
     const acceptedAt = acceptedFrameTime(this.lastAcceptedFrameMs);
     if (acceptedAt === null) return;
     this.lastAcceptedFrameMs = acceptedAt;
@@ -87,7 +96,7 @@ export class InferenceStreamController {
     this.framesSeen += 1;
 
     if (this.idleFrames >= idleFramesToFinalize) {
-      this.finalize();
+      this.finalize("idle");
       return;
     }
 
@@ -104,6 +113,7 @@ export class InferenceStreamController {
     this.lastAcceptedFrameMs = 0;
     this.idleFrames = 0;
     this.hasMoved = false;
+    this.missingFrames = 0;
   }
 
   private clearDisplayReset() {
@@ -128,17 +138,25 @@ export class InferenceStreamController {
     }
   }
 
-  private finalize() {
-    const finalized = this.arbitrator.finalize(this.idleFrames);
-    if (finalized.displayPrediction && finalized.committed) {
+  private finalize(endpointReason: EndpointReason) {
+    const segmentFrames = this.framesSeen;
+    const finalized = this.arbitrator.finalize({
+      endpointReason,
+      idleFrames: this.idleFrames,
+      missingFrames: this.missingFrames,
+      segmentFrames,
+    });
+    this.clearDisplayReset();
+    if (finalized.displayPrediction) {
       useDetectionsStore
         .getState()
         .setCurrentPrediction(finalized.displayPrediction);
-      this.clearDisplayReset();
       this.clearPredictionTimeout = window.setTimeout(() => {
         useDetectionsStore.getState().setCurrentPrediction(null);
         this.clearPredictionTimeout = null;
       }, finalizedDisplayMs);
+    } else {
+      useDetectionsStore.getState().setCurrentPrediction(null);
     }
 
     pushFinalizeTrace(finalized.trace);

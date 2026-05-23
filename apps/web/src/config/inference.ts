@@ -1,6 +1,6 @@
 export const inferenceConfig = {
   session: {
-    maxWindowFrames: 128,
+    maxWindowFrames: 192,
     minStableFrames: 3,
   },
   stream: {
@@ -8,6 +8,7 @@ export const inferenceConfig = {
     minDecodeFrames: 24,
     strideFrames: 4,
     idleFramesToFinalize: 16,
+    lostFramesToFinalize: 10,
     finalizedDisplayMs: 1_200,
     motionThreshold: 0.003,
   },
