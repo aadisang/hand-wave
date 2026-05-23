@@ -15,6 +15,7 @@ class Prediction(BaseModel):
     confidence: float = Field(ge=0, le=1)
     logit_score: float | None = None
     lm_score: float | None = None
+    raw_label: str | None = None
 
 
 class PredictionSpan(BaseModel):

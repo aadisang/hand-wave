@@ -72,17 +72,16 @@ Core endpoints:
 | `DELETE` | `/v1/sessions/{id}` | End a session |
 | `POST` | `/v1/predict` | Compatibility endpoint for one-off checks |
 
-To serve a real checkpoint, the backend needs more than the `.ckpt` file:
+Inference expects exactly one `.ckpt` file in `apps/inference/models/`.
+The checked-in local bundle uses `apps/inference/models/best.ckpt`.
+
+The backend still needs the checkpoint to match the code beside it:
 
 - the Lightning checkpoint, usually `last.ckpt` or best `step*-cer*.ckpt`
 - the exact model class and config used for training
 - vocab order, including the CTC blank token
 - feature layout, e.g. which MediaPipe landmarks and coordinate order
 - preprocessing rules, especially normalization and frame masking
-
-Set `HANDWAVE_CHECKPOINT_PATH` only after that bundle is available inside
-`apps/inference`; otherwise the service fails loudly rather than returning fake
-predictions.
 
 ## Quality
 

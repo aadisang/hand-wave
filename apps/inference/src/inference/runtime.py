@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from os import getenv
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -12,6 +11,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as functional
 from torchaudio.models import Conformer
+
+from inference.language import english_prior
 
 if TYPE_CHECKING:
     from inference.schemas import LandmarkFrame
@@ -88,6 +89,7 @@ FSBOARD_CHARS = [
     "~",
 ]
 VOCAB = ("<blank>", *FSBOARD_CHARS)
+LANGUAGE_SCORE_WEIGHT = 0.35
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ class DecodedAlternative:
     confidence: float
     logit_score: float
     lm_score: float
+    raw_text: str
     spans: tuple[DecodedSpan, ...] = ()
 
 
@@ -171,21 +174,9 @@ class HandwaveRuntime:
     def __init__(self, checkpoint_path: str | Path, device: str = "auto") -> None:
         self.device = _resolve_device(device)
         self.model = _load_model(Path(checkpoint_path), self.device)
-        kenlm_model_path = getenv("HANDWAVE_KENLM_PATH") or None
-        self.decoder = build_ctcdecoder(
-            ["", *FSBOARD_CHARS],
-            kenlm_model_path=kenlm_model_path,
-            alpha=float(getenv("HANDWAVE_LM_ALPHA", "0.5")),
-            beta=float(getenv("HANDWAVE_LM_BETA", "1.0")),
-        )
-        self.beam_width = int(getenv("HANDWAVE_BEAM_WIDTH", "50"))
-        self.hotwords = tuple(
-            word.strip() for word in getenv("HANDWAVE_HOTWORDS", "").split(",") if word.strip()
-        )
-        self.hotword_weight = float(getenv("HANDWAVE_HOTWORD_WEIGHT", "8.0"))
-        self.allowed_token_ids = _allowed_token_ids(
-            getenv("HANDWAVE_ALLOWED_CHARS", "abcdefghijklmnopqrstuvwxyz ")
-        )
+        self.decoder = build_ctcdecoder(["", *FSBOARD_CHARS])
+        self.beam_width = 50
+        self.allowed_token_ids = _allowed_token_ids("abcdefghijklmnopqrstuvwxyz ")
 
     @torch.no_grad()
     def predict(self, frames: list[LandmarkFrame]) -> DecodedText:
@@ -199,7 +190,7 @@ class HandwaveRuntime:
         greedy_text = _greedy_decode(emissions)
         blank_stats = _blank_stats(emissions)
         frame_confidence = sequence_confidence(log_probs, input_lengths)[0]
-        best = alternatives[0] if alternatives else DecodedAlternative("", 0.0, 0.0, 0.0)
+        best = alternatives[0] if alternatives else DecodedAlternative("", 0.0, 0.0, 0.0, "")
         return DecodedText(
             text=best.text,
             confidence=best.confidence * frame_confidence,
@@ -217,28 +208,39 @@ class HandwaveRuntime:
             beam_width=self.beam_width,
             beam_prune_logp=-10.0,
             token_min_logp=-5.0,
-            hotwords=self.hotwords or None,
-            hotword_weight=self.hotword_weight,
         )
-        scores = np.asarray(
-            [_beam_logit_score(beam) + _beam_lm_score(beam) for beam in beams], dtype=np.float64
-        )
-        weights = _softmax(scores)
-        seen: set[str] = set()
+        scored: list[tuple[str, float, float, float, str, tuple[DecodedSpan, ...]]] = []
+        for beam in beams:
+            raw = _beam_text(beam).strip()
+            if not raw:
+                continue
+            logit_score = _beam_logit_score(beam)
+            spans = _beam_spans(beam)
+            for variant in english_prior().variants(raw):
+                scored.append(
+                    (
+                        variant.text,
+                        logit_score + LANGUAGE_SCORE_WEIGHT * variant.score,
+                        logit_score,
+                        variant.score,
+                        raw,
+                        spans,
+                    )
+                )
+
+        weights = _softmax(np.asarray([score for _, score, *_ in scored], dtype=np.float64))
         alternatives: list[DecodedAlternative] = []
-        for beam, confidence in zip(beams, weights, strict=False):
-            text = _beam_text(beam).strip()
-            if not text or text in seen:
+        seen: set[str] = set()
+        for (text, _score, logit_score, lm_score, raw_text, spans), confidence in sorted(
+            zip(scored, weights, strict=False),
+            key=lambda item: item[0][1],
+            reverse=True,
+        ):
+            if text in seen:
                 continue
             seen.add(text)
             alternatives.append(
-                DecodedAlternative(
-                    text=text,
-                    confidence=float(confidence),
-                    logit_score=_beam_logit_score(beam),
-                    lm_score=_beam_lm_score(beam),
-                    spans=_beam_spans(beam),
-                )
+                DecodedAlternative(text, float(confidence), logit_score, lm_score, raw_text, spans)
             )
             if len(alternatives) == 5:
                 break
