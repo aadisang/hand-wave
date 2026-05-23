@@ -1,17 +1,16 @@
+import * as Exit from "effect/Exit";
 import {
   appendInferenceFrames,
   createInferenceSession,
   deleteInferenceSession,
   resetInferenceSession,
   runInference,
+  runInferenceExit,
 } from "@/lib/inference/client";
 import {
   acceptedFrameTime,
   createInferenceArbitrator,
-  type DecodeTrace,
-  type EndpointReason,
   finalizedDisplayMs,
-  type FinalizeTrace,
   frameMotion,
   idleFramesToFinalize,
   lostFramesToFinalize,
@@ -21,182 +20,185 @@ import {
 } from "@/lib/inference/arbitration";
 import { useDetectionsStore } from "@/stores/detections-store";
 import { useDevStore } from "@/stores/dev-store";
-import type { LandmarkFrame } from "@/types/inference";
+import type {
+  DecodeTrace,
+  EndpointReason,
+  FinalizeTrace,
+  InferenceStreamController,
+  LandmarkFrame,
+} from "@/types/inference";
 
-export class InferenceStreamController {
-  private sessionId = "";
-  private arbitrator = createInferenceArbitrator();
-  private queuedFrames: LandmarkFrame[] = [];
-  private framesSeen = 0;
-  private inFlight = false;
-  private lastFrame: LandmarkFrame | null = null;
-  private idleFrames = 0;
-  private hasMoved = false;
-  private endpointed = false;
-  private generation = 0;
-  private lastMotion = 0;
-  private missingFrames = 0;
-  private lastAcceptedFrameMs = 0;
-  private clearPredictionTimeout: number | null = null;
-  private disposed = false;
+export function createInferenceStreamController(): InferenceStreamController {
+  let sessionId = "";
+  let queuedFrames: LandmarkFrame[] = [];
+  let framesSeen = 0;
+  let inFlight = false;
+  let lastFrame: LandmarkFrame | null = null;
+  let idleFrames = 0;
+  let hasMoved = false;
+  let endpointed = false;
+  let generation = 0;
+  let lastMotion = 0;
+  let missingFrames = 0;
+  let lastAcceptedFrameMs = 0;
+  let clearPredictionTimeout: number | null = null;
+  let disposed = false;
+  const arbitrator = createInferenceArbitrator();
 
-  async start() {
-    const sessionId = await runInference(createInferenceSession());
-    if (this.disposed) {
-      void runInference(deleteInferenceSession(sessionId));
+  const setPrediction = useDetectionsStore.getState().setCurrentPrediction;
+
+  const clearDisplayReset = () => {
+    if (clearPredictionTimeout === null) return;
+    window.clearTimeout(clearPredictionTimeout);
+    clearPredictionTimeout = null;
+  };
+
+  const resetSegment = () => {
+    queuedFrames = [];
+    framesSeen = 0;
+    lastFrame = null;
+    lastAcceptedFrameMs = 0;
+    idleFrames = 0;
+    hasMoved = false;
+    missingFrames = 0;
+  };
+
+  const resetLiveState = () => {
+    clearDisplayReset();
+    setPrediction(null);
+    resetSegment();
+    arbitrator.reset();
+  };
+
+  const start = async () => {
+    const nextSessionId = await runInference(createInferenceSession());
+    if (disposed) {
+      void runInference(deleteInferenceSession(nextSessionId));
       return;
     }
-    this.sessionId = sessionId;
-  }
+    sessionId = nextSessionId;
+  };
 
-  dispose() {
-    this.disposed = true;
-    const sessionId = this.sessionId;
-    this.sessionId = "";
-    this.generation += 1;
-    this.clearDisplayReset();
-    useDetectionsStore.getState().setCurrentPrediction(null);
-    this.resetSegment();
-    this.arbitrator.reset();
-    if (sessionId) void runInference(deleteInferenceSession(sessionId));
-  }
+  const dispose = () => {
+    disposed = true;
+    const activeSessionId = sessionId;
+    sessionId = "";
+    generation += 1;
+    resetLiveState();
+    if (activeSessionId)
+      void runInference(deleteInferenceSession(activeSessionId));
+  };
 
-  accept(frame: LandmarkFrame | null) {
-    if (!this.sessionId) return;
-    if (!frame) {
-      if (this.endpointed) return;
-      if (!this.hasMoved || this.framesSeen < minDecodeFrames) {
-        this.clearDisplayReset();
-        useDetectionsStore.getState().setCurrentPrediction(null);
-        this.resetSegment();
-        this.arbitrator.reset();
-        return;
-      }
-
-      this.missingFrames += 1;
-      this.idleFrames += 1;
-      if (
-        this.missingFrames >= lostFramesToFinalize ||
-        this.idleFrames >= idleFramesToFinalize
-      ) {
-        this.finalize("landmark-lost");
-      }
-      return;
-    }
-
-    this.missingFrames = 0;
-    const acceptedAt = acceptedFrameTime(this.lastAcceptedFrameMs);
-    if (acceptedAt === null) return;
-    this.lastAcceptedFrameMs = acceptedAt;
-
-    this.updateMotion(frame);
-    if (this.endpointed) return;
-
-    this.queuedFrames.push(frame);
-    this.framesSeen += 1;
-
-    if (this.idleFrames >= idleFramesToFinalize) {
-      this.finalize("idle");
-      return;
-    }
-
-    if (this.framesSeen < minDecodeFrames) return;
-    if (this.framesSeen % strideFrames !== 0 || this.inFlight) return;
-
-    void this.decode(this.queuedFrames.splice(0), this.idleFrames);
-  }
-
-  private resetSegment() {
-    this.queuedFrames = [];
-    this.framesSeen = 0;
-    this.lastFrame = null;
-    this.lastAcceptedFrameMs = 0;
-    this.idleFrames = 0;
-    this.hasMoved = false;
-    this.missingFrames = 0;
-  }
-
-  private clearDisplayReset() {
-    if (this.clearPredictionTimeout === null) return;
-    window.clearTimeout(this.clearPredictionTimeout);
-    this.clearPredictionTimeout = null;
-  }
-
-  private updateMotion(frame: LandmarkFrame) {
-    const motion = frameMotion(this.lastFrame, frame);
-    this.lastMotion = motion;
-    this.lastFrame = frame;
+  const updateMotion = (frame: LandmarkFrame) => {
+    const motion = frameMotion(lastFrame, frame);
+    lastMotion = motion;
+    lastFrame = frame;
 
     if (motion >= motionThreshold) {
-      this.clearDisplayReset();
-      if (this.endpointed) this.resetSegment();
-      this.endpointed = false;
-      this.hasMoved = true;
-      this.idleFrames = 0;
-    } else if (this.hasMoved) {
-      this.idleFrames += 1;
+      clearDisplayReset();
+      if (endpointed) resetSegment();
+      endpointed = false;
+      hasMoved = true;
+      idleFrames = 0;
+      return;
     }
-  }
+    if (hasMoved) idleFrames += 1;
+  };
 
-  private finalize(endpointReason: EndpointReason) {
-    const segmentFrames = this.framesSeen;
-    const finalized = this.arbitrator.finalize({
+  const finalize = (endpointReason: EndpointReason) => {
+    const finalized = arbitrator.finalize({
       endpointReason,
-      idleFrames: this.idleFrames,
-      missingFrames: this.missingFrames,
-      segmentFrames,
+      idleFrames,
+      missingFrames,
+      segmentFrames: framesSeen,
     });
-    this.clearDisplayReset();
+
+    clearDisplayReset();
+    setPrediction(finalized.displayPrediction);
     if (finalized.displayPrediction) {
-      useDetectionsStore
-        .getState()
-        .setCurrentPrediction(finalized.displayPrediction);
-      this.clearPredictionTimeout = window.setTimeout(() => {
-        useDetectionsStore.getState().setCurrentPrediction(null);
-        this.clearPredictionTimeout = null;
+      clearPredictionTimeout = window.setTimeout(() => {
+        setPrediction(null);
+        clearPredictionTimeout = null;
       }, finalizedDisplayMs);
-    } else {
-      useDetectionsStore.getState().setCurrentPrediction(null);
     }
 
     pushFinalizeTrace(finalized.trace);
-    this.endpointed = true;
-    this.generation += 1;
-    this.arbitrator.reset();
-    this.resetSegment();
-    void runInference(resetInferenceSession(this.sessionId));
-  }
+    endpointed = true;
+    generation += 1;
+    arbitrator.reset();
+    resetSegment();
+    void runInference(resetInferenceSession(sessionId));
+  };
 
-  private async decode(frames: LandmarkFrame[], idleFrames: number) {
-    const generation = this.generation;
-    const sessionId = this.sessionId;
-    this.inFlight = true;
+  const decode = async (frames: LandmarkFrame[], decodeIdleFrames: number) => {
+    const decodeGeneration = generation;
     const startedAt = performance.now();
+    inFlight = true;
 
-    try {
-      const response = await runInference(
-        appendInferenceFrames(sessionId, frames),
-      );
-      if (generation !== this.generation) return;
+    const exit = await runInferenceExit(
+      appendInferenceFrames(sessionId, frames),
+    );
+    inFlight = false;
+    if (decodeGeneration !== generation || !Exit.isSuccess(exit)) return;
 
-      const update = this.arbitrator.accept(response, {
-        latencyMs: performance.now() - startedAt,
-        idleFrames,
-        motion: this.lastMotion,
-      });
-      if (update.displayPrediction) {
-        useDetectionsStore
-          .getState()
-          .setCurrentPrediction(update.displayPrediction);
-      }
-      pushDecodeTrace(update.trace);
-    } finally {
-      this.inFlight = false;
+    const update = arbitrator.accept(exit.value, {
+      latencyMs: performance.now() - startedAt,
+      idleFrames: decodeIdleFrames,
+      motion: lastMotion,
+    });
+    if (update.displayPrediction) setPrediction(update.displayPrediction);
+    pushDecodeTrace(update.trace);
+  };
+
+  const acceptMissingFrame = () => {
+    if (endpointed) return;
+    if (!hasMoved || framesSeen < minDecodeFrames) {
+      resetLiveState();
+      return;
     }
-  }
+
+    missingFrames += 1;
+    idleFrames += 1;
+    if (
+      missingFrames >= lostFramesToFinalize ||
+      idleFrames >= idleFramesToFinalize
+    ) {
+      finalize("landmark-lost");
+    }
+  };
+
+  const accept = (frame: LandmarkFrame | null) => {
+    if (!sessionId) return;
+    if (!frame) {
+      acceptMissingFrame();
+      return;
+    }
+
+    missingFrames = 0;
+    const acceptedAt = acceptedFrameTime(lastAcceptedFrameMs);
+    if (acceptedAt === null) return;
+    lastAcceptedFrameMs = acceptedAt;
+
+    updateMotion(frame);
+    if (endpointed) return;
+
+    queuedFrames.push(frame);
+    framesSeen += 1;
+
+    if (idleFrames >= idleFramesToFinalize) {
+      finalize("idle");
+      return;
+    }
+    if (framesSeen < minDecodeFrames) return;
+    if (framesSeen % strideFrames !== 0 || inFlight) return;
+
+    void decode(queuedFrames.splice(0), idleFrames);
+  };
+
+  return { accept, dispose, start };
 }
 
-function pushDecodeTrace(trace: DecodeTrace) {
+function pushDecodeTrace(trace: Omit<DecodeTrace, "type" | "at">) {
   useDevStore.getState().pushTrace({
     ...trace,
     type: "decode",
@@ -204,7 +206,7 @@ function pushDecodeTrace(trace: DecodeTrace) {
   });
 }
 
-function pushFinalizeTrace(trace: FinalizeTrace) {
+function pushFinalizeTrace(trace: Omit<FinalizeTrace, "type" | "at">) {
   useDevStore.getState().pushTrace({
     ...trace,
     type: "finalize",

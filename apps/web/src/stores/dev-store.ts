@@ -1,10 +1,8 @@
 import { create } from "zustand";
 import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
-import type { DecodeTrace, FinalizeTrace } from "@/lib/inference/arbitration";
+import type { DecodeTrace, FinalizeTrace } from "@/types/inference";
 
-export type DevTrace =
-  | ({ type: "decode"; at: string } & DecodeTrace)
-  | ({ type: "finalize"; at: string } & FinalizeTrace);
+export type DevTrace = DecodeTrace | FinalizeTrace;
 
 type State = {
   enabled: boolean;

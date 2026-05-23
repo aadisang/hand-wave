@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
-import { InferenceStreamController } from "@/lib/inference/stream-controller";
+import { createInferenceStreamController } from "@/lib/inference/stream-controller";
 import { toInferenceFrame } from "@/lib/mediapipe/landmarks";
+import type { InferenceStreamController } from "@/types/inference";
 import type { HandLandmarksFrame } from "./use-hand-landmarker";
 
 export function useInferenceSession(active: boolean) {
@@ -9,7 +10,7 @@ export function useInferenceSession(active: boolean) {
   useEffect(() => {
     if (!active) return;
 
-    const controller = new InferenceStreamController();
+    const controller = createInferenceStreamController();
     controllerRef.current = controller;
     void controller.start();
 
