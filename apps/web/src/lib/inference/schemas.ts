@@ -13,6 +13,7 @@ export const PredictionSchema = Schema.Struct({
   confidence: Schema.Number,
   logit_score: Schema.optional(Schema.NullOr(Schema.Number)),
   lm_score: Schema.optional(Schema.NullOr(Schema.Number)),
+  raw_label: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
 export const PredictionSpanSchema = Schema.Struct({
