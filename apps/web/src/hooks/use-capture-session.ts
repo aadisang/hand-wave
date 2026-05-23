@@ -2,35 +2,33 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type CaptureKind = "camera" | "screen";
 
-type CaptureRequest = {
-  kind: CaptureKind;
-  deviceId?: string;
-};
+type CaptureRequest =
+  | { kind: "camera"; cameraId: string | null }
+  | { kind: "screen" };
 
 export type CaptureState =
   | { status: "idle" }
-  | { status: "starting"; kind: CaptureKind; deviceId?: string }
-  | {
+  | ({ status: "starting" } & CaptureRequest)
+  | ({
       status: "live";
-      kind: CaptureKind;
-      deviceId?: string;
       stream: MediaStream;
-    }
+    } & CaptureRequest)
   | { status: "error"; message: string };
 
 export type CaptureSession = {
   state: CaptureState;
-  deviceId: string | undefined;
+  cameraId: string | null;
   start: (kind: CaptureKind) => void;
   stop: () => void;
-  setDeviceId: (deviceId: string | undefined) => void;
+  setCameraId: (cameraId: string | null) => void;
 };
 
 const stopStream = (stream: MediaStream) => {
   stream.getTracks().forEach((track) => track.stop());
 };
 
-async function openStream({ kind, deviceId }: CaptureRequest) {
+async function openStream(request: CaptureRequest) {
+  const { kind } = request;
   if (kind === "screen") {
     return navigator.mediaDevices.getDisplayMedia({
       audio: false,
@@ -44,15 +42,15 @@ async function openStream({ kind, deviceId }: CaptureRequest) {
       width: { ideal: 1280 },
       height: { ideal: 720 },
       frameRate: { ideal: 60, max: 120 },
-      ...(deviceId
-        ? { deviceId: { exact: deviceId } }
+      ...(request.cameraId
+        ? { deviceId: { exact: request.cameraId } }
         : { facingMode: "user" }),
     },
   });
 
-  const track = stream.getVideoTracks()[0];
-  const maxFrameRate = track?.getCapabilities().frameRate?.max;
-  if (track && maxFrameRate) {
+  const [track] = stream.getVideoTracks();
+  const maxFrameRate = track.getCapabilities().frameRate?.max;
+  if (maxFrameRate) {
     await track.applyConstraints({
       frameRate: { ideal: maxFrameRate, max: maxFrameRate },
     });
@@ -79,7 +77,7 @@ function captureErrorMessage(kind: CaptureKind, error: unknown) {
 export function useCaptureSession(): CaptureSession {
   const [request, setRequest] = useState<CaptureRequest | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [deviceId, setDeviceIdState] = useState<string>();
+  const [cameraId, setCameraIdState] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,11 +101,11 @@ export function useCaptureSession(): CaptureSession {
         setError(null);
         setStream(next);
 
-        if (request.kind === "camera" && !request.deviceId) {
-          const trackDeviceId = next
+        if (request.kind === "camera" && request.cameraId === null) {
+          const resolvedCameraId = next
             .getVideoTracks()[0]
-            ?.getSettings().deviceId;
-          if (trackDeviceId) setDeviceIdState(trackDeviceId);
+            .getSettings().deviceId;
+          if (resolvedCameraId) setCameraIdState(resolvedCameraId);
         }
 
         next.getVideoTracks().forEach((track) => {
@@ -132,9 +130,9 @@ export function useCaptureSession(): CaptureSession {
   const start = useCallback(
     (kind: CaptureKind) => {
       setError(null);
-      setRequest({ kind, deviceId: kind === "camera" ? deviceId : undefined });
+      setRequest(kind === "camera" ? { kind, cameraId } : { kind });
     },
-    [deviceId],
+    [cameraId],
   );
 
   const stop = useCallback(() => {
@@ -142,10 +140,10 @@ export function useCaptureSession(): CaptureSession {
     setError(null);
   }, []);
 
-  const setDeviceId = useCallback((next: string | undefined) => {
-    setDeviceIdState(next);
+  const setCameraId = useCallback((next: string | null) => {
+    setCameraIdState(next);
     setRequest((current) =>
-      current?.kind === "camera" ? { ...current, deviceId: next } : current,
+      current?.kind === "camera" ? { ...current, cameraId: next } : current,
     );
   }, []);
 
@@ -159,5 +157,5 @@ export function useCaptureSession(): CaptureSession {
       : { status: "starting", ...request };
   }, [error, request, stream]);
 
-  return { state, deviceId, start, stop, setDeviceId };
+  return { state, cameraId, start, stop, setCameraId };
 }

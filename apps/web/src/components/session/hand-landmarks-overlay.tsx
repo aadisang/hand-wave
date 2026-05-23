@@ -8,14 +8,13 @@ import {
   useHandLandmarks,
   type HandLandmarksFrame,
 } from "@/hooks/use-hand-landmarker";
+import type { CaptureKind } from "@/hooks/use-capture-session";
 import { useDevStore } from "@/stores/dev-store";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
-  active: boolean;
-  mirrored: boolean;
-  fit: "contain" | "cover";
-  onFrame?: (frame: HandLandmarksFrame) => void;
+  captureKind: CaptureKind;
+  onFrame: (frame: HandLandmarksFrame) => void;
 };
 
 const handPointColor = "rgba(16, 185, 129, 0.95)";
@@ -25,37 +24,27 @@ const poseLineColor = "rgba(147, 197, 253, 0.55)";
 
 export function HandLandmarksOverlay({
   videoRef,
-  active,
-  mirrored,
-  fit,
+  captureKind,
   onFrame: onInferenceFrame,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lastFrameRef = useRef<HandLandmarksFrame | null>(null);
 
   const onFrame = useCallback(
     (frame: HandLandmarksFrame, inferenceMs: number) => {
-      lastFrameRef.current = frame;
       drawFrame(canvasRef.current, videoRef.current, frame);
-      onInferenceFrame?.(frame);
+      onInferenceFrame(frame);
       const dev = useDevStore.getState();
       if (dev.enabled) dev.push(frame, inferenceMs);
     },
     [onInferenceFrame, videoRef],
   );
 
-  useHandLandmarks(videoRef, active, mirrored, onFrame);
+  useHandLandmarks(videoRef, captureKind, onFrame);
 
   useEffect(() => {
-    if (!active) {
-      lastFrameRef.current = null;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-  }, [active]);
+    const canvas = canvasRef.current;
+    return () => clearCanvas(canvas);
+  }, []);
 
   return (
     <canvas
@@ -63,10 +52,16 @@ export function HandLandmarksOverlay({
       aria-hidden="true"
       className={[
         "pointer-events-none absolute inset-0 z-10 h-full w-full",
-        fit === "cover" ? "object-cover" : "object-contain",
+        captureKind === "camera" ? "object-cover" : "object-contain",
       ].join(" ")}
     />
   );
+}
+
+function clearCanvas(canvas: HTMLCanvasElement | null) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx?.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawFrame(
