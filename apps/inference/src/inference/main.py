@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from inference.model import load_backend
-from inference.routers import health, predictions, sessions
+from inference.routers import predictions, sessions
 from inference.sessions import SessionStore
 
 
@@ -40,6 +40,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health.router)
 app.include_router(predictions.router)
 app.include_router(sessions.router)

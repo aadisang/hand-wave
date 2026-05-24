@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from inference.dependencies import get_backend
 from inference.model import ModelBackend
-from inference.schemas import PredictRequest, PredictResponse
+from inference.schemas import PredictIn, PredictOut
 
 router = APIRouter(prefix="/v1", tags=["predictions"])
 
 
-@router.post("/predict", response_model=PredictResponse)
+@router.post("/predict", response_model=PredictOut)
 async def predict(
-    payload: PredictRequest,
+    payload: PredictIn,
     backend: Annotated[ModelBackend, Depends(get_backend)],
-) -> PredictResponse:
+) -> PredictOut:
     try:
         return await backend.predict_frames(payload.frames)
     except ValueError as exc:
