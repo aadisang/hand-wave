@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
-import { toInferenceFrame } from "@/lib/mediapipe/landmarks";
+import { toFrame } from "@/lib/mediapipe/landmarks";
+import type { HandFrame } from "@/types/landmarks";
 
-describe("toInferenceFrame", () => {
+describe("toFrame", () => {
   it("keeps a valid hand and upper-body pose even when visibility metadata is low", () => {
     const frame = handFrame({
       rightHandLandmarks: [landmarks(21, point(0.5, 0.5, 0.1))],
@@ -11,12 +11,12 @@ describe("toInferenceFrame", () => {
       poseLandmarks: [pose()],
     });
 
-    expect(toInferenceFrame(frame)).toHaveLength((21 + 33) * 3);
+    expect(toFrame(frame)).toHaveLength((21 + 33) * 3);
   });
 
   it("rejects frames without both a hand and pose", () => {
     expect(
-      toInferenceFrame(
+      toFrame(
         handFrame({
           rightHandLandmarks: [landmarks(21, point(0.5, 0.5))],
           leftHandLandmarks: [],
@@ -31,7 +31,7 @@ describe("toInferenceFrame", () => {
     outOfFramePose[11] = point(2, 2);
 
     expect(
-      toInferenceFrame(
+      toFrame(
         handFrame({
           rightHandLandmarks: [landmarks(21, point(0.5, 0.5))],
           leftHandLandmarks: [],
@@ -42,7 +42,7 @@ describe("toInferenceFrame", () => {
   });
 });
 
-function handFrame(frame: HandLandmarksFrame) {
+function handFrame(frame: HandFrame) {
   return frame;
 }
 

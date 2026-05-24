@@ -15,21 +15,16 @@ import {
   ToolbarGroup,
   ToolbarSeparator,
 } from "@/components/ui/toolbar";
-import type { CaptureSession } from "@/hooks/use-capture-session";
+import type { CaptureSession } from "@/types/capture";
 import { useDevStore } from "@/stores/dev-store";
 import { CameraSelect } from "./camera-select";
 
 const repositoryUrl = "https://github.com/sinarck/hand-wave";
 const easeOut = [0.23, 1, 0.32, 1] as const;
 
-type FullscreenControls = Pick<
-  UseFullscreenElementReturnValue,
-  "fullscreen" | "toggle"
->;
-
 type Props = {
   capture: CaptureSession;
-  fullscreen: FullscreenControls;
+  fullscreen: Pick<UseFullscreenElementReturnValue, "fullscreen" | "toggle">;
 };
 
 export function StreamToolbar({ capture, fullscreen }: Props) {

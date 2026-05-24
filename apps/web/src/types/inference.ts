@@ -1,34 +1,32 @@
 import type {
-  HealthResponseSchema,
-  LandmarkFrameSchema,
-  PredictionSchema,
-  PredictionSpanSchema,
-  StreamPredictionSchema,
-} from "@/lib/inference/schemas";
+  FrameSchema,
+  PredSchema,
+  SpanSchema,
+  StreamPredSchema,
+} from "@/lib/inference/schema";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 
-export type LandmarkFrame = typeof LandmarkFrameSchema.Type;
-export type HealthResponse = typeof HealthResponseSchema.Type;
-export type Prediction = typeof PredictionSchema.Type;
-export type PredictionSpan = typeof PredictionSpanSchema.Type;
-export type StreamPrediction = typeof StreamPredictionSchema.Type;
+export type Frame = typeof FrameSchema.Type;
+export type Pred = typeof PredSchema.Type;
+export type Span = typeof SpanSchema.Type;
+export type StreamPred = typeof StreamPredSchema.Type;
 
-export type CandidateSource = "partial" | "raw" | `alt ${number}`;
-export type PredictionTextKind =
+export type Source = "partial" | "raw" | `alt ${number}`;
+export type TextKind =
   | "letter"
   | "short"
   | "phrase"
   | "long"
   | "word";
 
-export type DecodeContext = {
+export type DecodeCtx = {
   latencyMs: number;
   idleFrames: number;
   motion: number;
 };
 
 export type Candidate = {
-  source: CandidateSource;
+  source: Source;
   rawText: string;
   text: string;
   confidence: number;
@@ -37,36 +35,36 @@ export type Candidate = {
   score: number;
 };
 
-export type ScoredPrediction = {
+export type Scored = {
   prediction: DetectionPrediction;
   score: number;
-  source: CandidateSource;
+  source: Source;
   lmScore: number | null;
   modelAgrees: boolean;
   streak: number;
 };
 
-export type CandidateInput = Omit<Candidate, "score" | "text">;
+export type CandidateIn = Omit<Candidate, "score" | "text">;
 
-export type ConfidenceThreshold = {
+export type Threshold = {
   instant: number;
   seen: number;
   streak: number;
   confidence: number;
 };
 
-export type DisplayDecisionState = {
-  context: DecodeContext;
+export type DecisionState = {
+  context: DecodeCtx;
   misses: number;
   seenCount: number;
   score: number;
   streak: number;
 };
 
-export type InferenceStreamController = {
+export type StreamCtrl = {
   start: () => Promise<void>;
   dispose: () => void;
-  accept: (frame: LandmarkFrame | null) => void;
+  accept: (frame: Frame | null) => void;
 };
 
 export type DecodeTrace = {
@@ -92,9 +90,20 @@ export type FinalizeTrace = {
 
 export type EndpointReason = "idle" | "landmark-lost";
 
-export type FinalizeContext = {
+export type FinalCtx = {
   endpointReason: EndpointReason;
   idleFrames: number;
   missingFrames: number;
   segmentFrames: number;
+};
+
+export type ArbiterUpdate = {
+  displayPrediction: DetectionPrediction | null;
+  trace: Omit<DecodeTrace, "type" | "at">;
+};
+
+export type FinalPred = {
+  displayPrediction: DetectionPrediction | null;
+  committed: boolean;
+  trace: Omit<FinalizeTrace, "type" | "at">;
 };

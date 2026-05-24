@@ -1,6 +1,7 @@
 import { DownloadIcon } from "lucide-react";
-import { inferenceConfig } from "@/config/inference";
-import { useDevStore, type DevTrace } from "@/stores/dev-store";
+import { cfg } from "@hand-wave/contract";
+import { useDevStore } from "@/stores/dev-store";
+import type { DevTrace } from "@/types/dev";
 
 export function DevPanel() {
   const { enabled, frame, fps, inferenceMs, traces } = useDevStore();
@@ -75,7 +76,7 @@ function createTraceExport(traces: DevTrace[]) {
   return {
     schemaVersion: 2,
     exportedAt: new Date().toISOString(),
-    config: inferenceConfig,
+    config: cfg,
     userAgent: navigator.userAgent,
     traces,
   };

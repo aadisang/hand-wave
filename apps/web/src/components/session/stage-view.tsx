@@ -1,10 +1,10 @@
 import { useFullscreenElement } from "@mantine/hooks";
 import { useEffect, useRef } from "react";
 import { useCaptureSession } from "@/hooks/use-capture-session";
-import { useInferenceSession } from "@/hooks/use-inference-session";
+import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
 import { DevPanel } from "./dev-panel";
-import { HandLandmarksOverlay } from "./hand-landmarks-overlay";
+import { LandmarksOverlay } from "./landmarks-overlay";
 import { IdleStage } from "./idle-stage";
 import { PredictionOverlay } from "./prediction-overlay";
 import { StreamToolbar } from "./stream-toolbar";
@@ -16,7 +16,7 @@ export function Stage() {
 
   const { state } = capture;
   const isLive = state.status === "live";
-  const onLandmarksFrame = useInferenceSession(isLive);
+  const onLandmarksFrame = useInfer(isLive);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -54,7 +54,7 @@ export function Stage() {
       )}
       {state.status === "live" && (
         <>
-          <HandLandmarksOverlay
+          <LandmarksOverlay
             captureKind={state.kind}
             onFrame={onLandmarksFrame}
             videoRef={videoRef}

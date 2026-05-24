@@ -1,10 +1,5 @@
 import { create } from "zustand";
-import type { Prediction } from "@/types/detections";
-
-type DetectionsState = {
-  currentPrediction: Prediction | null;
-  setCurrentPrediction: (prediction: Prediction | null) => void;
-};
+import type { DetectionsState } from "@/types/detections";
 
 export const useDetectionsStore = create<DetectionsState>((set) => ({
   currentPrediction: null,

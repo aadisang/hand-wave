@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
-import { createLandmarkSmoother } from "@/lib/mediapipe/landmark-smoother";
+import { createSmoother } from "@/lib/mediapipe/smooth";
+import type { HandFrame } from "@/types/landmarks";
 
-describe("createLandmarkSmoother", () => {
+describe("createSmoother", () => {
   it("keeps hands more responsive than pose", () => {
-    const smoother = createLandmarkSmoother();
+    const smoother = createSmoother();
 
     smoother.smooth(frame(point(0.5)), 0);
     const smoothed = smoother.smooth(frame(point(0.6)), 16);
@@ -18,7 +18,7 @@ describe("createLandmarkSmoother", () => {
   });
 
   it("drops stale hand state when MediaPipe loses the hand", () => {
-    const smoother = createLandmarkSmoother();
+    const smoother = createSmoother();
 
     smoother.smooth(frame(point(0.5)), 0);
     const smoothed = smoother.smooth(
@@ -34,7 +34,7 @@ describe("createLandmarkSmoother", () => {
   });
 });
 
-function frame(landmark: NormalizedLandmark): HandLandmarksFrame {
+function frame(landmark: NormalizedLandmark): HandFrame {
   return {
     rightHandLandmarks: [landmarks(21, landmark)],
     leftHandLandmarks: [],

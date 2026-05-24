@@ -1,23 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Stage } from "@/components/session/stage-view";
-import { preloadHandLandmarker } from "@/hooks/use-hand-landmarker";
-import { getInferenceHealth, runInferenceExit } from "@/lib/inference/client";
-import type { HealthResponse } from "@/types/inference";
-
-async function getInferenceHealthOrNull(): Promise<HealthResponse | null> {
-  const exit = await runInferenceExit(getInferenceHealth());
-  return exit._tag === "Success" ? exit.value : null;
-}
+import { preloadLandmarker } from "@/hooks/use-landmarks";
 
 export const Route = createFileRoute("/")({
-  loader: async () => ({ health: await getInferenceHealthOrNull() }),
   component: Home,
 });
 
 function Home() {
   useEffect(() => {
-    void preloadHandLandmarker();
+    void preloadLandmarker();
   }, []);
 
   return (

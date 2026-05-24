@@ -1,43 +1,32 @@
 import * as Number from "effect/Number";
-import { inferenceConfig } from "@/config/inference";
+import { cfg } from "@hand-wave/contract";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 import type {
   Candidate,
-  CandidateInput,
-  CandidateSource,
-  ConfidenceThreshold,
-  DecodeContext,
-  DecodeTrace,
-  DisplayDecisionState,
-  FinalizeContext,
-  FinalizeTrace,
-  LandmarkFrame,
-  PredictionTextKind,
-  ScoredPrediction,
-  StreamPrediction,
+  CandidateIn,
+  ArbiterUpdate,
+  Source,
+  Threshold,
+  DecodeCtx,
+  DecisionState,
+  FinalCtx,
+  FinalPred,
+  Frame,
+  TextKind,
+  Scored,
+  StreamPred,
 } from "@/types/inference";
 
 export const {
-  finalizedDisplayMs,
-  idleFramesToFinalize,
-  lostFramesToFinalize,
-  minDecodeFrames,
-  motionThreshold,
-  strideFrames,
-} = inferenceConfig.stream;
+  holdMs,
+  idle,
+  lost,
+  min: minFrames,
+  motion: motionMin,
+  stride,
+} = cfg.stream;
 
-const minFrameIntervalMs = 1_000 / inferenceConfig.stream.targetFps;
-
-export type ArbitrationUpdate = {
-  displayPrediction: DetectionPrediction | null;
-  trace: Omit<DecodeTrace, "type" | "at">;
-};
-
-export type FinalizedPrediction = {
-  displayPrediction: DetectionPrediction | null;
-  committed: boolean;
-  trace: Omit<FinalizeTrace, "type" | "at">;
-};
+const minFrameMs = 1_000 / cfg.stream.fps;
 
 const displayThresholds = {
   letter: { instant: 0.12, seen: 3, streak: 1, confidence: 0.05 },
@@ -45,7 +34,7 @@ const displayThresholds = {
   phrase: { instant: 0.2, seen: 1, streak: 3, confidence: 0.14 },
   long: { instant: 0.22, seen: 1, streak: 2, confidence: 0.16 },
   word: { instant: 0.18, seen: 1, streak: 2, confidence: 0.12 },
-} satisfies Record<PredictionTextKind, ConfidenceThreshold>;
+} satisfies Record<TextKind, Threshold>;
 
 const commitThresholds = {
   letter: { instant: 0.5, seen: 4, streak: 2, confidence: 0.22 },
@@ -53,7 +42,7 @@ const commitThresholds = {
   phrase: { instant: 0.75, seen: 3, streak: 1, confidence: 0.29 },
   long: { instant: 0.75, seen: 1, streak: 1, confidence: 0.32 },
   word: { instant: 0.75, seen: 2, streak: 1, confidence: 0.28 },
-} satisfies Record<PredictionTextKind, ConfidenceThreshold>;
+} satisfies Record<TextKind, Threshold>;
 
 const finalConfidence = {
   letter: 0.3,
@@ -61,11 +50,11 @@ const finalConfidence = {
   phrase: 0.45,
   long: 0.45,
   word: 0.45,
-} satisfies Record<PredictionTextKind, number>;
+} satisfies Record<TextKind, number>;
 
-export function createInferenceArbitrator() {
-  let display: ScoredPrediction | null = null;
-  let finalCandidate: ScoredPrediction | null = null;
+export function createArbiter() {
+  let display: Scored | null = null;
+  let finalCandidate: Scored | null = null;
   let selectedText = "";
   let selectedStreak = 0;
   let displayMisses = 0;
@@ -87,9 +76,9 @@ export function createInferenceArbitrator() {
   };
 
   const accept = (
-    response: StreamPrediction,
-    context: DecodeContext,
-  ): ArbitrationUpdate => {
+    response: StreamPred,
+    context: DecodeCtx,
+  ): ArbiterUpdate => {
     const rawLabel = response.prediction.label.trim();
     const partialText = response.partial_text.trim();
     const candidate = selectCandidate(
@@ -146,8 +135,8 @@ export function createInferenceArbitrator() {
     };
   };
 
-  const finalize = (context: FinalizeContext): FinalizedPrediction => {
-    const selected = preferredFinalPrediction(display, finalCandidate);
+  const finalize = (context: FinalCtx): FinalPred => {
+    const selected = pickFinalPred(display, finalCandidate);
     const prediction = selected?.prediction ?? null;
     const seenCount = prediction ? (counts.get(prediction.text) ?? 0) : 0;
     const committed = selected ? shouldCommit(selected, seenCount) : false;
@@ -177,14 +166,14 @@ export function toDisplayPrediction(
 
 export function acceptedFrameTime(lastAcceptedFrameMs: number) {
   const timestampMs = performance.now();
-  return timestampMs - lastAcceptedFrameMs < minFrameIntervalMs
+  return timestampMs - lastAcceptedFrameMs < minFrameMs
     ? null
     : timestampMs;
 }
 
 export function frameMotion(
-  previous: LandmarkFrame | null,
-  current: LandmarkFrame,
+  previous: Frame | null,
+  current: Frame,
 ) {
   if (!previous) return 0;
   const count = Math.min(21, previous.length / 3, current.length / 3);
@@ -203,10 +192,10 @@ export function formatPredictionText(text: string) {
 }
 
 function traceDecode(
-  response: StreamPrediction,
-  context: DecodeContext,
+  response: StreamPred,
+  context: DecodeCtx,
   rawLabel: string,
-  display: ScoredPrediction | null,
+  display: Scored | null,
 ) {
   return {
     bufferedFrames: response.buffered_frames,
@@ -219,13 +208,13 @@ function traceDecode(
 }
 
 function selectCandidate(
-  response: StreamPrediction,
+  response: StreamPred,
   rawLabel: string,
   partialText: string,
   previousDisplayText: string,
 ) {
   const raw = clean(rawLabel);
-  const inputs: CandidateInput[] = [
+  const inputs: CandidateIn[] = [
     input(
       "partial",
       partialText,
@@ -246,12 +235,12 @@ function selectCandidate(
   for (const item of inputs) {
     const text = clean(item.rawText);
     if (!text) continue;
-    if (suspiciousAlternativeTail(item.source, text, raw)) continue;
+    if (badAltTail(item.source, text, raw)) continue;
 
     const candidate = {
       ...item,
       text,
-      score: scoreCandidate(item, text, previousDisplayText, raw),
+      score: scoreFor(item, text, previousDisplayText, raw),
     };
     if (!best || candidate.score > best.score) {
       best = candidate;
@@ -261,9 +250,9 @@ function selectCandidate(
 }
 
 function input(
-  source: CandidateSource,
+  source: Source,
   rawText: string,
-  response: StreamPrediction,
+  response: StreamPred,
   modelAgrees: boolean,
 ) {
   return {
@@ -276,9 +265,9 @@ function input(
 }
 
 function shouldDisplay(
-  next: ScoredPrediction,
-  display: ScoredPrediction | null,
-  state: DisplayDecisionState,
+  next: Scored,
+  display: Scored | null,
+  state: DecisionState,
 ) {
   if (!display) {
     return passesThreshold(
@@ -290,25 +279,25 @@ function shouldDisplay(
 
   const current = display.prediction.text;
   const candidate = next.prediction.text;
-  if (shouldKeepCurrentText(current, candidate)) {
+  if (keepCurrent(current, candidate)) {
     return false;
   }
 
-  if (oneCharacterTail(current, candidate)) {
-    return acceptsOneCharacterTail(next, display, state);
+  if (singleTail(current, candidate)) {
+    return acceptsTail(next, display, state);
   }
 
-  if (acceptsLongerCorrection(next, display, state)) return true;
+  if (acceptsFix(next, display, state)) return true;
   if (acceptsRawExtension(next, display, state)) return true;
-  if (acceptsMoreConfidentRaw(next, display)) return true;
-  if (acceptsRepeatedRawAfterMisses(next, display, state)) return true;
-  if (acceptsCurrentExtension(next, display, state)) return true;
-  if (acceptsShorterStablePrefix(next, display, state)) return true;
-  if (acceptsSimilarText(next, display, state)) return true;
+  if (acceptsRaw(next, display)) return true;
+  if (acceptsRepeat(next, display, state)) return true;
+  if (acceptsExtend(next, display, state)) return true;
+  if (acceptsPrefix(next, display, state)) return true;
+  if (acceptsSimilar(next, display, state)) return true;
   return state.score >= display.score + 0.25;
 }
 
-function shouldCommit(candidate: ScoredPrediction, seenCount: number) {
+function shouldCommit(candidate: Scored, seenCount: number) {
   const prediction = candidate.prediction;
   const weakLanguage =
     compact(prediction.text).length >= 7 &&
@@ -328,14 +317,14 @@ function shouldCommit(candidate: ScoredPrediction, seenCount: number) {
   });
 }
 
-function shouldKeepCurrentText(current: string, candidate: string) {
-  return rollingSuffix(current, candidate) || spacedVariant(current, candidate);
+function keepCurrent(current: string, candidate: string) {
+  return isSuffixWindow(current, candidate) || isSpacedVariant(current, candidate);
 }
 
-function acceptsOneCharacterTail(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsTail(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   const idlePenalty = state.context.idleFrames > 0 ? 1.25 : 0.5;
   const languageAllowsTail =
@@ -354,24 +343,24 @@ function acceptsOneCharacterTail(
   );
 }
 
-function acceptsLongerCorrection(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsFix(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   const current = display.prediction.text;
   const candidate = next.prediction.text;
   return (
     candidate.length >= current.length + 4 &&
-    prefixLength(candidate, current) >= 2 &&
+    prefixLen(candidate, current) >= 2 &&
     state.score >= display.score - 3
   );
 }
 
 function acceptsRawExtension(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   const current = display.prediction.text;
   const candidate = next.prediction.text;
@@ -384,9 +373,9 @@ function acceptsRawExtension(
   );
 }
 
-function acceptsMoreConfidentRaw(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
+function acceptsRaw(
+  next: Scored,
+  display: Scored,
 ) {
   return (
     next.source === "raw" &&
@@ -397,10 +386,10 @@ function acceptsMoreConfidentRaw(
   );
 }
 
-function acceptsRepeatedRawAfterMisses(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsRepeat(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   return (
     next.source === "raw" &&
@@ -411,10 +400,10 @@ function acceptsRepeatedRawAfterMisses(
   );
 }
 
-function acceptsCurrentExtension(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsExtend(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   return (
     next.prediction.text.startsWith(display.prediction.text) &&
@@ -422,10 +411,10 @@ function acceptsCurrentExtension(
   );
 }
 
-function acceptsShorterStablePrefix(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsPrefix(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   const current = display.prediction.text;
   const candidate = next.prediction.text;
@@ -437,23 +426,23 @@ function acceptsShorterStablePrefix(
   );
 }
 
-function acceptsSimilarText(
-  next: ScoredPrediction,
-  display: ScoredPrediction,
-  state: DisplayDecisionState,
+function acceptsSimilar(
+  next: Scored,
+  display: Scored,
+  state: DecisionState,
 ) {
   const current = display.prediction.text;
   const candidate = next.prediction.text;
   return (
-    prefixLength(candidate, current) >= 4 &&
+    prefixLen(candidate, current) >= 4 &&
     Math.abs(candidate.length - current.length) <= 3 &&
     state.score >= display.score - 0.8
   );
 }
 
 function passesThreshold(
-  threshold: ConfidenceThreshold,
-  candidate: ScoredPrediction,
+  threshold: Threshold,
+  candidate: Scored,
   state: { seenCount: number; streak: number },
 ) {
   return (
@@ -465,8 +454,8 @@ function passesThreshold(
 }
 
 function preferredFinal(
-  current: ScoredPrediction | null,
-  next: ScoredPrediction,
+  current: Scored | null,
+  next: Scored,
 ) {
   const reliable =
     next.source === "raw" &&
@@ -480,7 +469,7 @@ function preferredFinal(
       ? next
       : current;
   }
-  if (shortCompletion(current.prediction.text, next.prediction.text)) {
+  if (shortFinish(current.prediction.text, next.prediction.text)) {
     return next.prediction.confidence >= 0.45 &&
       next.score >= current.score - 0.5
       ? next
@@ -492,9 +481,9 @@ function preferredFinal(
     : current;
 }
 
-function preferredFinalPrediction(
-  display: ScoredPrediction | null,
-  final: ScoredPrediction | null,
+function pickFinalPred(
+  display: Scored | null,
+  final: Scored | null,
 ) {
   if (!display) return final;
   if (!final) return display;
@@ -503,7 +492,7 @@ function preferredFinalPrediction(
       ? final
       : display;
   }
-  if (shortCompletion(display.prediction.text, final.prediction.text)) {
+  if (shortFinish(display.prediction.text, final.prediction.text)) {
     return final.score >= display.score - 0.5 ? final : display;
   }
   return (display.prediction.confidence < 0.2 &&
@@ -519,7 +508,7 @@ function scored(
   prediction: DetectionPrediction,
   score: number,
   streak: number,
-): ScoredPrediction {
+): Scored {
   return {
     prediction,
     score,
@@ -530,7 +519,7 @@ function scored(
   };
 }
 
-function mergeSame(current: ScoredPrediction, next: ScoredPrediction) {
+function mergeSame(current: Scored, next: Scored) {
   return {
     prediction: {
       ...next.prediction,
@@ -547,14 +536,14 @@ function mergeSame(current: ScoredPrediction, next: ScoredPrediction) {
   };
 }
 
-function scoreCandidate(
-  candidate: CandidateInput,
+function scoreFor(
+  candidate: CandidateIn,
   text: string,
   previous: string,
   raw: string,
 ) {
   let score = candidate.confidence * 2;
-  score += languageScore(candidate);
+  score += lmScore(candidate);
   score += Math.min(text.length, 14) * 0.08;
 
   if (candidate.source === "raw") score += 0.75;
@@ -562,27 +551,27 @@ function scoreCandidate(
   if (repairsShortTail(text, previous)) score += 0.65;
   if (/^[a-z0-9]$/u.test(text)) score += 0.35;
 
-  score -= punctuationPenalty(candidate.rawText);
+  score -= punctPenalty(candidate.rawText);
   if (candidate.source.startsWith("alt")) score -= 0.8;
-  if (alternativeExtendsKnownText(candidate, text, raw, previous)) score -= 1.8;
+  if (altExtendsKnown(candidate, text, raw, previous)) score -= 1.8;
   if (/(.)\1$/u.test(text)) score -= 0.25;
   if (text.length <= 3 && text.includes(" ")) score -= 0.75;
-  if (previous.length >= 4 && prefixLength(text, previous) < 3) score -= 2.5;
+  if (previous.length >= 4 && prefixLen(text, previous) < 3) score -= 2.5;
   return score;
 }
 
-function languageScore(candidate: CandidateInput) {
+function lmScore(candidate: CandidateIn) {
   return (
     Number.clamp(candidate.lmScore ?? 0, { minimum: -2.5, maximum: 3.5 }) * 0.45
   );
 }
 
-function punctuationPenalty(text: string) {
+function punctPenalty(text: string) {
   return text.replace(/[a-z0-9 ]/gi, "").length * 0.5;
 }
 
 function extendsPreviousText(
-  candidate: CandidateInput,
+  candidate: CandidateIn,
   text: string,
   previous: string,
 ) {
@@ -601,8 +590,8 @@ function repairsShortTail(text: string, previous: string) {
   );
 }
 
-function alternativeExtendsKnownText(
-  candidate: CandidateInput,
+function altExtendsKnown(
+  candidate: CandidateIn,
   text: string,
   raw: string,
   previous: string,
@@ -614,7 +603,7 @@ function alternativeExtendsKnownText(
   );
 }
 
-function kind(text: string): PredictionTextKind {
+function kind(text: string): TextKind {
   const cleaned = clean(text);
   const length = compact(cleaned).length;
   if (length === 1) return "letter";
@@ -636,8 +625,8 @@ function compact(text: string) {
   return clean(text).replace(/\s+/g, "");
 }
 
-function suspiciousAlternativeTail(
-  source: CandidateSource,
+function badAltTail(
+  source: Source,
   text: string,
   raw: string,
 ) {
@@ -651,7 +640,7 @@ function suspiciousAlternativeTail(
   );
 }
 
-function rollingSuffix(current: string, candidate: string) {
+function isSuffixWindow(current: string, candidate: string) {
   const currentCompact = compact(current);
   const candidateCompact = compact(candidate);
   return (
@@ -662,15 +651,15 @@ function rollingSuffix(current: string, candidate: string) {
   );
 }
 
-function spacedVariant(current: string, candidate: string) {
+function isSpacedVariant(current: string, candidate: string) {
   return (
     !current.includes(" ") &&
     candidate.includes(" ") &&
-    withinOneEdit(compact(current), compact(candidate))
+    nearEdit(compact(current), compact(candidate))
   );
 }
 
-function oneCharacterTail(current: string, candidate: string) {
+function singleTail(current: string, candidate: string) {
   return (
     current.length >= 4 &&
     candidate.startsWith(current) &&
@@ -678,7 +667,7 @@ function oneCharacterTail(current: string, candidate: string) {
   );
 }
 
-function shortCompletion(current: string, candidate: string) {
+function shortFinish(current: string, candidate: string) {
   const currentCompact = compact(current);
   const candidateCompact = compact(candidate);
   const delta = candidateCompact.length - currentCompact.length;
@@ -690,7 +679,7 @@ function shortCompletion(current: string, candidate: string) {
   );
 }
 
-function withinOneEdit(a: string, b: string) {
+function nearEdit(a: string, b: string) {
   if (Math.abs(a.length - b.length) > 1) return false;
   let edits = 0;
   let i = 0;
@@ -715,7 +704,7 @@ function withinOneEdit(a: string, b: string) {
   return edits + (i < a.length || j < b.length ? 1 : 0) <= 1;
 }
 
-function prefixLength(a: string, b: string) {
+function prefixLen(a: string, b: string) {
   const n = Math.min(a.length, b.length);
   for (let i = 0; i < n; i += 1) {
     if (a[i] !== b[i]) return i;

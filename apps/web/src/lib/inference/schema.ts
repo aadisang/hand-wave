@@ -1,14 +1,10 @@
 import * as Schema from "effect/Schema";
 
-export const LandmarkFrameSchema = Schema.Array(Schema.Number).pipe(
+export const FrameSchema = Schema.Array(Schema.Number).pipe(
   Schema.itemsCount(162),
 );
 
-export const HealthResponseSchema = Schema.Struct({
-  status: Schema.Literal("ok"),
-});
-
-export const PredictionSchema = Schema.Struct({
+export const PredSchema = Schema.Struct({
   label: Schema.String,
   confidence: Schema.Number,
   logit_score: Schema.optional(Schema.NullOr(Schema.Number)),
@@ -16,16 +12,16 @@ export const PredictionSchema = Schema.Struct({
   raw_label: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-export const PredictionSpanSchema = Schema.Struct({
+export const SpanSchema = Schema.Struct({
   text: Schema.String,
   start_frame: Schema.Number,
   end_frame: Schema.Number,
 });
 
 const decodedTextFields = {
-  prediction: PredictionSchema,
-  alternatives: Schema.Array(PredictionSchema),
-  spans: Schema.Array(PredictionSpanSchema),
+  prediction: PredSchema,
+  alternatives: Schema.Array(PredSchema),
+  spans: Schema.Array(SpanSchema),
   greedy_text: Schema.String,
   blank_ratio: Schema.Number,
   tail_blank_ratio: Schema.Number,
@@ -34,17 +30,17 @@ const decodedTextFields = {
   stable_text: Schema.String,
 } as const;
 
-export const StreamPredictionSchema = Schema.Struct({
+export const StreamPredSchema = Schema.Struct({
   session_id: Schema.String,
   buffered_frames: Schema.Number,
   ...decodedTextFields,
 });
 
-export const CreateSessionResponseSchema = Schema.Struct({
+export const SessionInfoSchema = Schema.Struct({
   session_id: Schema.String,
 });
 
-export const ResetSessionResponseSchema = Schema.Struct({
+export const SessionStateSchema = Schema.Struct({
   session_id: Schema.String,
   buffered_frames: Schema.Number,
   partial_text: Schema.String,
