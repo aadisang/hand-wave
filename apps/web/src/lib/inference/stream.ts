@@ -28,6 +28,8 @@ import type {
   Frame,
 } from "@/types/inference";
 
+const finalHoldMs = holdMs * 2;
+
 export function createStreamCtrl(): StreamCtrl {
   let sid = "";
   let frames: Frame[] = [];
@@ -119,7 +121,7 @@ export function createStreamCtrl(): StreamCtrl {
       clearTimer = window.setTimeout(() => {
         setPrediction(null);
         clearTimer = null;
-      }, holdMs);
+      }, finalHoldMs);
     }
 
     pushFinalizeTrace(finalized.trace);
