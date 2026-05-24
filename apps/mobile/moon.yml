@@ -11,6 +11,9 @@ tags:
 project:
   description: "iOS client for glasses and camera-stream recognition."
 
+dependsOn:
+  - "contract"
+
 # Tuist owns project generation. Manifests in Project.swift + Tuist/ are the
 # source of truth; the .xcodeproj is generated and gitignored.
 tasks:
@@ -24,11 +27,13 @@ tasks:
   generate:
     command: "tuist generate --no-open"
     inputs:
+      - "/packages/contract/config.json"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
     deps:
       - "install"
+      - "contract:generate"
 
   build:
     command:
@@ -40,6 +45,7 @@ tasks:
     deps:
       - "generate"
     inputs:
+      - "/packages/contract/config.json"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
@@ -49,9 +55,11 @@ tasks:
       - "tuist"
       - "test"
       - "HandWave"
+      - "--no-selective-testing"
     deps:
       - "generate"
     inputs:
+      - "/packages/contract/config.json"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"

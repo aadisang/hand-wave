@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/Span.json",
+    "type": "object",
+    "properties": {
+        "start_frame": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "end_frame": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "text": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "start_frame",
+        "end_frame",
+        "text"
+    ]
+}

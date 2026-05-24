@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/SmoothSet.json",
+    "type": "object",
+    "properties": {
+        "hand": {
+            "$ref": "https://hand-wave.local/schemas/SmoothCfg.json"
+        },
+        "pose": {
+            "$ref": "https://hand-wave.local/schemas/SmoothCfg.json"
+        }
+    },
+    "required": [
+        "hand",
+        "pose"
+    ]
+}

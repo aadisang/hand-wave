@@ -1,0 +1,15 @@
+output-dir: "{project-root}/generated"
+emit:
+  - "@typespec/openapi3"
+  - "@typespec/json-schema"
+options:
+  "@typespec/openapi3":
+    emitter-output-dir: "{output-dir}/openapi"
+    file-type: json
+    output-file: openapi.json
+    openapi-versions:
+      - 3.1.0
+  "@typespec/json-schema":
+    emitter-output-dir: "{output-dir}/json-schema"
+    file-type: json
+    emitAllModels: true

@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/config.schema.json",
+    "type": "object",
+    "properties": {
+        "session": {
+            "$ref": "https://hand-wave.local/schemas/SessionCfg.json"
+        },
+        "stream": {
+            "$ref": "https://hand-wave.local/schemas/StreamCfg.json"
+        },
+        "mp": {
+            "$ref": "https://hand-wave.local/schemas/MpCfg.json"
+        }
+    },
+    "required": [
+        "session",
+        "stream",
+        "mp"
+    ]
+}

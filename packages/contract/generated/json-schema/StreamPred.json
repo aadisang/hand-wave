@@ -1,0 +1,24 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamPred.json",
+    "type": "object",
+    "properties": {
+        "session_id": {
+            "type": "string"
+        },
+        "buffered_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        }
+    },
+    "required": [
+        "session_id",
+        "buffered_frames"
+    ],
+    "allOf": [
+        {
+            "$ref": "https://hand-wave.local/schemas/PredictOut.json"
+        }
+    ]
+}

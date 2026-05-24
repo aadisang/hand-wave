@@ -10,6 +10,9 @@ tags:
 project:
   description: 'FastAPI service that owns model loading and CTC decoding.'
 
+dependsOn:
+  - 'contract'
+
 tasks:
   dev:
     command:
@@ -24,4 +27,6 @@ tasks:
       - '0.0.0.0'
       - '--port'
       - '8000'
+    deps:
+      - 'contract:generate'
     preset: 'server'

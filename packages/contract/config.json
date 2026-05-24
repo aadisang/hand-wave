@@ -1,0 +1,31 @@
+{
+  "session": {
+    "window": 192,
+    "stable": 3
+  },
+  "stream": {
+    "fps": 24,
+    "min": 24,
+    "stride": 4,
+    "idle": 16,
+    "lost": 10,
+    "holdMs": 1200,
+    "motion": 0.003
+  },
+  "mp": {
+    "smooth": {
+      "hand": {
+        "freq": 60,
+        "cutoff": 18,
+        "beta": 1.8,
+        "dCutoff": 1.5
+      },
+      "pose": {
+        "freq": 60,
+        "cutoff": 6,
+        "beta": 0.8,
+        "dCutoff": 1.5
+      }
+    }
+  }
+}
