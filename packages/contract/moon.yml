@@ -15,7 +15,9 @@ workspace:
   inheritedTasks:
     exclude:
       - "format"
+      - "formatCheck"
       - "lint"
+      - "lintFix"
       - "typecheck"
 
 tasks:
@@ -30,9 +32,32 @@ tasks:
       - "main.tsp"
       - "tspconfig.yaml"
       - "config.json"
+      - "moon.yml"
       - "package.json"
+      - "/pnpm-lock.yaml"
       - "scripts/**/*"
       - "src/**/*"
+      - "generated/**/*"
+      - "/.oxfmtrc.json"
+    preset: "utility"
+
+  formatCheck:
+    command:
+      - "pnpm"
+      - "exec"
+      - "oxfmt"
+      - "--check"
+      - "."
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "config.json"
+      - "moon.yml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "generated/**/*"
       - "/.oxfmtrc.json"
 
   generate:
@@ -45,6 +70,9 @@ tasks:
       - "main.tsp"
       - "tspconfig.yaml"
       - "config.json"
+      - "moon.yml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
       - "scripts/generate.mjs"
       - "scripts/validate.mjs"
       - "scripts/check.mjs"
@@ -64,5 +92,8 @@ tasks:
       - "main.tsp"
       - "tspconfig.yaml"
       - "config.json"
+      - "moon.yml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
       - "scripts/validate.mjs"
       - "scripts/check.mjs"
