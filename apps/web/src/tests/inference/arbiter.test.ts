@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { createArbiter } from "@/lib/inference/arbiter";
-import type { StreamPred } from "@/types/inference";
+import type { InferOut } from "@/types/inference";
 
 function streamPrediction({
   raw,
@@ -14,10 +14,8 @@ function streamPrediction({
   alternatives?: Array<{ label: string; confidence: number }>;
   confidence?: number;
   lmScore?: number;
-}): StreamPred {
+}): InferOut {
   return {
-    session_id: "session",
-    buffered_frames: 64,
     prediction: { label: raw, confidence, lm_score: lmScore },
     alternatives,
     spans: [],
@@ -30,7 +28,7 @@ function streamPrediction({
   };
 }
 
-const context = { latencyMs: 40, idleFrames: 0, motion: 0.01 };
+const context = { latencyMs: 40, idleFrames: 0, motion: 0.01, frames: 64 };
 const finalize = {
   endpointReason: "idle" as const,
   idleFrames: 16,
@@ -93,10 +91,7 @@ describe("createArbiter", () => {
       context,
     );
 
-    let update = arbiter.accept(
-      streamPrediction({ raw: "myname" }),
-      context,
-    );
+    let update = arbiter.accept(streamPrediction({ raw: "myname" }), context);
     update = arbiter.accept(streamPrediction({ raw: "myname" }), context);
     update = arbiter.accept(streamPrediction({ raw: "myname" }), context);
 

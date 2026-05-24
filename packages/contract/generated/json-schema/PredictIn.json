@@ -8,7 +8,8 @@
             "items": {
                 "$ref": "https://hand-wave.local/schemas/LandmarkFrame.json"
             },
-            "minItems": 1
+            "minItems": 1,
+            "maxItems": 512
         }
     },
     "required": [

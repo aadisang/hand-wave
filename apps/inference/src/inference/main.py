@@ -5,8 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from inference.model import load_backend
-from inference.routers import predictions, sessions
-from inference.sessions import SessionStore
+from inference.routers import predictions
 
 
 def cors_origins() -> list[str]:
@@ -21,10 +20,8 @@ def cors_origins() -> list[str]:
 async def lifespan(app: FastAPI):
     backend = load_backend()
     app.state.backend = backend
-    app.state.sessions = SessionStore(backend)
     yield
     app.state.backend = None
-    app.state.sessions = None
 
 
 app = FastAPI(
@@ -41,4 +38,3 @@ app.add_middleware(
 )
 
 app.include_router(predictions.router)
-app.include_router(sessions.router)

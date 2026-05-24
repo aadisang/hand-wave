@@ -30,19 +30,4 @@ const decodedTextFields = {
   stable_text: Schema.String,
 } as const;
 
-export const StreamPredSchema = Schema.Struct({
-  session_id: Schema.String,
-  buffered_frames: Schema.Number,
-  ...decodedTextFields,
-});
-
-export const SessionInfoSchema = Schema.Struct({
-  session_id: Schema.String,
-});
-
-export const SessionStateSchema = Schema.Struct({
-  session_id: Schema.String,
-  buffered_frames: Schema.Number,
-  partial_text: Schema.String,
-  stable_text: Schema.String,
-});
+export const InferOutSchema = Schema.Struct(decodedTextFields);

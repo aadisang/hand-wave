@@ -36,6 +36,7 @@ model Span {
 
 model PredictIn {
   @minItems(1)
+  @maxItems(512)
   frames: LandmarkFrame[];
 }
 
@@ -58,55 +59,17 @@ model PredictOut {
   stable_text: string;
 }
 
-model CreateSessionIn {
-  @minValue(8)
-  @maxValue(512)
-  max_window_frames: int32;
-
-  @minValue(1)
-  @maxValue(24)
-  min_stable_frames: int32;
-}
-
-model SessionInfo {
-  session_id: string;
-  max_window_frames: int32;
-  min_stable_frames: int32;
-}
-
-model FramesIn {
-  @minItems(1)
-  @maxItems(160)
-  frames: LandmarkFrame[];
-}
-
-model StreamPred extends PredictOut {
-  session_id: string;
-  buffered_frames: int32;
-}
-
-model SessionState {
-  session_id: string;
-  buffered_frames: int32;
-  partial_text: string;
-  stable_text: string;
-}
-
 @jsonSchema("config.schema.json")
 model Config {
-  session: SessionCfg;
+  decode: DecodeCfg;
   stream: StreamCfg;
   mp: MpCfg;
 }
 
-model SessionCfg {
+model DecodeCfg {
   @minValue(8)
   @maxValue(512)
   window: int32;
-
-  @minValue(1)
-  @maxValue(24)
-  stable: int32;
 }
 
 model StreamCfg {
@@ -160,27 +123,4 @@ namespace Routes {
   @post
   @route("/predict")
   op predict(@body body: PredictIn): PredictOut;
-
-  @post
-  @route("/sessions")
-  op createSession(@body body: CreateSessionIn): SessionInfo;
-
-  @get
-  @route("/sessions/{session_id}")
-  op getSession(@path session_id: string): SessionState;
-
-  @post
-  @route("/sessions/{session_id}/frames")
-  op appendFrames(
-    @path session_id: string,
-    @body body: FramesIn,
-  ): StreamPred;
-
-  @post
-  @route("/sessions/{session_id}/reset")
-  op resetSession(@path session_id: string): SessionState;
-
-  @delete
-  @route("/sessions/{session_id}")
-  op deleteSession(@path session_id: string): void;
 }

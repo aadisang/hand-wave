@@ -44,8 +44,6 @@ struct Prediction: Codable, Equatable, Sendable {
 }
 
 struct StreamPred: Codable, Equatable, Sendable {
-  let sessionId: String
-  let bufferedFrames: Int
   let prediction: Prediction
   let alternatives: [Prediction]
   let greedyText: String
@@ -53,25 +51,9 @@ struct StreamPred: Codable, Equatable, Sendable {
   let stableText: String
 
   enum CodingKeys: String, CodingKey {
-    case sessionId = "session_id"
-    case bufferedFrames = "buffered_frames"
     case prediction
     case alternatives
     case greedyText = "greedy_text"
-    case partialText = "partial_text"
-    case stableText = "stable_text"
-  }
-}
-
-struct SessionState: Codable, Equatable, Sendable {
-  let sessionId: String
-  let bufferedFrames: Int
-  let partialText: String
-  let stableText: String
-
-  enum CodingKeys: String, CodingKey {
-    case sessionId = "session_id"
-    case bufferedFrames = "buffered_frames"
     case partialText = "partial_text"
     case stableText = "stable_text"
   }

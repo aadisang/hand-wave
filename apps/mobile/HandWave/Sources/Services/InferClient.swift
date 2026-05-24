@@ -1,13 +1,7 @@
 import Foundation
 
 protocol InferAPI: Sendable {
-  func createSession() async throws -> String
-  func appendFrames(
-    sessionId: String,
-    frames: [LandmarkFrame]
-  ) async throws -> StreamPred
-  func resetSession(sessionId: String) async throws -> SessionState
-  func deleteSession(sessionId: String) async
+  func predict(frames: [LandmarkFrame]) async throws -> StreamPred
 }
 
 struct InferClient: Sendable {
@@ -45,53 +39,15 @@ struct InferClient: Sendable {
     self.session = session
   }
 
-  func createSession() async throws -> String {
-    struct Request: Encodable {
-      let window = InferCfg.Session.window
-      let stable = InferCfg.Session.stable
-
-      enum CodingKeys: String, CodingKey {
-        case window = "max_window_frames"
-        case stable = "min_stable_frames"
-      }
-    }
-    struct Response: Decodable {
-      let sessionId: String
-
-      enum CodingKeys: String, CodingKey {
-        case sessionId = "session_id"
-      }
-    }
-
-    let response: Response = try await post(
-      path: "/v1/sessions",
-      body: Request()
-    )
-    return response.sessionId
-  }
-
-  func appendFrames(
-    sessionId: String,
-    frames: [LandmarkFrame]
-  ) async throws -> StreamPred {
+  func predict(frames: [LandmarkFrame]) async throws -> StreamPred {
     struct Request: Encodable {
       let frames: [LandmarkFrame]
     }
 
     return try await post(
-      path: "/v1/sessions/\(sessionId)/frames",
+      path: "/v1/predict",
       body: Request(frames: frames)
     )
-  }
-
-  func resetSession(sessionId: String) async throws -> SessionState {
-    try await post(path: "/v1/sessions/\(sessionId)/reset", body: EmptyBody())
-  }
-
-  func deleteSession(sessionId: String) async {
-    var request = URLRequest(url: baseURL.appending(path: "/v1/sessions/\(sessionId)"))
-    request.httpMethod = "DELETE"
-    _ = try? await session.data(for: request)
   }
 
   private func post<Response: Decodable, Body: Encodable>(
@@ -139,5 +95,3 @@ struct InferClient: Sendable {
 }
 
 extension InferClient: InferAPI {}
-
-private struct EmptyBody: Encodable {}
