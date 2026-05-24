@@ -12,7 +12,7 @@ from inference.sessions import SessionStore
 def cors_origins() -> list[str]:
     raw_origins = getenv(
         "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001",
+        "https://handwave.sh,http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001",
     )
     return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 

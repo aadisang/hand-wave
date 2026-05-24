@@ -1,9 +1,11 @@
 from collections.abc import Sequence
+from os import getenv
 from pathlib import Path
 
-from inference.schemas import LandmarkFrame, Prediction, Span, PredictOut
+from inference.schemas import LandmarkFrame, Prediction, PredictOut, Span
 
-MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
+DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
+MODELS_DIR = Path(getenv("MODEL_DIR", str(DEFAULT_MODELS_DIR)))
 
 
 class ModelBackend:

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from inference.dependencies import get_sessions
 from inference.schemas import (
-    FramesIn,
     CreateSessionIn,
+    FramesIn,
     SessionInfo,
     SessionState,
     StreamPred,

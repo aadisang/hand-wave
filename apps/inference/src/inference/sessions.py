@@ -6,9 +6,9 @@ from inference.decoder import StablePrefixTracker
 from inference.model import ModelBackend
 from inference.schemas import (
     CreateSessionIn,
-    SessionInfo,
     LandmarkFrame,
     PredictOut,
+    SessionInfo,
     SessionState,
     StreamPred,
 )
