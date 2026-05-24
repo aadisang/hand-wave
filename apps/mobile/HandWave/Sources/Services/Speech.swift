@@ -2,43 +2,43 @@ import AVFoundation
 import Foundation
 
 @MainActor
-final class SpeechOutput: NSObject, AVSpeechSynthesizerDelegate {
-  private let synthesizer = AVSpeechSynthesizer()
-  private var lastSpokenText = ""
+final class Speech: NSObject, AVSpeechSynthesizerDelegate {
+  private let synth = AVSpeechSynthesizer()
+  private var last = ""
 
   override init() {
     super.init()
-    synthesizer.delegate = self
+    synth.delegate = self
   }
 
   func speak(_ text: String) {
     let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !clean.isEmpty, clean != lastSpokenText else { return }
-    lastSpokenText = clean
+    guard !clean.isEmpty, clean != last else { return }
+    last = clean
 
-    configureAudioSession()
-    if synthesizer.isSpeaking {
-      synthesizer.stopSpeaking(at: .immediate)
+    configAudio()
+    if synth.isSpeaking {
+      synth.stopSpeaking(at: .immediate)
     }
 
     let utterance = AVSpeechUtterance(string: clean)
     utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
     utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-    synthesizer.speak(utterance)
+    synth.speak(utterance)
   }
 
   func reset() {
-    lastSpokenText = ""
-    synthesizer.stopSpeaking(at: .immediate)
+    last = ""
+    synth.stopSpeaking(at: .immediate)
   }
 
-  private func configureAudioSession() {
+  private func configAudio() {
     do {
       let session = AVAudioSession.sharedInstance()
       try session.setCategory(
         .playback,
         mode: .spokenAudio,
-        options: [.allowBluetooth, .allowBluetoothA2DP, .duckOthers]
+        options: [.allowBluetoothHFP, .allowBluetoothA2DP, .duckOthers]
       )
       try session.setActive(true)
     } catch {

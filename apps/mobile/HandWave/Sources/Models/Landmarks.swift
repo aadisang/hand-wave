@@ -22,7 +22,7 @@ struct HandLandmarksFrame: Equatable, Sendable {
   let poseLandmarks: [[LandmarkPoint]]
 }
 
-struct LandmarkDetectionResult: Equatable, Sendable {
+struct DetectResult: Equatable, Sendable {
   let inferenceFrame: LandmarkFrame?
   let overlayLandmarks: [LandmarkPoint]
 }
@@ -30,13 +30,25 @@ struct LandmarkDetectionResult: Equatable, Sendable {
 struct Prediction: Codable, Equatable, Sendable {
   let label: String
   let confidence: Double
+  let logitScore: Double?
+  let lmScore: Double?
+  let rawLabel: String?
+
+  enum CodingKeys: String, CodingKey {
+    case label
+    case confidence
+    case logitScore = "logit_score"
+    case lmScore = "lm_score"
+    case rawLabel = "raw_label"
+  }
 }
 
-struct StreamPredictionResponse: Codable, Equatable, Sendable {
+struct StreamPred: Codable, Equatable, Sendable {
   let sessionId: String
   let bufferedFrames: Int
   let prediction: Prediction
   let alternatives: [Prediction]
+  let greedyText: String
   let partialText: String
   let stableText: String
 
@@ -45,12 +57,13 @@ struct StreamPredictionResponse: Codable, Equatable, Sendable {
     case bufferedFrames = "buffered_frames"
     case prediction
     case alternatives
+    case greedyText = "greedy_text"
     case partialText = "partial_text"
     case stableText = "stable_text"
   }
 }
 
-struct InferenceResetResponse: Codable, Equatable, Sendable {
+struct SessionState: Codable, Equatable, Sendable {
   let sessionId: String
   let bufferedFrames: Int
   let partialText: String

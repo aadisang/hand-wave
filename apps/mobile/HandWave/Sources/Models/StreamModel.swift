@@ -13,21 +13,21 @@ final class StreamModel {
   private(set) var hasActiveDevice: Bool = false
   private(set) var latestFrame: UIImage?
   private(set) var overlayLandmarks: [LandmarkPoint] = []
-  private(set) var recognitionStatus = "Starting recognition"
-  private(set) var currentPrediction: InferenceSessionController.PredictionOutput?
-  private(set) var transcript: [InferenceSessionController.PredictionOutput] = []
+  private(set) var statusText = "Starting recognition"
+  private(set) var current: InferSession.Pred?
+  private(set) var transcript: [InferSession.Pred] = []
   var errorMessage: String?
 
   private let wearables: WearablesInterface
   private let selector: AutoDeviceSelector
-  private let recognition = RecognitionPipeline()
-  private let speech = SpeechOutput()
+  private let recognizer = Recognizer()
+  private let speech = Speech()
   private var session: DeviceSession?
   private var stream: StreamSession?
   private var stateToken: AnyListenerToken?
   private var frameToken: AnyListenerToken?
   private var errorToken: AnyListenerToken?
-  private var isProcessingFrame = false
+  private var busy = false
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -129,18 +129,18 @@ final class StreamModel {
         if let image {
           self.latestFrame = image
         }
-        self.processRecognitionFrame(frame)
+        self.process(frame)
       }
     }
 
     await stream.start()
-    warmUpRecognition()
+    warmRecognizer()
   }
 
-  private func warmUpRecognition() {
-    Task { [weak self, recognition] in
+  private func warmRecognizer() {
+    Task { [weak self, recognizer] in
       do {
-        try await recognition.start()
+        try await recognizer.start()
       } catch {
         await MainActor.run {
           if self?.errorMessage == nil {
@@ -151,44 +151,46 @@ final class StreamModel {
     }
   }
 
-  private func processRecognitionFrame(_ frame: VideoFrame) {
-    guard !isProcessingFrame else { return }
-    isProcessingFrame = true
+  private func process(_ frame: VideoFrame) {
+    guard !busy else { return }
+    busy = true
 
-    Task { [weak self, recognition] in
+    Task { [weak self, recognizer] in
       do {
-        let output = try await recognition.process(frame)
+        let output = try await recognizer.process(frame)
         await MainActor.run {
           self?.overlayLandmarks = output.overlayLandmarks
-          if let inferenceError = output.inferenceError {
-            self?.recognitionStatus = "Backend: \(inferenceError)"
+          if let error = output.error {
+            self?.statusText = "Backend: \(error)"
           } else {
-            self?.recognitionStatus =
-              output.hasInferenceFrame
+            self?.statusText =
+              output.hasFrame
               ? "Reading sign"
               : output.overlayLandmarks.isEmpty
                 ? "Looking for hand and body"
                 : "Need hand and body in frame"
           }
-          self?.applyRecognitionEvent(output.event)
-          self?.isProcessingFrame = false
+          self?.apply(output.event)
+          self?.busy = false
         }
       } catch {
         await MainActor.run {
-          self?.recognitionStatus = "Recognition failed: \(error.localizedDescription)"
-          self?.isProcessingFrame = false
+          self?.statusText = "Recognition failed: \(error.localizedDescription)"
+          self?.busy = false
         }
       }
     }
   }
 
-  private func applyRecognitionEvent(_ event: InferenceSessionController.Event?) {
+  private func apply(_ event: InferSession.Event?) {
     guard let event else { return }
     switch event {
+    case .clear:
+      current = nil
     case .partial(let prediction):
-      currentPrediction = prediction
+      current = prediction
     case .finalized(let prediction):
-      currentPrediction = prediction
+      current = prediction
       transcript.append(prediction)
       speech.speak(prediction.text)
     }
@@ -202,15 +204,15 @@ final class StreamModel {
     stateToken = nil
     frameToken = nil
     errorToken = nil
-    isProcessingFrame = false
+    busy = false
     status = .idle
     latestFrame = nil
     overlayLandmarks.removeAll(keepingCapacity: true)
-    recognitionStatus = "Starting recognition"
-    currentPrediction = nil
+    statusText = "Starting recognition"
+    current = nil
     transcript.removeAll(keepingCapacity: true)
     speech.reset()
-    await recognition.stop()
+    await recognizer.stop()
     await stream?.stop()
     session?.stop()
   }
