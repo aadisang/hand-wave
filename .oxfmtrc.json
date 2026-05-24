@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "**/node_modules",
+    "**/.output",
+    "**/.tanstack",
+    "**/.vite-hooks",
+    "**/dist",
+    "**/.moon/cache",
+    "**/.venv",
+    "**/__pycache__",
+    "apps/web/src/routeTree.gen.ts",
+    "pnpm-lock.yaml",
+    "uv.lock"
+  ]
+}

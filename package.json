@@ -2,7 +2,13 @@
   "name": "hand-wave",
   "private": true,
   "scripts": {
-    "dev": "moon run :dev"
+    "build": "moon run :build",
+    "check": "moon run :format :lint :typecheck :test",
+    "dev": "moon run :dev",
+    "format": "moon run :format",
+    "lint": "moon run :lint",
+    "test": "moon run :test",
+    "typecheck": "moon run :typecheck"
   },
   "packageManager": "pnpm@10.33.0",
   "pnpm": {

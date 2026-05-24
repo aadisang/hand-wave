@@ -8,7 +8,12 @@ import { useEffect, type RefObject } from "react";
 import type { CaptureKind } from "@/types/capture";
 import { filterConsole } from "@/lib/mediapipe/console";
 import { createSmoother } from "@/lib/mediapipe/smooth";
-import type { FrameSink, HandFrame, HandSide, Trackers } from "@/types/landmarks";
+import type {
+  FrameSink,
+  HandFrame,
+  HandSide,
+  Trackers,
+} from "@/types/landmarks";
 
 const wasmPath =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
@@ -57,8 +62,7 @@ function detect(
   timestamp: number,
   captureKind: CaptureKind,
 ) {
-  const input =
-    captureKind === "camera" ? selfie(trackers, video) : video;
+  const input = captureKind === "camera" ? selfie(trackers, video) : video;
   const hand = trackers.hand.detectForVideo(input, timestamp);
   const pose = trackers.pose.detectForVideo(input, timestamp);
   const rightHandLandmarks: HandFrame["rightHandLandmarks"] = [];

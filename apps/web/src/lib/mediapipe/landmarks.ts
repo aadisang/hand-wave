@@ -19,10 +19,7 @@ export function toFrame(frame: HandFrame): Frame | null {
   return null;
 }
 
-function pack(
-  hand: NormalizedLandmark[],
-  alignedPose: NormalizedLandmark[],
-) {
+function pack(hand: NormalizedLandmark[], alignedPose: NormalizedLandmark[]) {
   if (
     hand.length !== handCount ||
     alignedPose.length !== poseCount ||

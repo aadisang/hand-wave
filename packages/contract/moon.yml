@@ -11,7 +11,30 @@ tags:
 project:
   description: "Shared inference contract for web, mobile, and backend clients."
 
+workspace:
+  inheritedTasks:
+    exclude:
+      - "format"
+      - "lint"
+      - "typecheck"
+
 tasks:
+  format:
+    command:
+      - "pnpm"
+      - "exec"
+      - "oxfmt"
+      - "--write"
+      - "."
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "config.json"
+      - "package.json"
+      - "scripts/**/*"
+      - "src/**/*"
+      - "/.oxfmtrc.json"
+
   generate:
     command:
       - "pnpm"

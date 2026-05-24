@@ -37,8 +37,6 @@ The web app validates required environment variables with T3 Env and Zod. Set `V
 Run web + inference together:
 
 ```sh
-moon run :dev
-# or, equivalently
 pnpm dev
 ```
 
@@ -53,24 +51,18 @@ Open `http://localhost:3000` for the web app and `http://localhost:8000/docs` fo
 
 ## Inference API
 
-The inference service is session-based because live CTC recognition is not a
-stateless single-frame classifier. Clients create a session, append landmark
-frames, and receive both a revisable `partial_text` and conservative
-`stable_text`.
+The inference service is stateless. Clients keep their own rolling landmark
+window and send that window to the model for each decode.
 
 ```sh
 moon run inference:dev
 ```
 
-Core endpoints:
+Core endpoint:
 
-| Method | Path | Use |
-|---|---|---|
-| `POST` | `/v1/sessions` | Create a streaming recognition session |
-| `POST` | `/v1/sessions/{id}/frames` | Append landmark frames and decode the rolling window |
-| `POST` | `/v1/sessions/{id}/reset` | Clear buffer/decoder state |
-| `DELETE` | `/v1/sessions/{id}` | End a session |
-| `POST` | `/v1/predict` | Compatibility endpoint for one-off checks |
+| Method | Path          | Use                                   |
+| ------ | ------------- | ------------------------------------- |
+| `POST` | `/v1/predict` | Decode a client-owned landmark window |
 
 Inference expects exactly one `.ckpt` file in `apps/inference/models/`.
 The checked-in local bundle uses `apps/inference/models/best.ckpt`.
@@ -86,14 +78,16 @@ The backend still needs the checkpoint to match the code beside it:
 ## Quality
 
 ```sh
-moon check --all          # format + lint + typecheck + test, both languages, cached
-moon run web:typecheck    # one task at a time
-moon run inference:lint   # python via ruff
+pnpm check      # format + lint + typecheck + test, cached
+pnpm format
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
 
-| Layer | Tools |
-|---|---|
-| TypeScript | Vite, Prettier, ESLint, `tsc`, Vitest |
-| Python | Ruff (format + lint), Pyright, pytest |
+| Layer      | Tools                                 |
+| ---------- | ------------------------------------- |
+| TypeScript | Vite, Oxfmt, ESLint, `tsc`, Vitest |
+| Python     | Ruff (format + lint), Pyright, pytest |
 
 moon caches each task by input hash, so re-runs without changes finish in tens of milliseconds.

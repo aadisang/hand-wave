@@ -12,7 +12,10 @@ export function createSmoother() {
       const ts = timestampMs / 1_000;
       const active = new Set<string>();
 
-      const smoothSets = (name: string, sets: HandFrame["rightHandLandmarks"]) =>
+      const smoothSets = (
+        name: string,
+        sets: HandFrame["rightHandLandmarks"],
+      ) =>
         sets.map((landmarks, index) => {
           const key = `${name}:${index}`;
           active.add(key);

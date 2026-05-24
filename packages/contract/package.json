@@ -11,15 +11,11 @@
     "./openapi.json": "./generated/openapi/openapi.json",
     "./schemas/*": "./generated/json-schema/*.json"
   },
-  "scripts": {
-    "compile": "tsp compile .",
-    "generate": "node scripts/generate.mjs",
-    "test": "node scripts/check.mjs"
-  },
   "devDependencies": {
     "@typespec/compiler": "^1.12.0",
     "@typespec/http": "^1.12.0",
     "@typespec/json-schema": "^1.12.0",
-    "@typespec/openapi3": "^1.12.0"
+    "@typespec/openapi3": "^1.12.0",
+    "oxfmt": "^0.50.0"
   }
 }
