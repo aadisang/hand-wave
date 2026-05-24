@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { createInferenceArbitrator } from "@/lib/inference/arbitration";
-import type { StreamPrediction } from "@/types/inference";
+import { createArbiter } from "@/lib/inference/arbiter";
+import type { StreamPred } from "@/types/inference";
 
 function streamPrediction({
   raw,
@@ -14,7 +14,7 @@ function streamPrediction({
   alternatives?: Array<{ label: string; confidence: number }>;
   confidence?: number;
   lmScore?: number;
-}): StreamPrediction {
+}): StreamPred {
   return {
     session_id: "session",
     buffered_frames: 64,
@@ -38,10 +38,10 @@ const finalize = {
   segmentFrames: 80,
 };
 
-describe("InferenceArbitrator", () => {
+describe("createArbiter", () => {
   test("shows the primary model label over a beam-only tail", () => {
-    const arbitrator = createInferenceArbitrator();
-    const update = arbitrator.accept(
+    const arbiter = createArbiter();
+    const update = arbiter.accept(
       streamPrediction({
         raw: "hello",
         alternatives: [{ label: "hellon", confidence: 0.99 }],
@@ -53,8 +53,8 @@ describe("InferenceArbitrator", () => {
   });
 
   test("suppresses low-confidence live output", () => {
-    const arbitrator = createInferenceArbitrator();
-    const update = arbitrator.accept(
+    const arbiter = createArbiter();
+    const update = arbiter.accept(
       streamPrediction({
         raw: "no oc once",
         greedy: "noonconce",
@@ -68,80 +68,80 @@ describe("InferenceArbitrator", () => {
   });
 
   test("promotes a repeated final-letter completion", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
+    const arbiter = createArbiter();
+    arbiter.accept(
       streamPrediction({ raw: "ligh", greedy: "liga", confidence: 0.07 }),
       context,
     );
-    arbitrator.accept(
+    arbiter.accept(
       streamPrediction({ raw: "light", confidence: 0.67 }),
       context,
     );
-    const update = arbitrator.accept(
+    const update = arbiter.accept(
       streamPrediction({ raw: "light", confidence: 0.8 }),
       context,
     );
 
     expect(update.displayPrediction?.text).toBe("light");
-    expect(arbitrator.finalize(finalize).displayPrediction?.text).toBe("light");
+    expect(arbiter.finalize(finalize).displayPrediction?.text).toBe("light");
   });
 
   test("replaces a bad early display with a stable later label", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
+    const arbiter = createArbiter();
+    arbiter.accept(
       streamPrediction({ raw: "mayse", confidence: 0.95 }),
       context,
     );
 
-    let update = arbitrator.accept(
+    let update = arbiter.accept(
       streamPrediction({ raw: "myname" }),
       context,
     );
-    update = arbitrator.accept(streamPrediction({ raw: "myname" }), context);
-    update = arbitrator.accept(streamPrediction({ raw: "myname" }), context);
+    update = arbiter.accept(streamPrediction({ raw: "myname" }), context);
+    update = arbiter.accept(streamPrediction({ raw: "myname" }), context);
 
     expect(update.displayPrediction?.text).toBe("myname");
   });
 
   test("commits a confident long word at endpoint", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
+    const arbiter = createArbiter();
+    arbiter.accept(
       streamPrediction({ raw: "alligator", confidence: 0.32 }),
       context,
     );
 
-    const result = arbitrator.finalize(finalize);
+    const result = arbiter.finalize(finalize);
 
     expect(result.committed).toBe(true);
     expect(result.displayPrediction?.text).toBe("alligator");
   });
 
   test("does not commit weak long hallucinations", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
+    const arbiter = createArbiter();
+    arbiter.accept(
       streamPrediction({ raw: "hithisadi", confidence: 0.48, lmScore: -1.98 }),
       context,
     );
-    arbitrator.accept(
+    arbiter.accept(
       streamPrediction({ raw: "hithisadi", confidence: 0.52, lmScore: -1.98 }),
       context,
     );
 
-    expect(arbitrator.finalize(finalize).committed).toBe(false);
+    expect(arbiter.finalize(finalize).committed).toBe(false);
   });
 
   test("keeps the full phrase when the rolling window returns a suffix", () => {
-    const arbitrator = createInferenceArbitrator();
-    arbitrator.accept(
+    const arbiter = createArbiter();
+    arbiter.accept(
       streamPrediction({ raw: "helmynameischad", confidence: 0.39 }),
       context,
     );
 
-    let update = arbitrator.accept(
+    let update = arbiter.accept(
       streamPrediction({ raw: "myname ischad", confidence: 0.98 }),
       { ...context, idleFrames: 10 },
     );
-    update = arbitrator.accept(
+    update = arbiter.accept(
       streamPrediction({ raw: "myname ischad", confidence: 0.95 }),
       { ...context, idleFrames: 14 },
     );

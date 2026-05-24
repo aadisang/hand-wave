@@ -2,46 +2,31 @@ import {
   FilesetResolver,
   HandLandmarker,
   PoseLandmarker,
-  type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
 import { useCallbackRef } from "@mantine/hooks";
 import { useEffect, type RefObject } from "react";
-import type { CaptureKind } from "@/hooks/use-capture-session";
-import { installMediapipeConsoleFilter } from "@/lib/mediapipe/console-filter";
-import { createLandmarkSmoother } from "@/lib/mediapipe/landmark-smoother";
+import type { CaptureKind } from "@/types/capture";
+import { filterConsole } from "@/lib/mediapipe/console";
+import { createSmoother } from "@/lib/mediapipe/smooth";
+import type { FrameSink, HandFrame, HandSide, Trackers } from "@/types/landmarks";
 
 const wasmPath =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
-export const handLandmarkerModelPath =
+export const handModelUrl =
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-export const poseLandmarkerModelPath =
+export const poseModelUrl =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
 const landmarkConfidence = 0.5;
 
-type Landmarkers = {
-  hand: HandLandmarker;
-  pose: PoseLandmarker;
-  canvas: HTMLCanvasElement;
-  context: CanvasRenderingContext2D;
-};
+let ready: Promise<Trackers> | null = null;
+let lastTs = 0;
 
-type Handedness = "Left" | "Right";
-
-export type HandLandmarksFrame = {
-  rightHandLandmarks: NormalizedLandmark[][];
-  leftHandLandmarks: NormalizedLandmark[][];
-  poseLandmarks: NormalizedLandmark[][];
-};
-
-let landmarkerPromise: Promise<Landmarkers> | null = null;
-let lastLandmarkerTimestampMs = 0;
-
-const loadLandmarkers = async () => {
-  installMediapipeConsoleFilter();
+const load = async () => {
+  filterConsole();
   const fileset = await FilesetResolver.forVisionTasks(wasmPath);
   const [hand, pose] = await Promise.all([
     HandLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: handLandmarkerModelPath, delegate: "GPU" },
+      baseOptions: { modelAssetPath: handModelUrl, delegate: "GPU" },
       runningMode: "VIDEO",
       numHands: 2,
       minHandDetectionConfidence: landmarkConfidence,
@@ -49,7 +34,7 @@ const loadLandmarkers = async () => {
       minTrackingConfidence: landmarkConfidence,
     }),
     PoseLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: poseLandmarkerModelPath, delegate: "GPU" },
+      baseOptions: { modelAssetPath: poseModelUrl, delegate: "GPU" },
       runningMode: "VIDEO",
       numPoses: 1,
       minPoseDetectionConfidence: landmarkConfidence,
@@ -66,22 +51,22 @@ const loadLandmarkers = async () => {
   return { hand, pose, canvas, context };
 };
 
-function detectFrame(
-  landmarkers: Landmarkers,
+function detect(
+  trackers: Trackers,
   video: HTMLVideoElement,
   timestamp: number,
   captureKind: CaptureKind,
 ) {
   const input =
-    captureKind === "camera" ? selfieInputFrame(landmarkers, video) : video;
-  const hand = landmarkers.hand.detectForVideo(input, timestamp);
-  const pose = landmarkers.pose.detectForVideo(input, timestamp);
-  const rightHandLandmarks: NormalizedLandmark[][] = [];
-  const leftHandLandmarks: NormalizedLandmark[][] = [];
+    captureKind === "camera" ? selfie(trackers, video) : video;
+  const hand = trackers.hand.detectForVideo(input, timestamp);
+  const pose = trackers.pose.detectForVideo(input, timestamp);
+  const rightHandLandmarks: HandFrame["rightHandLandmarks"] = [];
+  const leftHandLandmarks: HandFrame["leftHandLandmarks"] = [];
 
   hand.landmarks.forEach((landmarks, index) => {
     const category = anatomicalHand(
-      hand.handedness[index][0].categoryName as Handedness,
+      hand.handedness[index][0].categoryName as HandSide,
       captureKind,
     );
     if (category === "Left") {
@@ -98,14 +83,14 @@ function detectFrame(
   };
 }
 
-function anatomicalHand(category: Handedness, captureKind: CaptureKind) {
+function anatomicalHand(category: HandSide, captureKind: CaptureKind) {
   if (captureKind === "screen") return category;
   if (category === "Left") return "Right";
   return "Left";
 }
 
-function selfieInputFrame(landmarkers: Landmarkers, video: HTMLVideoElement) {
-  const { canvas, context } = landmarkers;
+function selfie(trackers: Trackers, video: HTMLVideoElement) {
+  const { canvas, context } = trackers;
   const { videoWidth, videoHeight } = video;
 
   if (canvas.width !== videoWidth) canvas.width = videoWidth;
@@ -119,31 +104,26 @@ function selfieInputFrame(landmarkers: Landmarkers, video: HTMLVideoElement) {
   return canvas;
 }
 
-export const preloadHandLandmarker = () => {
-  landmarkerPromise ??= loadLandmarkers();
-  return landmarkerPromise;
+export const preloadLandmarker = () => {
+  ready ??= load();
+  return ready;
 };
 
-function nextLandmarkerTimestamp() {
-  lastLandmarkerTimestampMs = Math.max(
-    performance.now(),
-    lastLandmarkerTimestampMs + 1,
-  );
-  return lastLandmarkerTimestampMs;
+function nextTs() {
+  lastTs = Math.max(performance.now(), lastTs + 1);
+  return lastTs;
 }
 
-function resetLandmarkers(instance: Landmarkers | null) {
+function reset(instance: Trackers | null) {
   instance?.hand.close();
   instance?.pose.close();
-  landmarkerPromise = null;
+  ready = null;
 }
-
-type Listener = (frame: HandLandmarksFrame, inferenceMs: number) => void;
 
 export function useHandLandmarks(
   videoRef: RefObject<HTMLVideoElement | null>,
   captureKind: CaptureKind,
-  onFrame: Listener,
+  onFrame: FrameSink,
 ): void {
   const onFrameRef = useCallbackRef(onFrame);
 
@@ -152,17 +132,17 @@ export function useHandLandmarks(
     let rafId = 0;
     let videoFrameId = 0;
     let frameCallbackVideo: HTMLVideoElement | null = null;
-    let landmarkers: Landmarkers | null = null;
+    let trackers: Trackers | null = null;
     let loading = false;
-    const smoother = createLandmarkSmoother();
+    const smoother = createSmoother();
 
-    const load = () => {
+    const ensureLoaded = () => {
       if (loading || cancelled) return;
       loading = true;
-      void preloadHandLandmarker()
+      void preloadLandmarker()
         .then((instance) => {
           if (cancelled) return;
-          landmarkers = instance;
+          trackers = instance;
           rafId = requestAnimationFrame(waitForVideo);
         })
         .finally(() => {
@@ -170,23 +150,23 @@ export function useHandLandmarks(
         });
     };
 
-    const detect = (
-      instance: Landmarkers,
+    const read = (
+      instance: Trackers,
       video: HTMLVideoElement,
       timestamp: number,
     ) => {
       const start = performance.now();
       try {
         const frame = smoother.smooth(
-          detectFrame(instance, video, timestamp, captureKind),
+          detect(instance, video, timestamp, captureKind),
           timestamp,
         );
         onFrameRef(frame, performance.now() - start);
       } catch {
-        resetLandmarkers(instance);
-        landmarkers = null;
+        reset(instance);
+        trackers = null;
         smoother.reset();
-        load();
+        ensureLoaded();
       }
     };
 
@@ -195,8 +175,8 @@ export function useHandLandmarks(
 
       const video = videoRef.current;
       if (!video) return;
-      if (landmarkers && video.readyState >= 2) {
-        detect(landmarkers, video, nextLandmarkerTimestamp());
+      if (trackers && video.readyState >= 2) {
+        read(trackers, video, nextTs());
       }
       videoFrameId = video.requestVideoFrameCallback(tickVideoFrame);
     };
@@ -205,7 +185,7 @@ export function useHandLandmarks(
       if (cancelled) return;
 
       const video = videoRef.current;
-      if (!landmarkers || !video || video.readyState < 2) {
+      if (!trackers || !video || video.readyState < 2) {
         rafId = requestAnimationFrame(waitForVideo);
         return;
       }
@@ -214,7 +194,7 @@ export function useHandLandmarks(
       videoFrameId = video.requestVideoFrameCallback(tickVideoFrame);
     };
 
-    load();
+    ensureLoaded();
 
     return () => {
       cancelled = true;

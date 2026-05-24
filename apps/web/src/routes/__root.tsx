@@ -9,9 +9,9 @@ import {
 import type { ReactNode } from "react";
 import { NotFound } from "@/components/app/not-found";
 import {
-  handLandmarkerModelPath,
-  poseLandmarkerModelPath,
-} from "@/hooks/use-hand-landmarker";
+  handModelUrl,
+  poseModelUrl,
+} from "@/hooks/use-landmarks";
 import appCss from "./globals.css?url";
 
 export const Route = createRootRoute({
@@ -67,13 +67,13 @@ export const Route = createRootRoute({
       {
         rel: "preload",
         as: "fetch",
-        href: handLandmarkerModelPath,
+        href: handModelUrl,
         crossOrigin: "anonymous",
       },
       {
         rel: "preload",
         as: "fetch",
-        href: poseLandmarkerModelPath,
+        href: poseModelUrl,
         crossOrigin: "anonymous",
       },
     ],

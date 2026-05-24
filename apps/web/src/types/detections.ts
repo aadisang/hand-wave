@@ -3,3 +3,8 @@ export type Prediction = {
   confidence: number;
   processingTimeMs: number;
 };
+
+export type DetectionsState = {
+  currentPrediction: Prediction | null;
+  setCurrentPrediction: (prediction: Prediction | null) => void;
+};

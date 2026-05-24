@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToolbarSeparator } from "@/components/ui/toolbar";
-import type { CaptureSession } from "@/hooks/use-capture-session";
+import type { CaptureSession } from "@/types/capture";
 import { useVideoDevices } from "@/hooks/use-video-devices";
 
 type Props = {

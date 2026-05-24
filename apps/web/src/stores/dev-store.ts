@@ -1,19 +1,5 @@
 import { create } from "zustand";
-import type { HandLandmarksFrame } from "@/hooks/use-hand-landmarker";
-import type { DecodeTrace, FinalizeTrace } from "@/types/inference";
-
-export type DevTrace = DecodeTrace | FinalizeTrace;
-
-type State = {
-  enabled: boolean;
-  frame: HandLandmarksFrame | null;
-  fps: number;
-  inferenceMs: number;
-  traces: DevTrace[];
-  toggle: () => void;
-  push: (frame: HandLandmarksFrame, inferenceMs: number) => void;
-  pushTrace: (trace: DevTrace) => void;
-};
+import type { DevState } from "@/types/dev";
 
 const ema = (prev: number, next: number) =>
   prev ? prev * 0.85 + next * 0.15 : next;
@@ -21,7 +7,7 @@ const ema = (prev: number, next: number) =>
 const maxTraces = 500;
 let lastAt = 0;
 
-export const useDevStore = create<State>((set) => ({
+export const useDevStore = create<DevState>((set) => ({
   enabled: false,
   frame: null,
   fps: 0,

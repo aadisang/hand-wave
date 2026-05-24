@@ -1,25 +1,23 @@
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
+import { cfg } from "@hand-wave/contract";
 import { env } from "@/config/env";
-import { inferenceConfig } from "@/config/inference";
 import {
-  CreateSessionResponseSchema,
-  HealthResponseSchema,
-  ResetSessionResponseSchema,
-  StreamPredictionSchema,
-} from "@/lib/inference/schemas";
-import type { LandmarkFrame } from "@/types/inference";
+  SessionInfoSchema,
+  SessionStateSchema,
+  StreamPredSchema,
+} from "@/lib/inference/schema";
+import type { Frame } from "@/types/inference";
 
-class InferenceRequestError extends Data.TaggedError("InferenceRequestError")<{
+class RequestErr extends Data.TaggedError("RequestErr")<{
   cause: unknown;
 }> {}
 
-class InferenceStatusError extends Data.TaggedError("InferenceStatusError")<{
+class StatusErr extends Data.TaggedError("StatusErr")<{
   status: number;
 }> {}
 
-const healthUrl = new URL("/health", env.VITE_INFERENCE_URL);
 const sessionsUrl = new URL("/v1/sessions", env.VITE_INFERENCE_URL);
 const jsonHeaders = { "Content-Type": "application/json" } as const;
 
@@ -31,27 +29,23 @@ function jsonRequest<A, I, R>(
   return Effect.gen(function* () {
     const response = yield* Effect.tryPromise({
       try: () => fetch(url, init),
-      catch: (cause) => new InferenceRequestError({ cause }),
+      catch: (cause) => new RequestErr({ cause }),
     });
 
     if (!response.ok) {
-      return yield* new InferenceStatusError({ status: response.status });
+      return yield* new StatusErr({ status: response.status });
     }
 
     const json = yield* Effect.tryPromise({
       try: () => response.json(),
-      catch: (cause) => new InferenceRequestError({ cause }),
+      catch: (cause) => new RequestErr({ cause }),
     });
 
     return yield* Schema.decodeUnknown(schema)(json);
   });
 }
 
-export const getInferenceHealth = Effect.fn("getInferenceHealth")(() =>
-  jsonRequest(healthUrl, {}, HealthResponseSchema),
-);
-
-export const createInferenceSession = Effect.fn("createInferenceSession")(
+export const createSession = Effect.fn("createSession")(
   function* () {
     const response = yield* jsonRequest(
       sessionsUrl,
@@ -59,19 +53,19 @@ export const createInferenceSession = Effect.fn("createInferenceSession")(
         method: "POST",
         headers: jsonHeaders,
         body: JSON.stringify({
-          max_window_frames: inferenceConfig.session.maxWindowFrames,
-          min_stable_frames: inferenceConfig.session.minStableFrames,
+          max_window_frames: cfg.session.window,
+          min_stable_frames: cfg.session.stable,
         }),
       },
-      CreateSessionResponseSchema,
+      SessionInfoSchema,
     );
 
     return response.session_id;
   },
 );
 
-export const appendInferenceFrames = Effect.fn("appendInferenceFrames")(
-  (sessionId: string, frames: LandmarkFrame[]) =>
+export const appendFrames = Effect.fn("appendFrames")(
+  (sessionId: string, frames: Frame[]) =>
     jsonRequest(
       new URL(`/v1/sessions/${sessionId}/frames`, env.VITE_INFERENCE_URL),
       {
@@ -79,34 +73,34 @@ export const appendInferenceFrames = Effect.fn("appendInferenceFrames")(
         headers: jsonHeaders,
         body: JSON.stringify({ frames }),
       },
-      StreamPredictionSchema,
+      StreamPredSchema,
     ),
 );
 
-export const deleteInferenceSession = Effect.fn("deleteInferenceSession")(
+export const deleteSession = Effect.fn("deleteSession")(
   (sessionId: string) =>
     Effect.tryPromise({
       try: () =>
         fetch(new URL(`/v1/sessions/${sessionId}`, env.VITE_INFERENCE_URL), {
           method: "DELETE",
         }),
-      catch: (cause) => new InferenceRequestError({ cause }),
+      catch: (cause) => new RequestErr({ cause }),
     }),
 );
 
-export const resetInferenceSession = Effect.fn("resetInferenceSession")(
+export const resetSession = Effect.fn("resetSession")(
   (sessionId: string) =>
     jsonRequest(
       new URL(`/v1/sessions/${sessionId}/reset`, env.VITE_INFERENCE_URL),
       { method: "POST" },
-      ResetSessionResponseSchema,
+      SessionStateSchema,
     ),
 );
 
-export function runInference<A, E>(effect: Effect.Effect<A, E>) {
+export function run<A, E>(effect: Effect.Effect<A, E>) {
   return Effect.runPromise(effect);
 }
 
-export function runInferenceExit<A, E>(effect: Effect.Effect<A, E>) {
+export function runExit<A, E>(effect: Effect.Effect<A, E>) {
   return Effect.runPromise(Effect.exit(effect));
 }

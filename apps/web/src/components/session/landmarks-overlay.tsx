@@ -4,17 +4,15 @@ import {
   PoseLandmarker,
 } from "@mediapipe/tasks-vision";
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import {
-  useHandLandmarks,
-  type HandLandmarksFrame,
-} from "@/hooks/use-hand-landmarker";
-import type { CaptureKind } from "@/hooks/use-capture-session";
+import type { CaptureKind } from "@/types/capture";
+import { useHandLandmarks } from "@/hooks/use-landmarks";
 import { useDevStore } from "@/stores/dev-store";
+import type { HandFrame } from "@/types/landmarks";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
   captureKind: CaptureKind;
-  onFrame: (frame: HandLandmarksFrame) => void;
+  onFrame: (frame: HandFrame) => void;
 };
 
 const handPointColor = "rgba(16, 185, 129, 0.95)";
@@ -22,7 +20,7 @@ const handLineColor = "rgba(255, 255, 255, 0.85)";
 const posePointColor = "rgba(96, 165, 250, 0.85)";
 const poseLineColor = "rgba(147, 197, 253, 0.55)";
 
-export function HandLandmarksOverlay({
+export function LandmarksOverlay({
   videoRef,
   captureKind,
   onFrame: onInferenceFrame,
@@ -30,7 +28,7 @@ export function HandLandmarksOverlay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const onFrame = useCallback(
-    (frame: HandLandmarksFrame, inferenceMs: number) => {
+    (frame: HandFrame, inferenceMs: number) => {
       drawFrame(canvasRef.current, videoRef.current, frame);
       onInferenceFrame(frame);
       const dev = useDevStore.getState();
@@ -67,7 +65,7 @@ function clearCanvas(canvas: HTMLCanvasElement | null) {
 function drawFrame(
   canvas: HTMLCanvasElement | null,
   video: HTMLVideoElement | null,
-  frame: HandLandmarksFrame,
+  frame: HandFrame,
 ) {
   if (!canvas || !video) return;
   const ctx = canvas.getContext("2d");
