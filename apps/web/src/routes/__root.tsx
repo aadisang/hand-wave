@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { NotFound } from "@/components/app/not-found";
+import { appJsonLd, homeUrl, site } from "@/config/site";
 import {
   handModelUrl,
   poseModelUrl,
@@ -21,28 +22,21 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#0a0a0a" },
       { name: "robots", content: "index, follow" },
-      {
-        name: "description",
-        content: "Real-time sign language recognition for the browser.",
-      },
-      { title: "Hand Wave" },
-      { property: "og:title", content: "Hand Wave" },
+      { name: "description", content: site.description },
+      { title: site.title },
+      { property: "og:title", content: site.title },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Hand Wave" },
-      {
-        property: "og:description",
-        content: "Real-time sign language recognition for the browser.",
-      },
-      { property: "og:image", content: "/favicon.svg" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Hand Wave" },
-      {
-        name: "twitter:description",
-        content: "Real-time sign language recognition for the browser.",
-      },
-      { name: "twitter:image", content: "/favicon.svg" },
+      { property: "og:site_name", content: site.name },
+      { property: "og:url", content: homeUrl },
+      { property: "og:description", content: site.description },
+      { property: "og:image", content: site.image },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: site.title },
+      { name: "twitter:description", content: site.description },
+      { name: "twitter:image", content: site.image },
     ],
     links: [
+      { rel: "canonical", href: homeUrl },
       {
         rel: "preload",
         href: "/fonts/Satoshi-Variable.woff2",
@@ -77,6 +71,12 @@ export const Route = createRootRoute({
         crossOrigin: "anonymous",
       },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(appJsonLd),
+      },
+    ],
   }),
   component: RootComponent,
   notFoundComponent: NotFound,
@@ -94,6 +94,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body>
+        <a className="skip-link" href="#main">
+          Skip to main content
+        </a>
         {children}
         <Scripts />
       </body>
