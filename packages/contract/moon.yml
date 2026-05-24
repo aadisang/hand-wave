@@ -1,0 +1,45 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+language: "typescript"
+stack: "systems"
+tags:
+  - "inference"
+  - "contract"
+  - "generated"
+
+project:
+  description: "Shared inference contract for web, mobile, and backend clients."
+
+tasks:
+  generate:
+    command:
+      - "pnpm"
+      - "exec"
+      - "node"
+      - "scripts/generate.mjs"
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "config.json"
+      - "scripts/generate.mjs"
+      - "scripts/validate.mjs"
+      - "scripts/check.mjs"
+    outputs:
+      - "generated/**/*"
+      - "src/generated.ts"
+      - "/apps/mobile/HandWave/Sources/Generated/InferCfg.swift"
+      - "/apps/inference/src/inference/contract.py"
+
+  test:
+    command:
+      - "pnpm"
+      - "exec"
+      - "node"
+      - "scripts/check.mjs"
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "config.json"
+      - "scripts/validate.mjs"
+      - "scripts/check.mjs"

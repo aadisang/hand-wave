@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/SessionInfo.json",
+    "type": "object",
+    "properties": {
+        "session_id": {
+            "type": "string"
+        },
+        "max_window_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "min_stable_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        }
+    },
+    "required": [
+        "session_id",
+        "max_window_frames",
+        "min_stable_frames"
+    ]
+}

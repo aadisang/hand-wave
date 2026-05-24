@@ -1,0 +1,585 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Hand Wave Inference API",
+    "version": "0.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/v1/predict": {
+      "post": {
+        "operationId": "Routes_predict",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictOut"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictIn"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions": {
+      "post": {
+        "operationId": "Routes_createSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionIn"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{session_id}": {
+      "get": {
+        "operationId": "Routes_getSession",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionState"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "Routes_deleteSession",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/v1/sessions/{session_id}/frames": {
+      "post": {
+        "operationId": "Routes_appendFrames",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamPred"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FramesIn"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{session_id}/reset": {
+      "post": {
+        "operationId": "Routes_resetSession",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionState"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Config": {
+        "type": "object",
+        "required": [
+          "session",
+          "stream",
+          "mp"
+        ],
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionCfg"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/StreamCfg"
+          },
+          "mp": {
+            "$ref": "#/components/schemas/MpCfg"
+          }
+        }
+      },
+      "CreateSessionIn": {
+        "type": "object",
+        "required": [
+          "max_window_frames",
+          "min_stable_frames"
+        ],
+        "properties": {
+          "max_window_frames": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 8,
+            "maximum": 512
+          },
+          "min_stable_frames": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 24
+          }
+        }
+      },
+      "FramesIn": {
+        "type": "object",
+        "required": [
+          "frames"
+        ],
+        "properties": {
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandmarkFrame"
+            },
+            "minItems": 1,
+            "maxItems": 160
+          }
+        }
+      },
+      "LandmarkFrame": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "format": "double"
+        },
+        "minItems": 162,
+        "maxItems": 162
+      },
+      "MpCfg": {
+        "type": "object",
+        "required": [
+          "smooth"
+        ],
+        "properties": {
+          "smooth": {
+            "$ref": "#/components/schemas/SmoothSet"
+          }
+        }
+      },
+      "PredictIn": {
+        "type": "object",
+        "required": [
+          "frames"
+        ],
+        "properties": {
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandmarkFrame"
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "PredictOut": {
+        "type": "object",
+        "required": [
+          "prediction",
+          "alternatives",
+          "spans",
+          "greedy_text",
+          "blank_ratio",
+          "tail_blank_ratio",
+          "tail_blank_frames",
+          "partial_text",
+          "stable_text"
+        ],
+        "properties": {
+          "prediction": {
+            "$ref": "#/components/schemas/Prediction"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Prediction"
+            }
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            }
+          },
+          "greedy_text": {
+            "type": "string"
+          },
+          "blank_ratio": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tail_blank_ratio": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "tail_blank_frames": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "partial_text": {
+            "type": "string"
+          },
+          "stable_text": {
+            "type": "string"
+          }
+        }
+      },
+      "Prediction": {
+        "type": "object",
+        "required": [
+          "label",
+          "confidence"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "logit_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lm_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "raw_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SessionCfg": {
+        "type": "object",
+        "required": [
+          "window",
+          "stable"
+        ],
+        "properties": {
+          "window": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 8,
+            "maximum": 512
+          },
+          "stable": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 24
+          }
+        }
+      },
+      "SessionInfo": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "max_window_frames",
+          "min_stable_frames"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "max_window_frames": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "min_stable_frames": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SessionState": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "buffered_frames",
+          "partial_text",
+          "stable_text"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "buffered_frames": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "partial_text": {
+            "type": "string"
+          },
+          "stable_text": {
+            "type": "string"
+          }
+        }
+      },
+      "SmoothCfg": {
+        "type": "object",
+        "required": [
+          "freq",
+          "cutoff",
+          "beta",
+          "dCutoff"
+        ],
+        "properties": {
+          "freq": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "cutoff": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "beta": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "dCutoff": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "SmoothSet": {
+        "type": "object",
+        "required": [
+          "hand",
+          "pose"
+        ],
+        "properties": {
+          "hand": {
+            "$ref": "#/components/schemas/SmoothCfg"
+          },
+          "pose": {
+            "$ref": "#/components/schemas/SmoothCfg"
+          }
+        }
+      },
+      "Span": {
+        "type": "object",
+        "required": [
+          "start_frame",
+          "end_frame",
+          "text"
+        ],
+        "properties": {
+          "start_frame": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "end_frame": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "StreamCfg": {
+        "type": "object",
+        "required": [
+          "fps",
+          "min",
+          "stride",
+          "idle",
+          "lost",
+          "holdMs",
+          "motion"
+        ],
+        "properties": {
+          "fps": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "min": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "stride": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "idle": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "lost": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "holdMs": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "motion": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
+      "StreamPred": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "buffered_frames"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "buffered_frames": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PredictOut"
+          }
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "variables": {}
+    }
+  ]
+}

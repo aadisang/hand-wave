@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/SmoothCfg.json",
+    "type": "object",
+    "properties": {
+        "freq": {
+            "type": "number",
+            "minimum": 0
+        },
+        "cutoff": {
+            "type": "number",
+            "minimum": 0
+        },
+        "beta": {
+            "type": "number",
+            "minimum": 0
+        },
+        "dCutoff": {
+            "type": "number",
+            "minimum": 0
+        }
+    },
+    "required": [
+        "freq",
+        "cutoff",
+        "beta",
+        "dCutoff"
+    ]
+}

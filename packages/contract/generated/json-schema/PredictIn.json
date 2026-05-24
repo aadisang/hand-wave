@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/PredictIn.json",
+    "type": "object",
+    "properties": {
+        "frames": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/LandmarkFrame.json"
+            },
+            "minItems": 1
+        }
+    },
+    "required": [
+        "frames"
+    ]
+}

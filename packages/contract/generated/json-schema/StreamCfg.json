@@ -1,0 +1,50 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamCfg.json",
+    "type": "object",
+    "properties": {
+        "fps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "min": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "stride": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "idle": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "lost": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "holdMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "motion": {
+            "type": "number",
+            "minimum": 0
+        }
+    },
+    "required": [
+        "fps",
+        "min",
+        "stride",
+        "idle",
+        "lost",
+        "holdMs",
+        "motion"
+    ]
+}

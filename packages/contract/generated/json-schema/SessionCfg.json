@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/SessionCfg.json",
+    "type": "object",
+    "properties": {
+        "window": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 512
+        },
+        "stable": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 24
+        }
+    },
+    "required": [
+        "window",
+        "stable"
+    ]
+}

@@ -11,14 +11,23 @@ tags:
 project:
   description: "Browser capture and realtime recognition UI."
 
+dependsOn:
+  - "contract"
+
 tasks:
   dev:
     command: "pnpm exec vite dev"
+    deps:
+      - "contract:generate"
     preset: "server"
 
   build:
     command: "pnpm exec vite build"
+    deps:
+      - "contract:generate"
     inputs:
+      - "/packages/contract/config.json"
+      - "/packages/contract/src/**/*"
       - "src/**/*"
       - "vite.config.ts"
       - "tsconfig.json"
@@ -28,7 +37,11 @@ tasks:
 
   test:
     command: "pnpm exec vitest run"
+    deps:
+      - "contract:generate"
     inputs:
+      - "/packages/contract/config.json"
+      - "/packages/contract/src/**/*"
       - "src/**/*.test.{ts,tsx}"
       - "src/**/*.{ts,tsx}"
       - "tsconfig.json"

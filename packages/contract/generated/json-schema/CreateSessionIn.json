@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/CreateSessionIn.json",
+    "type": "object",
+    "properties": {
+        "max_window_frames": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 512
+        },
+        "min_stable_frames": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 24
+        }
+    },
+    "required": [
+        "max_window_frames",
+        "min_stable_frames"
+    ]
+}

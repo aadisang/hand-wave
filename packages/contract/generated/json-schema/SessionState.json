@@ -1,0 +1,27 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/SessionState.json",
+    "type": "object",
+    "properties": {
+        "session_id": {
+            "type": "string"
+        },
+        "buffered_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "partial_text": {
+            "type": "string"
+        },
+        "stable_text": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "session_id",
+        "buffered_frames",
+        "partial_text",
+        "stable_text"
+    ]
+}
