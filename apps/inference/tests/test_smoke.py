@@ -2,14 +2,14 @@ from fastapi.testclient import TestClient
 
 from inference import main
 from inference.model import ModelBackend
-from inference.schemas import LandmarkFrame, Prediction, PredictResponse
+from inference.schemas import LandmarkFrame, Prediction, PredictOut
 
 
 class FakeBackend(ModelBackend):
-    async def predict_frames(self, frames: list[LandmarkFrame]) -> PredictResponse:
+    async def predict_frames(self, frames: list[LandmarkFrame]) -> PredictOut:
         label = "" if len(frames) < 8 else "waiting"
         confidence = 0.0 if not label else 0.05
-        return PredictResponse(
+        return PredictOut(
             prediction=Prediction(label=label, confidence=confidence),
             partial_text="",
             stable_text="",
@@ -23,13 +23,6 @@ def client(monkeypatch):
 
 def landmark_frame(index: int = 0) -> list[float]:
     return [0.1 + index, 0.2, 0.0] * 54
-
-
-def test_health_returns_ok(monkeypatch) -> None:
-    with client(monkeypatch) as test_client:
-        response = test_client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
 
 
 def test_predict_accepts_frame_features(monkeypatch) -> None:

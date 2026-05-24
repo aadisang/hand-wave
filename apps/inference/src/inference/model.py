@@ -1,13 +1,13 @@
 from collections.abc import Sequence
 from pathlib import Path
 
-from inference.schemas import LandmarkFrame, Prediction, PredictionSpan, PredictResponse
+from inference.schemas import LandmarkFrame, Prediction, Span, PredictOut
 
 MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 
 
 class ModelBackend:
-    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictResponse:
+    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
         raise NotImplementedError
 
 
@@ -17,9 +17,9 @@ class CheckpointBackend(ModelBackend):
 
         self.runtime = HandwaveRuntime(checkpoint_path)
 
-    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictResponse:
+    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
         decoded = self.runtime.predict(list(frames))
-        return PredictResponse(
+        return PredictOut(
             prediction=Prediction(
                 label=decoded.text,
                 confidence=decoded.confidence,
@@ -38,7 +38,7 @@ class CheckpointBackend(ModelBackend):
                 for item in decoded.alternatives[1:]
             ],
             spans=[
-                PredictionSpan(
+                Span(
                     text=span.text,
                     start_frame=span.start_frame,
                     end_frame=span.end_frame,

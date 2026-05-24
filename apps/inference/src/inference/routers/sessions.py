@@ -4,42 +4,42 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from inference.dependencies import get_sessions
 from inference.schemas import (
-    AppendFramesRequest,
-    CreateSessionRequest,
-    CreateSessionResponse,
-    SessionStateResponse,
-    StreamPredictResponse,
+    FramesIn,
+    CreateSessionIn,
+    SessionInfo,
+    SessionState,
+    StreamPred,
 )
 from inference.sessions import SessionStore
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
 
 
-@router.post("", response_model=CreateSessionResponse)
+@router.post("", response_model=SessionInfo)
 async def create_session(
-    payload: CreateSessionRequest,
+    payload: CreateSessionIn,
     sessions: Annotated[SessionStore, Depends(get_sessions)],
-) -> CreateSessionResponse:
+) -> SessionInfo:
     return sessions.create(payload)
 
 
-@router.get("/{session_id}", response_model=SessionStateResponse)
+@router.get("/{session_id}", response_model=SessionState)
 async def get_session(
     session_id: str,
     sessions: Annotated[SessionStore, Depends(get_sessions)],
-) -> SessionStateResponse:
+) -> SessionState:
     session = sessions.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return session.state()
 
 
-@router.post("/{session_id}/frames", response_model=StreamPredictResponse)
+@router.post("/{session_id}/frames", response_model=StreamPred)
 async def append_frames(
     session_id: str,
-    payload: AppendFramesRequest,
+    payload: FramesIn,
     sessions: Annotated[SessionStore, Depends(get_sessions)],
-) -> StreamPredictResponse:
+) -> StreamPred:
     try:
         prediction = await sessions.predict(session_id, payload.frames)
     except ValueError as exc:
@@ -49,11 +49,11 @@ async def append_frames(
     return prediction
 
 
-@router.post("/{session_id}/reset", response_model=SessionStateResponse)
+@router.post("/{session_id}/reset", response_model=SessionState)
 async def reset_session(
     session_id: str,
     sessions: Annotated[SessionStore, Depends(get_sessions)],
-) -> SessionStateResponse:
+) -> SessionState:
     session = sessions.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")

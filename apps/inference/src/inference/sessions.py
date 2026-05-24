@@ -5,12 +5,12 @@ from uuid import uuid4
 from inference.decoder import StablePrefixTracker
 from inference.model import ModelBackend
 from inference.schemas import (
-    CreateSessionRequest,
-    CreateSessionResponse,
+    CreateSessionIn,
+    SessionInfo,
     LandmarkFrame,
-    PredictResponse,
-    SessionStateResponse,
-    StreamPredictResponse,
+    PredictOut,
+    SessionState,
+    StreamPred,
 )
 
 
@@ -30,8 +30,8 @@ class InferenceSession:
         self.frames.clear()
         self.tracker.reset()
 
-    def state(self) -> SessionStateResponse:
-        return SessionStateResponse(
+    def state(self) -> SessionState:
+        return SessionState(
             session_id=self.id,
             buffered_frames=len(self.frames),
             partial_text=self.tracker.partial_text,
@@ -44,14 +44,14 @@ class SessionStore:
         self.backend = backend
         self._sessions: dict[str, InferenceSession] = {}
 
-    def create(self, request: CreateSessionRequest) -> CreateSessionResponse:
+    def create(self, request: CreateSessionIn) -> SessionInfo:
         session_id = uuid4().hex
         self._sessions[session_id] = InferenceSession(
             id=session_id,
             max_window_frames=request.max_window_frames,
             tracker=StablePrefixTracker(request.min_stable_frames),
         )
-        return CreateSessionResponse(
+        return SessionInfo(
             session_id=session_id,
             max_window_frames=request.max_window_frames,
             min_stable_frames=request.min_stable_frames,
@@ -67,7 +67,7 @@ class SessionStore:
         self,
         session_id: str,
         frames: list[LandmarkFrame],
-    ) -> StreamPredictResponse | None:
+    ) -> StreamPred | None:
         session = self.get(session_id)
         if session is None:
             return None
@@ -80,11 +80,11 @@ class SessionStore:
 
 def stream_response(
     session: InferenceSession,
-    prediction: PredictResponse,
+    prediction: PredictOut,
     partial_text: str,
     stable_text: str,
-) -> StreamPredictResponse:
-    return StreamPredictResponse(
+) -> StreamPred:
+    return StreamPred(
         session_id=session.id,
         buffered_frames=len(session.frames),
         prediction=prediction.prediction,
