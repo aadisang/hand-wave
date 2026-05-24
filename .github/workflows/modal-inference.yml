@@ -1,0 +1,55 @@
+name: Deploy inference
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/modal-inference.yml"
+      - "apps/inference/**"
+      - "packages/contract/**"
+  workflow_dispatch:
+
+concurrency:
+  group: modal-inference
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify checkpoint
+        run: |
+          test -s apps/inference/models/best.ckpt
+          if grep -q "git-lfs.github.com/spec" apps/inference/models/best.ckpt; then
+            echo "::error::apps/inference/models/best.ckpt is still a Git LFS pointer"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: apps/inference/.python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/inference/uv.lock
+
+      - name: Sync deploy environment
+        working-directory: apps/inference
+        run: uv sync --frozen --group deploy
+
+      - name: Deploy Modal app
+        working-directory: apps/inference
+        run: uv run --frozen --group deploy modal deploy modal_app.py

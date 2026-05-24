@@ -30,3 +30,28 @@ tasks:
     deps:
       - 'contract:generate'
     preset: 'server'
+
+  modalServe:
+    command:
+      - 'uv'
+      - 'run'
+      - '--group'
+      - 'deploy'
+      - 'modal'
+      - 'serve'
+      - 'modal_app.py'
+    deps:
+      - 'contract:generate'
+    preset: 'server'
+
+  modalDeploy:
+    command:
+      - 'uv'
+      - 'run'
+      - '--group'
+      - 'deploy'
+      - 'modal'
+      - 'deploy'
+      - 'modal_app.py'
+    deps:
+      - 'contract:generate'

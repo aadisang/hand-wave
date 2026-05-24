@@ -22,6 +22,9 @@ dev = [
     "pytest>=8.3.0",
     "ruff>=0.8.0",
 ]
+deploy = [
+    "modal>=1.0.0",
+]
 
 [build-system]
 requires = ["hatchling"]
