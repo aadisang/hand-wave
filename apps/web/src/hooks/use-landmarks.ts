@@ -3,7 +3,7 @@ import {
   HandLandmarker,
   PoseLandmarker,
 } from "@mediapipe/tasks-vision";
-import { useCallbackRef } from "@mantine/hooks";
+import { useEvent } from "@reactuses/core";
 import { useEffect, type RefObject } from "react";
 import type { CaptureKind } from "@/types/capture";
 import { filterConsole } from "@/lib/mediapipe/console";
@@ -125,7 +125,7 @@ export function useHandLandmarks(
   captureKind: CaptureKind,
   onFrame: FrameSink,
 ): void {
-  const onFrameRef = useCallbackRef(onFrame);
+  const emitFrame = useEvent(onFrame);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,7 +161,7 @@ export function useHandLandmarks(
           detect(instance, video, timestamp, captureKind),
           timestamp,
         );
-        onFrameRef(frame, performance.now() - start);
+        emitFrame(frame, performance.now() - start);
       } catch {
         reset(instance);
         trackers = null;
@@ -204,5 +204,5 @@ export function useHandLandmarks(
         frameCallbackVideo.cancelVideoFrameCallback(videoFrameId);
       }
     };
-  }, [videoRef, captureKind, onFrameRef]);
+  }, [videoRef, captureKind, emitFrame]);
 }

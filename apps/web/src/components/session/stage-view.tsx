@@ -1,4 +1,4 @@
-import { useFullscreenElement } from "@mantine/hooks";
+import { useFullscreen } from "@reactuses/core";
 import { useEffect, useRef } from "react";
 import { useCaptureSession } from "@/hooks/use-capture-session";
 import { useInfer } from "@/hooks/use-infer";
@@ -11,8 +11,9 @@ import { StreamToolbar } from "./stream-toolbar";
 
 export function Stage() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const capture = useCaptureSession();
-  const fullscreen = useFullscreenElement<HTMLDivElement>();
+  const [full, fullCtrl] = useFullscreen(stageRef);
 
   const { state } = capture;
   const isLive = state.status === "live";
@@ -27,10 +28,10 @@ export function Stage() {
 
   return (
     <div
-      ref={fullscreen.ref}
+      ref={stageRef}
       className={cn(
         "relative aspect-video w-full overflow-hidden border bg-stage",
-        fullscreen.fullscreen ? "rounded-none" : "rounded-2xl",
+        full ? "rounded-none" : "rounded-2xl",
       )}
     >
       {state.status === "live" || state.status === "starting" ? (
@@ -69,7 +70,11 @@ export function Stage() {
           <PredictionOverlay />
         </div>
       )}
-      <StreamToolbar capture={capture} fullscreen={fullscreen} />
+      <StreamToolbar
+        capture={capture}
+        full={full}
+        onFull={fullCtrl.toggleFullscreen}
+      />
     </div>
   );
 }
