@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import { Analytics } from "@vercel/analytics/react";
 import type { ReactNode } from "react";
 import { NotFound } from "@/components/app/not-found";
 import { appJsonLd, homeUrl, site } from "@/config/site";
@@ -95,6 +96,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           Skip to main content
         </a>
         {children}
+        <Analytics />
         <Scripts />
       </body>
     </html>
