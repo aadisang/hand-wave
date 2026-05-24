@@ -9,7 +9,7 @@ struct StreamView: View {
       LandmarkOverlay(points: appModel.stream.overlayLandmarks)
       VStack(spacing: 18) {
         predictionOverlay
-        recognitionStatus
+        statusText
         stopButton
       }
       .padding(.horizontal, 24)
@@ -21,8 +21,8 @@ struct StreamView: View {
     .statusBarHidden()
   }
 
-  private var recognitionStatus: some View {
-    Text(appModel.stream.recognitionStatus)
+  private var statusText: some View {
+    Text(appModel.stream.statusText)
       .font(.system(.footnote, design: .monospaced).weight(.semibold))
       .foregroundStyle(.white.opacity(0.78))
       .padding(.horizontal, 14)
@@ -52,7 +52,7 @@ struct StreamView: View {
 
   @ViewBuilder
   private var predictionOverlay: some View {
-    if let prediction = appModel.stream.currentPrediction {
+    if let prediction = appModel.stream.current {
       VStack(spacing: 6) {
         Text(prediction.text)
           .font(.system(size: 44, weight: .bold, design: .rounded))

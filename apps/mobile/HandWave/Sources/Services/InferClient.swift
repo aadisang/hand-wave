@@ -1,6 +1,16 @@
 import Foundation
 
-struct InferenceClient: Sendable {
+protocol InferAPI: Sendable {
+  func createSession() async throws -> String
+  func appendFrames(
+    sessionId: String,
+    frames: [LandmarkFrame]
+  ) async throws -> StreamPred
+  func resetSession(sessionId: String) async throws -> SessionState
+  func deleteSession(sessionId: String) async
+}
+
+struct InferClient: Sendable {
   enum ClientError: Error, LocalizedError {
     case missingBaseURL
     case badStatus(URL, Int)
@@ -28,8 +38,8 @@ struct InferenceClient: Sendable {
   }
 
   init(
-    baseURL: URL = InferenceClient.defaultBaseURL(),
-    session: URLSession = InferenceClient.defaultSession()
+    baseURL: URL = InferClient.defaultBaseURL(),
+    session: URLSession = InferClient.defaultSession()
   ) {
     self.baseURL = baseURL
     self.session = session
@@ -37,12 +47,12 @@ struct InferenceClient: Sendable {
 
   func createSession() async throws -> String {
     struct Request: Encodable {
-      let maxWindowFrames = 128
-      let minStableFrames = 2
+      let window = InferCfg.Session.window
+      let stable = InferCfg.Session.stable
 
       enum CodingKeys: String, CodingKey {
-        case maxWindowFrames = "max_window_frames"
-        case minStableFrames = "min_stable_frames"
+        case window = "max_window_frames"
+        case stable = "min_stable_frames"
       }
     }
     struct Response: Decodable {
@@ -63,7 +73,7 @@ struct InferenceClient: Sendable {
   func appendFrames(
     sessionId: String,
     frames: [LandmarkFrame]
-  ) async throws -> StreamPredictionResponse {
+  ) async throws -> StreamPred {
     struct Request: Encodable {
       let frames: [LandmarkFrame]
     }
@@ -74,7 +84,7 @@ struct InferenceClient: Sendable {
     )
   }
 
-  func resetSession(sessionId: String) async throws -> InferenceResetResponse {
+  func resetSession(sessionId: String) async throws -> SessionState {
     try await post(path: "/v1/sessions/\(sessionId)/reset", body: EmptyBody())
   }
 
@@ -127,5 +137,7 @@ struct InferenceClient: Sendable {
     return URLSession(configuration: configuration)
   }
 }
+
+extension InferClient: InferAPI {}
 
 private struct EmptyBody: Encodable {}
