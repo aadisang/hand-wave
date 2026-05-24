@@ -1,3 +1,4 @@
+import { useMediaDevices } from "@reactuses/core";
 import {
   Select,
   SelectContent,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/select";
 import { ToolbarSeparator } from "@/components/ui/toolbar";
 import type { CaptureSession } from "@/types/capture";
-import { useVideoDevices } from "@/hooks/use-video-devices";
 
 type Props = {
   capture: CaptureSession;
@@ -16,13 +16,16 @@ type Props = {
 const cleanLabel = (label: string) =>
   label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, "").trim();
 
-const labelFor = (device: MediaDeviceInfo, index: number) =>
+const labelFor = (device: Pick<MediaDeviceInfo, "label">, index: number) =>
   cleanLabel(device.label) || `Camera ${index + 1}`;
 
 export function CameraSelect({ capture }: Props) {
-  const devices = useVideoDevices(true);
+  const [{ devices }] = useMediaDevices({
+    constraints: { audio: false, video: true },
+  });
+  const cameras = devices.filter((device) => device.kind === "videoinput");
 
-  if (devices.length < 2) return null;
+  if (cameras.length < 2) return null;
 
   return (
     <>
@@ -38,14 +41,14 @@ export function CameraSelect({ capture }: Props) {
           <SelectValue placeholder="Select camera">
             {(value) => {
               if (typeof value !== "string") return null;
-              const index = devices.findIndex((d) => d.deviceId === value);
+              const index = cameras.findIndex((d) => d.deviceId === value);
               if (index === -1) return null;
-              return labelFor(devices[index], index);
+              return labelFor(cameras[index], index);
             }}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {devices.map((device, index) => (
+          {cameras.map((device, index) => (
             <SelectItem key={device.deviceId} value={device.deviceId}>
               {labelFor(device, index)}
             </SelectItem>
