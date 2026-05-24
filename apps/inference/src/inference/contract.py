@@ -10,15 +10,5 @@ STREAM_LOST = 10
 STREAM_HOLD_MS = 1200
 STREAM_MOTION = 0.003
 
-MP_HAND_SMOOTH = {
-    'freq': 60,
-    'cutoff': 18,
-    'beta': 1.8,
-    'dCutoff': 1.5
-}
-MP_POSE_SMOOTH = {
-    'freq': 60,
-    'cutoff': 6,
-    'beta': 0.8,
-    'dCutoff': 1.5
-}
+MP_HAND_SMOOTH = {"freq": 60, "cutoff": 18, "beta": 1.8, "dCutoff": 1.5}
+MP_POSE_SMOOTH = {"freq": 60, "cutoff": 6, "beta": 0.8, "dCutoff": 1.5}

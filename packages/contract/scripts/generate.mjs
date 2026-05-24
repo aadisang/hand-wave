@@ -37,6 +37,8 @@ await writeGeneratedFile(
   pythonConfiguration(contract),
 );
 
+formatContractOutput();
+
 async function writeGeneratedFile(filePath, content) {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, content);
@@ -100,6 +102,21 @@ function compileTypeSpec() {
   }
 }
 
+function formatContractOutput() {
+  const result = spawnSync(
+    "pnpm",
+    ["exec", "oxfmt", "--write", "generated", "src/generated.ts"],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
 function pythonConfiguration(config) {
   return [
     `# ${generatedNotice}`,
@@ -121,8 +138,5 @@ function pythonConfiguration(config) {
 }
 
 function pythonDict(value) {
-  return JSON.stringify(value, null, 2)
-    .replaceAll('"', "'")
-    .replace(/: ([\d.]+)/g, ": $1")
-    .replace(/^  /gm, "    ");
+  return JSON.stringify(value).replaceAll(":", ": ").replaceAll(",", ", ");
 }
