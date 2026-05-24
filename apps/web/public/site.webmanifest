@@ -1,7 +1,7 @@
 {
   "name": "Hand Wave",
   "short_name": "Hand Wave",
-  "description": "Real-time sign language recognition for the browser.",
+  "description": "Real-time sign language recognition for camera and screen share.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

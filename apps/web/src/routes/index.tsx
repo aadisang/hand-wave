@@ -14,7 +14,11 @@ function Home() {
 
   return (
     <div className="dark flex h-svh flex-col overflow-hidden bg-background p-3 text-foreground sm:p-4">
-      <main className="flex min-h-0 flex-1 items-center justify-center">
+      <main
+        className="flex min-h-0 flex-1 items-center justify-center"
+        id="main"
+      >
+        <h1 className="sr-only">Hand Wave</h1>
         <div className="stage-frame">
           <Stage />
         </div>
