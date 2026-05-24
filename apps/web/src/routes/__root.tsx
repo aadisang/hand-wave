@@ -9,10 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { NotFound } from "@/components/app/not-found";
 import { appJsonLd, homeUrl, site } from "@/config/site";
-import {
-  handModelUrl,
-  poseModelUrl,
-} from "@/hooks/use-landmarks";
+import { handModelUrl, poseModelUrl } from "@/hooks/use-landmarks";
 import appCss from "./globals.css?url";
 
 export const Route = createRootRoute({

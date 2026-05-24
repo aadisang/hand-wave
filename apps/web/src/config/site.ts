@@ -1,7 +1,8 @@
 export const site = {
   name: "Hand Wave",
   title: "Hand Wave - Real-Time Sign Language Recognition",
-  description: "Real-time sign language recognition for camera and screen share.",
+  description:
+    "Real-time sign language recognition for camera and screen share.",
   origin: "https://handwave.sh",
   image: "https://handwave.sh/og.png",
 } as const;

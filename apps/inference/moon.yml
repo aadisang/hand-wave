@@ -55,3 +55,4 @@ tasks:
       - 'modal_app.py'
     deps:
       - 'contract:generate'
+    preset: 'utility'

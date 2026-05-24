@@ -14,12 +14,11 @@ fileGroups:
 
 tasks:
   format:
-    command: 'pnpm exec prettier --write --ignore-path ../../.prettierignore .'
+    command: 'pnpm exec oxfmt --write .'
     inputs:
       - '@group(sources)'
       - '@group(configs)'
-      - '/.prettierrc'
-      - '/.prettierignore'
+      - '/.oxfmtrc.json'
 
   lint:
     command: 'pnpm exec eslint --fix --no-error-on-unmatched-pattern .'
