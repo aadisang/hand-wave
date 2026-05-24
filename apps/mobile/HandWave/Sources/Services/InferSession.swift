@@ -15,7 +15,6 @@ actor InferSession {
 
   private let client: InferAPI
   private var arbiter = Arbiter()
-  private var sid: String?
   private var frames: [LandmarkFrame] = []
   private var seen = 0
   private var inFlight = false
@@ -30,27 +29,17 @@ actor InferSession {
     self.client = client
   }
 
-  func start() async throws {
-    if sid == nil {
-      sid = try await client.createSession()
-    }
-  }
+  func start() async throws {}
 
   func stop() async {
-    let id = sid
-    sid = nil
     gen += 1
     resetSegment()
     arbiter.reset()
-    if let id {
-      await client.deleteSession(sessionId: id)
-    }
   }
 
   func ingest(_ frame: LandmarkFrame?) async throws -> Event? {
-    guard let sid else { return nil }
     guard let frame else {
-      return try await acceptMissingFrame(sessionId: sid)
+      return acceptMissingFrame()
     }
 
     let motion = frameMotion(previous: last, current: frame)
@@ -70,23 +59,25 @@ actor InferSession {
     if ended { return nil }
 
     frames.append(frame)
+    if frames.count > InferCfg.Decode.window {
+      frames.removeFirst(frames.count - InferCfg.Decode.window)
+    }
     seen += 1
 
     if idle >= InferCfg.Stream.idle {
-      return try await finalizeSegment(sessionId: sid, reason: .idle)
+      return finalizeSegment(reason: .idle)
     }
 
     if seen < InferCfg.Stream.min { return nil }
     if seen % InferCfg.Stream.stride != 0 || inFlight { return nil }
 
     let batch = frames
-    frames.removeAll(keepingCapacity: true)
     let requestGen = gen
     inFlight = true
     let started = ContinuousClock.now
     defer { inFlight = false }
 
-    let response = try await client.appendFrames(sessionId: sid, frames: batch)
+    let response = try await client.predict(frames: batch)
     guard requestGen == gen else { return nil }
 
     let elapsed = started.duration(to: .now)
@@ -102,7 +93,7 @@ actor InferSession {
     return update.displayPrediction.map(Event.partial)
   }
 
-  private func acceptMissingFrame(sessionId: String) async throws -> Event? {
+  private func acceptMissingFrame() -> Event? {
     guard !ended else { return nil }
     guard moved, seen >= InferCfg.Stream.min else {
       resetLiveState()
@@ -114,15 +105,12 @@ actor InferSession {
     if lost >= InferCfg.Stream.lost
       || idle >= InferCfg.Stream.idle
     {
-      return try await finalizeSegment(sessionId: sessionId, reason: .landmarkLost)
+      return finalizeSegment(reason: .landmarkLost)
     }
     return nil
   }
 
-  private func finalizeSegment(
-    sessionId: String,
-    reason: Arbiter.EndpointReason
-  ) async throws -> Event? {
+  private func finalizeSegment(reason: Arbiter.EndpointReason) -> Event? {
     let finalized = arbiter.finalize(
       context: Arbiter.FinalizeContext(
         endpointReason: reason,
@@ -133,7 +121,6 @@ actor InferSession {
     gen += 1
     arbiter.reset()
     resetSegment()
-    _ = try await client.resetSession(sessionId: sessionId)
 
     guard let pred = finalized.displayPrediction, !pred.text.isEmpty else {
       return .clear

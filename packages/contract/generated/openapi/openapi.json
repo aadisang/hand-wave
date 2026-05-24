@@ -33,143 +33,6 @@
           }
         }
       }
-    },
-    "/v1/sessions": {
-      "post": {
-        "operationId": "Routes_createSession",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionInfo"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSessionIn"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sessions/{session_id}": {
-      "get": {
-        "operationId": "Routes_getSession",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionState"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "operationId": "Routes_deleteSession",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "There is no content to send for this request, but the headers may be useful. "
-          }
-        }
-      }
-    },
-    "/v1/sessions/{session_id}/frames": {
-      "post": {
-        "operationId": "Routes_appendFrames",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StreamPred"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FramesIn"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/sessions/{session_id}/reset": {
-      "post": {
-        "operationId": "Routes_resetSession",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionState"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -177,13 +40,13 @@
       "Config": {
         "type": "object",
         "required": [
-          "session",
+          "decode",
           "stream",
           "mp"
         ],
         "properties": {
-          "session": {
-            "$ref": "#/components/schemas/SessionCfg"
+          "decode": {
+            "$ref": "#/components/schemas/DecodeCfg"
           },
           "stream": {
             "$ref": "#/components/schemas/StreamCfg"
@@ -193,40 +56,17 @@
           }
         }
       },
-      "CreateSessionIn": {
+      "DecodeCfg": {
         "type": "object",
         "required": [
-          "max_window_frames",
-          "min_stable_frames"
+          "window"
         ],
         "properties": {
-          "max_window_frames": {
+          "window": {
             "type": "integer",
             "format": "int32",
             "minimum": 8,
             "maximum": 512
-          },
-          "min_stable_frames": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1,
-            "maximum": 24
-          }
-        }
-      },
-      "FramesIn": {
-        "type": "object",
-        "required": [
-          "frames"
-        ],
-        "properties": {
-          "frames": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LandmarkFrame"
-            },
-            "minItems": 1,
-            "maxItems": 160
           }
         }
       },
@@ -261,7 +101,8 @@
             "items": {
               "$ref": "#/components/schemas/LandmarkFrame"
             },
-            "minItems": 1
+            "minItems": 1,
+            "maxItems": 512
           }
         }
       },
@@ -368,72 +209,6 @@
                 "type": "null"
               }
             ]
-          }
-        }
-      },
-      "SessionCfg": {
-        "type": "object",
-        "required": [
-          "window",
-          "stable"
-        ],
-        "properties": {
-          "window": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 8,
-            "maximum": 512
-          },
-          "stable": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1,
-            "maximum": 24
-          }
-        }
-      },
-      "SessionInfo": {
-        "type": "object",
-        "required": [
-          "session_id",
-          "max_window_frames",
-          "min_stable_frames"
-        ],
-        "properties": {
-          "session_id": {
-            "type": "string"
-          },
-          "max_window_frames": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "min_stable_frames": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
-      "SessionState": {
-        "type": "object",
-        "required": [
-          "session_id",
-          "buffered_frames",
-          "partial_text",
-          "stable_text"
-        ],
-        "properties": {
-          "session_id": {
-            "type": "string"
-          },
-          "buffered_frames": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "partial_text": {
-            "type": "string"
-          },
-          "stable_text": {
-            "type": "string"
           }
         }
       },
@@ -552,27 +327,6 @@
             "minimum": 0
           }
         }
-      },
-      "StreamPred": {
-        "type": "object",
-        "required": [
-          "session_id",
-          "buffered_frames"
-        ],
-        "properties": {
-          "session_id": {
-            "type": "string"
-          },
-          "buffered_frames": {
-            "type": "integer",
-            "format": "int32"
-          }
-        },
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PredictOut"
-          }
-        ]
       }
     }
   },

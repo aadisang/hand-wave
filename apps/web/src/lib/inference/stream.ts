@@ -1,12 +1,4 @@
-import * as Exit from "effect/Exit";
-import {
-  appendFrames,
-  createSession,
-  deleteSession,
-  resetSession,
-  run,
-  runExit,
-} from "@/lib/inference/client";
+import { predictFrames, run } from "@/lib/inference/client";
 import {
   acceptedFrameTime,
   createArbiter,
@@ -14,6 +6,7 @@ import {
   holdMs,
   idle as idleMax,
   lost as lostMax,
+  maxFrames,
   minFrames as minSeen,
   motionMin,
   stride,
@@ -24,14 +17,14 @@ import type {
   DecodeTrace,
   EndpointReason,
   FinalizeTrace,
-  StreamCtrl,
   Frame,
+  InferOut,
+  StreamCtrl,
 } from "@/types/inference";
 
 const finalHoldMs = holdMs * 2;
 
 export function createStreamCtrl(): StreamCtrl {
-  let sid = "";
   let frames: Frame[] = [];
   let seen = 0;
   let inFlight = false;
@@ -72,23 +65,12 @@ export function createStreamCtrl(): StreamCtrl {
     arbiter.reset();
   };
 
-  const start = async () => {
-    const nextSid = await run(createSession());
-    if (disposed) {
-      void run(deleteSession(nextSid));
-      return;
-    }
-    sid = nextSid;
-  };
+  const start = async () => {};
 
   const dispose = () => {
     disposed = true;
-    const activeSid = sid;
-    sid = "";
     gen += 1;
     resetLiveState();
-    if (activeSid)
-      void run(deleteSession(activeSid));
   };
 
   const updateMotion = (frame: Frame) => {
@@ -129,21 +111,28 @@ export function createStreamCtrl(): StreamCtrl {
     gen += 1;
     arbiter.reset();
     resetSegment();
-    void run(resetSession(sid));
   };
 
-  const decode = async (batch: Frame[], batchIdle: number) => {
+  const decode = async (windowFrames: Frame[], batchIdle: number) => {
     const batchGen = gen;
     const startedAt = performance.now();
     inFlight = true;
 
-    const exit = await runExit(appendFrames(sid, batch));
-    inFlight = false;
-    if (batchGen !== gen || !Exit.isSuccess(exit)) return;
+    let prediction: InferOut;
+    try {
+      prediction = await run(predictFrames(windowFrames));
+    } catch {
+      inFlight = false;
+      return;
+    }
 
-    const update = arbiter.accept(exit.value, {
+    inFlight = false;
+    if (batchGen !== gen) return;
+
+    const update = arbiter.accept(prediction, {
       latencyMs: performance.now() - startedAt,
       idleFrames: batchIdle,
+      frames: windowFrames.length,
       motion: lastMotion,
     });
     if (update.displayPrediction) setPrediction(update.displayPrediction);
@@ -159,16 +148,13 @@ export function createStreamCtrl(): StreamCtrl {
 
     lost += 1;
     idle += 1;
-    if (
-      lost >= lostMax ||
-      idle >= idleMax
-    ) {
+    if (lost >= lostMax || idle >= idleMax) {
       finalize("landmark-lost");
     }
   };
 
   const accept = (frame: Frame | null) => {
-    if (!sid) return;
+    if (disposed) return;
     if (!frame) {
       acceptMissingFrame();
       return;
@@ -183,6 +169,7 @@ export function createStreamCtrl(): StreamCtrl {
     if (ended) return;
 
     frames.push(frame);
+    if (frames.length > maxFrames) frames.splice(0, frames.length - maxFrames);
     seen += 1;
 
     if (idle >= idleMax) {
@@ -192,7 +179,7 @@ export function createStreamCtrl(): StreamCtrl {
     if (seen < minSeen) return;
     if (seen % stride !== 0 || inFlight) return;
 
-    void decode(frames.splice(0), idle);
+    void decode(frames.slice(), idle);
   };
 
   return { accept, dispose, start };

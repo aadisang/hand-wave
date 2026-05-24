@@ -2,9 +2,8 @@
 import Foundation
 
 enum InferCfg {
-  enum Session {
+  enum Decode {
     static let window = 192
-    static let stable = 3
   }
 
   enum Stream {

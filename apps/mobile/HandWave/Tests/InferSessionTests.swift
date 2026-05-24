@@ -22,7 +22,6 @@ struct InferSessionTests {
     }
 
     #expect(Self.finalizedText(from: lastEvent) == "hello")
-    #expect(await client.resetCount == 1)
   }
 
   @Test
@@ -43,7 +42,6 @@ struct InferSessionTests {
     }
 
     #expect(Self.finalizedText(from: lastEvent) == "thanks")
-    #expect(await client.resetCount == 1)
   }
 
   @Test
@@ -55,8 +53,7 @@ struct InferSessionTests {
     let event = try await controller.ingest(nil)
 
     #expect(event == .clear)
-    #expect(await client.appendCount == 0)
-    #expect(await client.resetCount == 0)
+    #expect(await client.predictCount == 0)
   }
 
   private static func frame(offset: Double) -> LandmarkFrame {
@@ -85,25 +82,15 @@ struct InferSessionTests {
 
 private actor MockInferAPI: InferAPI {
   private let responseText: String
-  private(set) var appendCount = 0
-  private(set) var resetCount = 0
+  private(set) var predictCount = 0
 
   init(responseText: String) {
     self.responseText = responseText
   }
 
-  func createSession() async throws -> String {
-    "test-session"
-  }
-
-  func appendFrames(
-    sessionId: String,
-    frames: [LandmarkFrame]
-  ) async throws -> StreamPred {
-    appendCount += 1
+  func predict(frames: [LandmarkFrame]) async throws -> StreamPred {
+    predictCount += 1
     return StreamPred(
-      sessionId: sessionId,
-      bufferedFrames: frames.count,
       prediction: Prediction(
         label: responseText,
         confidence: 0.92,
@@ -117,16 +104,4 @@ private actor MockInferAPI: InferAPI {
       stableText: responseText
     )
   }
-
-  func resetSession(sessionId: String) async throws -> SessionState {
-    resetCount += 1
-    return SessionState(
-      sessionId: sessionId,
-      bufferedFrames: 0,
-      partialText: "",
-      stableText: ""
-    )
-  }
-
-  func deleteSession(sessionId: String) async {}
 }

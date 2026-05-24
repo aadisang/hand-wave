@@ -1,28 +1,24 @@
 import type {
   FrameSchema,
+  InferOutSchema,
   PredSchema,
   SpanSchema,
-  StreamPredSchema,
 } from "@/lib/inference/schema";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 
 export type Frame = typeof FrameSchema.Type;
+export type InferOut = typeof InferOutSchema.Type;
 export type Pred = typeof PredSchema.Type;
 export type Span = typeof SpanSchema.Type;
-export type StreamPred = typeof StreamPredSchema.Type;
 
 export type Source = "partial" | "raw" | `alt ${number}`;
-export type TextKind =
-  | "letter"
-  | "short"
-  | "phrase"
-  | "long"
-  | "word";
+export type TextKind = "letter" | "short" | "phrase" | "long" | "word";
 
 export type DecodeCtx = {
   latencyMs: number;
   idleFrames: number;
   motion: number;
+  frames: number;
 };
 
 export type Candidate = {

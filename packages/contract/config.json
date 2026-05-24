@@ -1,7 +1,6 @@
 {
-  "session": {
-    "window": 192,
-    "stable": 3
+  "decode": {
+    "window": 192
   },
   "stream": {
     "fps": 24,

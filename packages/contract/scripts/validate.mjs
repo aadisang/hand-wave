@@ -11,9 +11,8 @@ export async function readContract() {
 
 export function validateContract(contract) {
   expectObject(contract, "contract");
-  expectObject(contract.session, "session");
-  expectInteger(contract.session.window, "session.window");
-  expectInteger(contract.session.stable, "session.stable");
+  expectObject(contract.decode, "decode");
+  expectInteger(contract.decode.window, "decode.window");
 
   expectObject(contract.stream, "stream");
   expectInteger(contract.stream.fps, "stream.fps");
