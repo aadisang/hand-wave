@@ -15,6 +15,13 @@ dependsOn:
   - "contract"
 
 tasks:
+  typecheck:
+    deps:
+      - "contract:generate"
+    inputs:
+      - "/packages/contract/config.json"
+      - "/packages/contract/src/**/*"
+
   dev:
     command: "pnpm exec vite dev"
     deps:
@@ -28,10 +35,12 @@ tasks:
     inputs:
       - "/packages/contract/config.json"
       - "/packages/contract/src/**/*"
+      - "/pnpm-lock.yaml"
       - "src/**/*"
       - "vite.config.ts"
       - "tsconfig.json"
       - "package.json"
+      - "moon.yml"
     outputs:
       - ".output"
 
@@ -42,11 +51,13 @@ tasks:
     inputs:
       - "/packages/contract/config.json"
       - "/packages/contract/src/**/*"
+      - "/pnpm-lock.yaml"
       - "src/**/*.test.{ts,tsx}"
       - "src/**/*.{ts,tsx}"
       - "tsconfig.json"
       - "vitest.config.ts"
       - "package.json"
+      - "moon.yml"
 
   preview:
     command: "pnpm exec vite preview"

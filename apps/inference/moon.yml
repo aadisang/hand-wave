@@ -14,6 +14,14 @@ dependsOn:
   - 'contract'
 
 tasks:
+  typecheck:
+    deps:
+      - 'contract:generate'
+
+  test:
+    deps:
+      - 'contract:generate'
+
   dev:
     command:
       - 'uv'

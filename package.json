@@ -3,10 +3,14 @@
   "private": true,
   "scripts": {
     "build": "moon run :build",
-    "check": "moon run :format :lint :typecheck :test",
+    "check": "moon run :formatCheck :lint :typecheck :test",
+    "check:affected": "moon run :formatCheck :lint :typecheck :test --affected",
     "dev": "moon run :dev",
+    "fix": "moon run :format :lintFix",
     "format": "moon run :format",
+    "format:check": "moon run :formatCheck",
     "lint": "moon run :lint",
+    "lint:fix": "moon run :lintFix",
     "test": "moon run :test",
     "typecheck": "moon run :typecheck"
   },

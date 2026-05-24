@@ -78,16 +78,20 @@ The backend still needs the checkpoint to match the code beside it:
 ## Quality
 
 ```sh
-pnpm check      # format + lint + typecheck + test, cached
-pnpm format
+pnpm check           # format check + lint + typecheck + test, cached
+pnpm check:affected  # same checks for affected projects
+pnpm fix             # format + autofix lint
+pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
 ```
 
-| Layer      | Tools                                 |
-| ---------- | ------------------------------------- |
+| Layer      | Tools                               |
+| ---------- | ----------------------------------- |
 | TypeScript | Vite, Oxfmt, ESLint, `tsc`, Vitest |
-| Python     | Ruff (format + lint), Pyright, pytest |
+| Python     | Ruff, Pyright, pytest              |
+| Swift      | Tuist, swift-format                 |
 
-moon caches each task by input hash, so re-runs without changes finish in tens of milliseconds.
+moon caches each task by input hash. Use `pnpm check` before shipping and
+`pnpm check:affected` while iterating.

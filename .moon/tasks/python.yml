@@ -6,19 +6,39 @@ inheritedBy:
 fileGroups:
   sources:
     - 'src/**/*.py'
+    - 'tests/**/*.py'
+    - '*.py'
+  configs:
+    - 'pyproject.toml'
+    - 'uv.lock'
+    - 'moon.yml'
 
 tasks:
   format:
     command: 'uv run ruff format .'
+    preset: 'utility'
     inputs:
       - '@group(sources)'
-      - 'pyproject.toml'
+      - '@group(configs)'
+
+  formatCheck:
+    command: 'uv run ruff format --check .'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
 
   lint:
-    command: 'uv run ruff check --fix .'
+    command: 'uv run ruff check .'
     inputs:
       - '@group(sources)'
-      - 'pyproject.toml'
+      - '@group(configs)'
+
+  lintFix:
+    command: 'uv run ruff check --fix .'
+    preset: 'utility'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
 
   typecheck:
     command: 'uv run pyright'
@@ -30,4 +50,4 @@ tasks:
     command: 'uv run pytest'
     inputs:
       - '@group(sources)'
-      - 'pyproject.toml'
+      - '@group(configs)'

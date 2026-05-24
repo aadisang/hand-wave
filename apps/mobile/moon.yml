@@ -20,6 +20,7 @@ tasks:
   install:
     command: "tuist install"
     inputs:
+      - "moon.yml"
       - "Tuist/Package.swift"
       - "Tuist/Package.resolved"
     preset: "utility"
@@ -28,12 +29,16 @@ tasks:
     command: "tuist generate --no-open"
     inputs:
       - "/packages/contract/config.json"
+      - "moon.yml"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
     deps:
       - "install"
       - "contract:generate"
+    outputs:
+      - "HandWave.xcworkspace"
+      - "HandWave.xcodeproj"
 
   build:
     command:
@@ -46,6 +51,7 @@ tasks:
       - "generate"
     inputs:
       - "/packages/contract/config.json"
+      - "moon.yml"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
@@ -60,6 +66,7 @@ tasks:
       - "generate"
     inputs:
       - "/packages/contract/config.json"
+      - "moon.yml"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
@@ -86,6 +93,23 @@ tasks:
     inputs:
       - "**/*.swift"
       - ".swift-format"
+      - "moon.yml"
+    preset: "utility"
+
+  formatCheck:
+    command:
+      - "swift"
+      - "format"
+      - "lint"
+      - "--recursive"
+      - "--strict"
+      - "HandWave"
+      - "Project.swift"
+      - "Tuist.swift"
+    inputs:
+      - "**/*.swift"
+      - ".swift-format"
+      - "moon.yml"
 
   lint:
     command:
@@ -100,3 +124,4 @@ tasks:
     inputs:
       - "**/*.swift"
       - ".swift-format"
+      - "moon.yml"

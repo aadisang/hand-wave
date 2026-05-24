@@ -6,22 +6,44 @@ inheritedBy:
 fileGroups:
   sources:
     - 'src/**/*'
+    - 'public/**/*'
   configs:
     - '*.config.{ts,js,mjs}'
+    - '*.json'
+    - '*.yml'
+    - '*.yaml'
+    - 'moon.yml'
     - 'tsconfig.json'
     - 'tsconfig.*.json'
     - 'package.json'
+    - '/pnpm-lock.yaml'
 
 tasks:
   format:
     command: 'pnpm exec oxfmt --write .'
+    preset: 'utility'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
+      - '/.oxfmtrc.json'
+
+  formatCheck:
+    command: 'pnpm exec oxfmt --check .'
     inputs:
       - '@group(sources)'
       - '@group(configs)'
       - '/.oxfmtrc.json'
 
   lint:
+    command: 'pnpm exec eslint --no-error-on-unmatched-pattern .'
+    inputs:
+      - '@group(sources)'
+      - '@group(configs)'
+      - 'eslint.config.*'
+
+  lintFix:
     command: 'pnpm exec eslint --fix --no-error-on-unmatched-pattern .'
+    preset: 'utility'
     inputs:
       - '@group(sources)'
       - '@group(configs)'
