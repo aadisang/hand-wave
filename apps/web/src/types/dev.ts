@@ -10,6 +10,6 @@ export type DevState = {
   inferenceMs: number;
   traces: DevTrace[];
   toggle: () => void;
-  push: (frame: HandFrame, inferenceMs: number) => void;
+  push: (frame: HandFrame | null, inferenceMs: number) => void;
   pushTrace: (trace: DevTrace) => void;
 };

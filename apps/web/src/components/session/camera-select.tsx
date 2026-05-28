@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarSeparator } from "@/components/ui/toolbar";
 import type { CaptureSession } from "@/types/capture";
 
@@ -34,19 +35,26 @@ export function CameraSelect({ capture }: Props) {
         onValueChange={(value) => capture.setCameraId(value)}
         value={capture.cameraId}
       >
-        <SelectTrigger
-          className="w-control-select border-input bg-overlay"
-          size="sm"
-        >
-          <SelectValue placeholder="Select camera">
-            {(value) => {
-              if (typeof value !== "string") return null;
-              const index = cameras.findIndex((d) => d.deviceId === value);
-              if (index === -1) return null;
-              return labelFor(cameras[index], index);
-            }}
-          </SelectValue>
-        </SelectTrigger>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <SelectTrigger
+                className="w-control-select border-input bg-overlay"
+                size="sm"
+              />
+            }
+          >
+            <SelectValue placeholder="Select camera">
+              {(value) => {
+                if (typeof value !== "string") return null;
+                const index = cameras.findIndex((d) => d.deviceId === value);
+                if (index === -1) return null;
+                return labelFor(cameras[index], index);
+              }}
+            </SelectValue>
+          </TooltipTrigger>
+          <TooltipPopup>Select camera</TooltipPopup>
+        </Tooltip>
         <SelectContent>
           {cameras.map((device, index) => (
             <SelectItem key={device.deviceId} value={device.deviceId}>

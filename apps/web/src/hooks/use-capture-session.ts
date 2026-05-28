@@ -10,13 +10,28 @@ const stopStream = (stream: MediaStream) => {
   stream.getTracks().forEach((track) => track.stop());
 };
 
+const preferredFrameRate = 240;
+const highFrameRate = { ideal: preferredFrameRate, max: preferredFrameRate };
+
+async function requestHighestFrameRate(stream: MediaStream) {
+  const [track] = stream.getVideoTracks();
+  const maxFrameRate = track?.getCapabilities().frameRate?.max;
+  if (maxFrameRate) {
+    await track.applyConstraints({
+      frameRate: { ideal: maxFrameRate, max: maxFrameRate },
+    });
+  }
+}
+
 async function openStream(request: CaptureRequest) {
   const { kind } = request;
   if (kind === "screen") {
-    return navigator.mediaDevices.getDisplayMedia({
+    const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: false,
-      video: true,
+      video: { frameRate: highFrameRate },
     });
+    await requestHighestFrameRate(stream);
+    return stream;
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -24,21 +39,14 @@ async function openStream(request: CaptureRequest) {
     video: {
       width: { ideal: 1280 },
       height: { ideal: 720 },
-      frameRate: { ideal: 60, max: 120 },
+      frameRate: highFrameRate,
       ...(request.cameraId
         ? { deviceId: { exact: request.cameraId } }
         : { facingMode: "user" }),
     },
   });
 
-  const [track] = stream.getVideoTracks();
-  const maxFrameRate = track.getCapabilities().frameRate?.max;
-  if (maxFrameRate) {
-    await track.applyConstraints({
-      frameRate: { ideal: maxFrameRate, max: maxFrameRate },
-    });
-  }
-
+  await requestHighestFrameRate(stream);
   return stream;
 }
 
