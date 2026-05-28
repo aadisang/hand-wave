@@ -12,7 +12,7 @@ final class StreamModel {
   private(set) var status: Status = .idle
   private(set) var hasActiveDevice: Bool = false
   private(set) var latestFrame: UIImage?
-  private(set) var overlayLandmarks: [LandmarkPoint] = []
+  private(set) var overlayFrame = HandLandmarksFrame.empty
   private(set) var statusText = "Starting recognition"
   private(set) var current: InferSession.Pred?
   private(set) var transcript: [InferSession.Pred] = []
@@ -22,12 +22,12 @@ final class StreamModel {
   private let selector: AutoDeviceSelector
   private let recognizer = Recognizer()
   private let speech = Speech()
+  private let frameGate = FrameGate(previewFPS: 12, recognitionFPS: 15)
   private var session: DeviceSession?
   private var stream: StreamSession?
   private var stateToken: AnyListenerToken?
   private var frameToken: AnyListenerToken?
   private var errorToken: AnyListenerToken?
-  private var busy = false
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -83,8 +83,8 @@ final class StreamModel {
   private func openStream(on session: DeviceSession) async {
     let config = StreamSessionConfig(
       videoCodec: .raw,
-      resolution: .medium,
-      frameRate: 24
+      resolution: .low,
+      frameRate: 15
     )
     let stream: StreamSession
     do {
@@ -100,6 +100,14 @@ final class StreamModel {
       return
     }
     self.stream = stream
+
+    do {
+      try await recognizer.start()
+    } catch {
+      errorMessage = "Recognition failed: \(error.localizedDescription)"
+      await teardown()
+      return
+    }
 
     stateToken = stream.statePublisher.listen { [weak self] state in
       Task { @MainActor [weak self] in
@@ -122,75 +130,82 @@ final class StreamModel {
       }
     }
 
-    frameToken = stream.videoFramePublisher.listen { [weak self] frame in
-      let image = frame.makeUIImage()
-      Task { @MainActor [weak self] in
-        guard let self else { return }
-        if let image {
-          self.latestFrame = image
+    let frameGate = frameGate
+    frameToken = stream.videoFramePublisher.listen { [weak self, recognizer, frameGate] frame in
+      Task { [weak self, recognizer, frameGate] in
+        let decision = await frameGate.accept()
+        guard decision.hasWork else { return }
+
+        if decision.preview {
+          Task { [weak self, frameGate] in
+            let image = frame.makeUIImage()
+            await MainActor.run {
+              guard let self, self.status != .idle, let image else { return }
+              self.latestFrame = image
+            }
+            await frameGate.finishPreview()
+          }
         }
-        self.process(frame)
+
+        if decision.recognition {
+          Task { [weak self, recognizer, frameGate] in
+            do {
+              let output = try await recognizer.process(frame)
+              await MainActor.run {
+                guard self?.status != .idle else { return }
+                self?.apply(output)
+              }
+            } catch {
+              await MainActor.run {
+                guard self?.status != .idle else { return }
+                self?.statusText = "Recognition failed: \(error.localizedDescription)"
+              }
+            }
+            await frameGate.finishRecognition()
+          }
+        }
       }
     }
 
     await stream.start()
-    warmRecognizer()
   }
 
-  private func warmRecognizer() {
-    Task { [weak self, recognizer] in
-      do {
-        try await recognizer.start()
-      } catch {
-        await MainActor.run {
-          if self?.errorMessage == nil {
-            self?.errorMessage = "Recognition failed: \(error.localizedDescription)"
-          }
-        }
-      }
-    }
+  private static func statusText(for output: Recognizer.Output) -> String {
+    if let error = output.error { return "Backend: \(error)" }
+    if output.hasFrame { return "Reading sign" }
+    return output.overlayFrame.isEmpty
+      ? "Looking for hand and body"
+      : "Need hand and body in frame"
   }
 
-  private func process(_ frame: VideoFrame) {
-    guard !busy else { return }
-    busy = true
-
-    Task { [weak self, recognizer] in
-      do {
-        let output = try await recognizer.process(frame)
-        await MainActor.run {
-          self?.overlayLandmarks = output.overlayLandmarks
-          if let error = output.error {
-            self?.statusText = "Backend: \(error)"
-          } else {
-            self?.statusText =
-              output.hasFrame
-              ? "Reading sign"
-              : output.overlayLandmarks.isEmpty
-                ? "Looking for hand and body"
-                : "Need hand and body in frame"
-          }
-          self?.apply(output.event)
-          self?.busy = false
-        }
-      } catch {
-        await MainActor.run {
-          self?.statusText = "Recognition failed: \(error.localizedDescription)"
-          self?.busy = false
-        }
-      }
+  private func apply(_ output: Recognizer.Output) {
+    if overlayFrame != output.overlayFrame {
+      overlayFrame = output.overlayFrame
     }
+
+    let statusText = Self.statusText(for: output)
+    if self.statusText != statusText {
+      self.statusText = statusText
+    }
+
+    apply(output.event)
   }
 
   private func apply(_ event: InferSession.Event?) {
     guard let event else { return }
     switch event {
     case .clear:
-      current = nil
+      if current != nil {
+        current = nil
+      }
     case .partial(let prediction):
-      current = prediction
+      if current != prediction {
+        current = prediction
+      }
     case .finalized(let prediction):
-      current = prediction
+      if current != prediction {
+        current = prediction
+      }
       transcript.append(prediction)
       speech.speak(prediction.text)
     }
@@ -204,10 +219,10 @@ final class StreamModel {
     stateToken = nil
     frameToken = nil
     errorToken = nil
-    busy = false
+    await frameGate.reset()
     status = .idle
     latestFrame = nil
-    overlayLandmarks.removeAll(keepingCapacity: true)
+    overlayFrame = .empty
     statusText = "Starting recognition"
     current = nil
     transcript.removeAll(keepingCapacity: true)
@@ -215,5 +230,62 @@ final class StreamModel {
     await recognizer.stop()
     await stream?.stop()
     session?.stop()
+  }
+}
+
+private actor FrameGate {
+  struct Decision: Sendable {
+    let preview: Bool
+    let recognition: Bool
+
+    var hasWork: Bool {
+      preview || recognition
+    }
+  }
+
+  private let previewInterval: TimeInterval
+  private let recognitionInterval: TimeInterval
+  private var previewBusy = false
+  private var recognitionBusy = false
+  private var lastPreviewAt = 0.0
+  private var lastRecognitionAt = 0.0
+
+  init(previewFPS: Double, recognitionFPS: Double) {
+    self.previewInterval = 1.0 / previewFPS
+    self.recognitionInterval = 1.0 / recognitionFPS
+  }
+
+  func accept(now: TimeInterval = Date().timeIntervalSinceReferenceDate) -> Decision {
+    var preview = false
+    var recognition = false
+
+    if !previewBusy, now - lastPreviewAt >= previewInterval {
+      previewBusy = true
+      lastPreviewAt = now
+      preview = true
+    }
+
+    if !recognitionBusy, now - lastRecognitionAt >= recognitionInterval {
+      recognitionBusy = true
+      lastRecognitionAt = now
+      recognition = true
+    }
+
+    return Decision(preview: preview, recognition: recognition)
+  }
+
+  func finishPreview() {
+    previewBusy = false
+  }
+
+  func finishRecognition() {
+    recognitionBusy = false
+  }
+
+  func reset() {
+    previewBusy = false
+    recognitionBusy = false
+    lastPreviewAt = 0
+    lastRecognitionAt = 0
   }
 }

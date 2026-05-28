@@ -24,6 +24,9 @@ actor InferSession {
   private var ended = false
   private var lost = 0
   private var gen = 0
+  private var requestId = 0
+  private var pendingEvent: Event?
+  private var pendingError: Error?
 
   init(client: InferAPI = InferClient()) {
     self.client = client
@@ -33,15 +36,31 @@ actor InferSession {
 
   func stop() async {
     gen += 1
+    requestId += 1
+    inFlight = false
+    pendingEvent = nil
+    pendingError = nil
     resetSegment()
     arbiter.reset()
   }
 
   func ingest(_ frame: LandmarkFrame?) async throws -> Event? {
-    guard let frame else {
-      return acceptMissingFrame()
+    if let error = pendingError {
+      pendingError = nil
+      throw error
     }
+    let pending = takePendingEvent()
 
+    let event: Event?
+    if let frame {
+      event = accept(frame)
+    } else {
+      event = acceptMissingFrame()
+    }
+    return event ?? pending
+  }
+
+  private func accept(_ frame: LandmarkFrame) -> Event? {
     let motion = frameMotion(previous: last, current: frame)
     last = frame
     lost = 0
@@ -71,14 +90,49 @@ actor InferSession {
     if seen < InferCfg.Stream.min { return nil }
     if seen % InferCfg.Stream.stride != 0 || inFlight { return nil }
 
-    let batch = frames
-    let requestGen = gen
+    startDecode(batch: frames, idleFrames: idle, motion: motion)
+    return nil
+  }
+
+  private func startDecode(
+    batch: [LandmarkFrame],
+    idleFrames: Int,
+    motion: Double
+  ) {
+    requestId += 1
+    let id = requestId
+    let generation = gen
     inFlight = true
     let started = ContinuousClock.now
-    defer { inFlight = false }
 
-    let response = try await client.predict(frames: batch)
-    guard requestGen == gen else { return nil }
+    Task { [client] in
+      do {
+        let response = try await client.predict(frames: batch)
+        finishDecode(
+          response,
+          id: id,
+          generation: generation,
+          idleFrames: idleFrames,
+          motion: motion,
+          started: started
+        )
+      } catch {
+        failDecode(error, id: id, generation: generation)
+      }
+    }
+  }
+
+  private func finishDecode(
+    _ response: StreamPred,
+    id: Int,
+    generation: Int,
+    idleFrames: Int,
+    motion: Double,
+    started: ContinuousClock.Instant
+  ) {
+    guard id == requestId else { return }
+    inFlight = false
+    guard generation == gen else { return }
 
     let elapsed = started.duration(to: .now)
     let update = arbiter.accept(
@@ -86,11 +140,24 @@ actor InferSession {
       context: Arbiter.DecodeContext(
         latencyMs: Double(elapsed.components.seconds) * 1_000
           + Double(elapsed.components.attoseconds) / 1e15,
-        idleFrames: idle,
+        idleFrames: idleFrames,
         motion: motion
       )
     )
-    return update.displayPrediction.map(Event.partial)
+    pendingEvent = update.displayPrediction.map(Event.partial)
+  }
+
+  private func failDecode(_ error: Error, id: Int, generation: Int) {
+    guard id == requestId else { return }
+    inFlight = false
+    guard generation == gen else { return }
+    pendingError = error
+  }
+
+  private func takePendingEvent() -> Event? {
+    let event = pendingEvent
+    pendingEvent = nil
+    return event
   }
 
   private func acceptMissingFrame() -> Event? {
@@ -119,6 +186,9 @@ actor InferSession {
     )
     ended = true
     gen += 1
+    requestId += 1
+    inFlight = false
+    pendingEvent = nil
     arbiter.reset()
     resetSegment()
 

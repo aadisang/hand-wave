@@ -5,7 +5,7 @@ import MWDATCamera
 actor Recognizer {
   struct Output: Sendable {
     let event: InferSession.Event?
-    let overlayLandmarks: [LandmarkPoint]
+    let overlayFrame: HandLandmarksFrame
     let hasFrame: Bool
     let error: String?
   }
@@ -15,6 +15,7 @@ actor Recognizer {
   private var detStarted = false
   private var inferStarted = false
   private var retryAt = ContinuousClock.now
+  private var backendError: String?
 
   init(
     detector: LandmarkDetector = LandmarkDetector(),
@@ -34,6 +35,8 @@ actor Recognizer {
     detStarted = false
     inferStarted = false
     retryAt = .now
+    backendError = nil
+    await detector.resetSelection()
     await inference.stop()
   }
 
@@ -48,7 +51,7 @@ actor Recognizer {
     let infer = await ingest(detection.inferenceFrame)
     return Output(
       event: infer.event,
-      overlayLandmarks: detection.overlayLandmarks,
+      overlayFrame: detection.overlayFrame,
       hasFrame: detection.inferenceFrame != nil,
       error: infer.error
     )
@@ -58,25 +61,30 @@ actor Recognizer {
     _ frame: LandmarkFrame?
   ) async -> (event: InferSession.Event?, error: String?) {
     guard inferStarted || ContinuousClock.now >= retryAt else {
-      return (nil, nil)
+      return (nil, backendError)
     }
 
     if !inferStarted {
       do {
         try await inference.start()
         inferStarted = true
+        backendError = nil
       } catch {
+        backendError = error.localizedDescription
         retryAt = .now.advanced(by: .seconds(5))
-        return (nil, error.localizedDescription)
+        return (nil, backendError)
       }
     }
 
     do {
-      return (try await inference.ingest(frame), nil)
+      let event = try await inference.ingest(frame)
+      backendError = nil
+      return (event, nil)
     } catch {
       inferStarted = false
+      backendError = error.localizedDescription
       retryAt = .now.advanced(by: .seconds(5))
-      return (nil, error.localizedDescription)
+      return (nil, backendError)
     }
   }
 
