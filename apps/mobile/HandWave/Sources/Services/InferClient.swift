@@ -7,13 +7,16 @@ protocol InferAPI: Sendable {
 struct InferClient: Sendable {
   enum ClientError: Error, LocalizedError {
     case missingBaseURL
+    case localhostOnDevice(URL)
     case badStatus(URL, Int)
     case requestFailed(URL, String)
 
     var errorDescription: String? {
       switch self {
       case .missingBaseURL:
-        "Set HANDWAVE_INFERENCE_URL in HandWave.xcconfig."
+        "Set HANDWAVE_INFERENCE_URL in HandWave.xcconfig. On a physical iPhone, localhost points to the phone, not your Mac."
+      case .localhostOnDevice(let url):
+        "\(url.absoluteString) points to this iPhone, not your Mac. Use the deployed Modal URL or your Mac's Wi-Fi IP address."
       case .badStatus(let url, let status):
         "\(url.absoluteString) returned HTTP \(status)."
       case .requestFailed(let url, let message):
@@ -22,17 +25,17 @@ struct InferClient: Sendable {
     }
   }
 
-  private let baseURL: URL
+  private let baseURL: URL?
   private let session: URLSession
   private let encoder = JSONEncoder()
   private let decoder = JSONDecoder()
 
   var endpointDescription: String {
-    baseURL.absoluteString
+    baseURL?.absoluteString ?? "not configured"
   }
 
   init(
-    baseURL: URL = InferClient.defaultBaseURL(),
+    baseURL: URL? = InferClient.defaultBaseURL(),
     session: URLSession = InferClient.defaultSession()
   ) {
     self.baseURL = baseURL
@@ -54,6 +57,14 @@ struct InferClient: Sendable {
     path: String,
     body: Body
   ) async throws -> Response {
+    guard let baseURL else {
+      throw ClientError.missingBaseURL
+    }
+
+    guard baseURL.isUsableFromCurrentDevice else {
+      throw ClientError.localhostOnDevice(baseURL)
+    }
+
     let url = baseURL.appending(path: path)
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
@@ -75,15 +86,15 @@ struct InferClient: Sendable {
     return try decoder.decode(Response.self, from: data)
   }
 
-  private static func defaultBaseURL() -> URL {
-    if let value = Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL")
-      as? String,
-      let url = URL(string: value),
-      !value.isEmpty
-    {
-      return url
-    }
-    return URL(string: "http://localhost:8000")!
+  private static func defaultBaseURL() -> URL? {
+    guard
+      let value = Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL")
+        as? String
+    else { return nil }
+
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, !trimmed.contains("$(") else { return nil }
+    return URL(string: trimmed)
   }
 
   private static func defaultSession() -> URLSession {
@@ -95,3 +106,22 @@ struct InferClient: Sendable {
 }
 
 extension InferClient: InferAPI {}
+
+extension URL {
+  fileprivate var isUsableFromCurrentDevice: Bool {
+    !isLoopbackHost || Self.allowsLoopbackBackend
+  }
+
+  private var isLoopbackHost: Bool {
+    guard let host = host(percentEncoded: false)?.lowercased() else { return false }
+    return host == "localhost" || host == "::1" || host.hasPrefix("127.")
+  }
+
+  private static var allowsLoopbackBackend: Bool {
+    #if targetEnvironment(simulator)
+    true
+    #else
+    false
+    #endif
+  }
+}
