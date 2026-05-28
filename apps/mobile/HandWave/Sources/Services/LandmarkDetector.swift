@@ -1,23 +1,104 @@
 import CoreMedia
-import CoreVideo
 import Foundation
+import MediaPipeTasksVision
 import UIKit
 
-#if canImport(MediaPipeTasksVision)
-import CoreImage
-import MediaPipeTasksVision
-#endif
-
 actor LandmarkDetector {
+  private enum HandSide {
+    case left
+    case right
+  }
+
+  private struct ActiveHandSelector {
+    private var active: HandSide?
+    private var previousLeft: [LandmarkPoint]?
+    private var previousRight: [LandmarkPoint]?
+
+    mutating func select(_ frame: HandLandmarksFrame) -> HandSide? {
+      let right = frame.rightHandLandmarks.first
+      let left = frame.leftHandLandmarks.first
+      guard right != nil || left != nil else {
+        reset()
+        return nil
+      }
+
+      let selected = selectActiveHand(right: right, left: left)
+      active = selected
+      previousRight = right
+      previousLeft = left
+      return selected
+    }
+
+    mutating func reset() {
+      active = nil
+      previousLeft = nil
+      previousRight = nil
+    }
+
+    private func selectActiveHand(
+      right: [LandmarkPoint]?,
+      left: [LandmarkPoint]?
+    ) -> HandSide? {
+      guard let right else { return left == nil ? nil : .left }
+      guard let left else { return .right }
+
+      let rightMotion = Self.motion(previous: previousRight, current: right)
+      let leftMotion = Self.motion(previous: previousLeft, current: left)
+
+      if let active {
+        let other: HandSide = active == .right ? .left : .right
+        let activeMotion = active == .right ? rightMotion : leftMotion
+        let otherMotion = other == .right ? rightMotion : leftMotion
+        if otherMotion > 0.015, otherMotion > activeMotion + 0.012 {
+          return other
+        }
+        return active
+      }
+
+      if abs(leftMotion - rightMotion) > 0.012 {
+        return leftMotion > rightMotion ? .left : .right
+      }
+
+      return Self.handSpan(left) > Self.handSpan(right) ? .left : .right
+    }
+
+    private static func motion(
+      previous: [LandmarkPoint]?,
+      current: [LandmarkPoint]
+    ) -> Double {
+      guard let previous, previous.count == current.count else { return 0 }
+      var total = 0.0
+      for index in current.indices {
+        let a = previous[index]
+        let b = current[index]
+        total += sqrt(
+          pow(b.x - a.x, 2) + pow(b.y - a.y, 2) + pow((b.z ?? 0) - (a.z ?? 0), 2)
+        )
+      }
+      return total / Double(current.count)
+    }
+
+    private static func handSpan(_ points: [LandmarkPoint]) -> Double {
+      var minX = Double.infinity
+      var maxX = -Double.infinity
+      var minY = Double.infinity
+      var maxY = -Double.infinity
+      for point in points {
+        minX = min(minX, point.x)
+        maxX = max(maxX, point.x)
+        minY = min(minY, point.y)
+        maxY = max(maxY, point.y)
+      }
+      return sqrt(pow(maxX - minX, 2) + pow(maxY - minY, 2))
+    }
+  }
+
   enum DetectorError: Error, LocalizedError {
-    case mediaPipeUnavailable
     case modelUnavailable(String)
     case invalidImage
 
     var errorDescription: String? {
       switch self {
-      case .mediaPipeUnavailable:
-        "Install the MediaPipeTasksVision pod before running landmark detection."
       case .modelUnavailable(let name):
         "Could not load the \(name) MediaPipe model."
       case .invalidImage:
@@ -27,15 +108,14 @@ actor LandmarkDetector {
   }
 
   private var lastTimestampMs = 0
-
-  #if canImport(MediaPipeTasksVision)
   private var handLandmarker: HandLandmarker?
   private var poseLandmarker: PoseLandmarker?
-  private let ciContext = CIContext()
-  #endif
+  private var activeHandSelector = ActiveHandSelector()
+  private static let requiredPoseIndices = [0, 11, 12]
+  private static let minFrameCoordinate = -0.15
+  private static let maxFrameCoordinate = 1.15
 
   func prepare() async throws {
-    #if canImport(MediaPipeTasksVision)
     if handLandmarker != nil, poseLandmarker != nil { return }
 
     let handPath = try await modelPath(
@@ -72,23 +152,17 @@ actor LandmarkDetector {
     poseOptions.minPosePresenceConfidence = 0.3
     poseOptions.minTrackingConfidence = 0.3
     poseLandmarker = try PoseLandmarker(options: poseOptions)
-    #else
-    throw DetectorError.mediaPipeUnavailable
-    #endif
   }
 
   func detect(
     sampleBuffer: CMSampleBuffer,
     timestampMs rawTimestampMs: Int
   ) async throws -> DetectResult {
-    #if canImport(MediaPipeTasksVision)
     try await prepare()
     guard let handLandmarker, let poseLandmarker else {
-      throw DetectorError.mediaPipeUnavailable
+      throw DetectorError.modelUnavailable("landmarker")
     }
-    guard let pixelBuffer = try? bgraPixelBuffer(from: sampleBuffer),
-      let image = try? MPImage(pixelBuffer: pixelBuffer)
-    else {
+    guard let image = try? MPImage(sampleBuffer: sampleBuffer) else {
       throw DetectorError.invalidImage
     }
 
@@ -109,18 +183,24 @@ actor LandmarkDetector {
       leftHandLandmarks: leftHands(from: handResult),
       poseLandmarks: poseResult.landmarks.map { $0.map(LandmarkPoint.init) }
     )
-    let overlay = Self.overlayLandmarks(from: frame)
+    let selectedHand = activeHandSelector.select(frame)
     return DetectResult(
-      inferenceFrame: Self.toInferenceFrame(frame, timestampMs: timestampMs),
-      overlayLandmarks: overlay
+      inferenceFrame: Self.toInferenceFrame(
+        frame,
+        selectedHand: selectedHand,
+        timestampMs: timestampMs
+      ),
+      overlayFrame: frame
     )
-    #else
-    throw DetectorError.mediaPipeUnavailable
-    #endif
+  }
+
+  func resetSelection() {
+    activeHandSelector.reset()
   }
 
   private static func toInferenceFrame(
     _ frame: HandLandmarksFrame,
+    selectedHand: HandSide?,
     timestampMs: Int
   ) -> LandmarkFrame? {
     let right = frame.rightHandLandmarks.first
@@ -129,27 +209,55 @@ actor LandmarkDetector {
       return nil
     }
 
-    let useLeft = right == nil && left != nil
-    let hand = useLeft ? mirror(left ?? []) : (right ?? [])
+    let side =
+      selectedHand.flatMap { landmarks(in: frame, side: $0) == nil ? nil : $0 }
+      ?? (right != nil ? .right : .left)
+    guard let sourceHand = landmarks(in: frame, side: side) else { return nil }
+
+    let useLeft = side == .left
+    let modelHand = useLeft ? mirror(sourceHand) : sourceHand
     let alignedPose = useLeft ? mirror(pose) : pose
-    guard hand.count == 21, alignedPose.count == 33 else { return nil }
+    guard modelHand.count == 21, alignedPose.count == 33 else { return nil }
+    guard modelHand.allSatisfy(validPoint), validPose(alignedPose) else { return nil }
 
     return LandmarkFrame(
-      landmarks: hand + alignedPose,
+      landmarks: modelHand + alignedPose,
       timestampMs: timestampMs
     )
+  }
+
+  private static func landmarks(
+    in frame: HandLandmarksFrame,
+    side: HandSide
+  ) -> [LandmarkPoint]? {
+    switch side {
+    case .left:
+      frame.leftHandLandmarks.first
+    case .right:
+      frame.rightHandLandmarks.first
+    }
   }
 
   private static func mirror(_ points: [LandmarkPoint]) -> [LandmarkPoint] {
     points.map { LandmarkPoint(x: 1 - $0.x, y: $0.y, z: $0.z) }
   }
 
-  private static func overlayLandmarks(from frame: HandLandmarksFrame) -> [LandmarkPoint] {
-    frame.rightHandLandmarks.flatMap(\.self)
-      + frame.leftHandLandmarks.flatMap(\.self)
+  private static func validPose(_ points: [LandmarkPoint]) -> Bool {
+    requiredPoseIndices.allSatisfy { index in
+      guard let point = points[safe: index] else { return false }
+      return validPoint(point) && inFrame(point)
+    }
   }
 
-  #if canImport(MediaPipeTasksVision)
+  private static func validPoint(_ point: LandmarkPoint) -> Bool {
+    point.x.isFinite && point.y.isFinite && (point.z?.isFinite ?? true)
+  }
+
+  private static func inFrame(_ point: LandmarkPoint) -> Bool {
+    (minFrameCoordinate...maxFrameCoordinate).contains(point.x)
+      && (minFrameCoordinate...maxFrameCoordinate).contains(point.y)
+  }
+
   private func rightHands(from result: HandLandmarkerResult) -> [[LandmarkPoint]] {
     hands(from: result, matching: "Right")
   }
@@ -205,44 +313,8 @@ actor LandmarkDetector {
     return localURL.path
   }
 
-  private func bgraPixelBuffer(from sampleBuffer: CMSampleBuffer) throws -> CVPixelBuffer {
-    guard let source = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-      throw DetectorError.invalidImage
-    }
-
-    if CVPixelBufferGetPixelFormatType(source) == kCVPixelFormatType_32BGRA {
-      return source
-    }
-
-    let width = CVPixelBufferGetWidth(source)
-    let height = CVPixelBufferGetHeight(source)
-    let attributes: [CFString: Any] = [
-      kCVPixelBufferCGImageCompatibilityKey: true,
-      kCVPixelBufferCGBitmapContextCompatibilityKey: true,
-      kCVPixelBufferIOSurfacePropertiesKey: [:],
-    ]
-
-    var output: CVPixelBuffer?
-    let status = CVPixelBufferCreate(
-      kCFAllocatorDefault,
-      width,
-      height,
-      kCVPixelFormatType_32BGRA,
-      attributes as CFDictionary,
-      &output
-    )
-    guard status == kCVReturnSuccess, let output else {
-      throw DetectorError.invalidImage
-    }
-
-    let image = CIImage(cvPixelBuffer: source)
-    ciContext.render(image, to: output)
-    return output
-  }
-  #endif
 }
 
-#if canImport(MediaPipeTasksVision)
 extension LandmarkPoint {
   fileprivate init(_ landmark: NormalizedLandmark) {
     self.init(
@@ -258,4 +330,3 @@ extension Collection {
     indices.contains(index) ? self[index] : nil
   }
 }
-#endif
