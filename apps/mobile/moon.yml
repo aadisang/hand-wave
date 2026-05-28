@@ -40,33 +40,62 @@ tasks:
       - "HandWave.xcworkspace"
       - "HandWave.xcodeproj"
 
-  build:
-    command:
-      - "tuist"
-      - "build"
-      - "HandWave"
-      - "--configuration"
-      - "Debug"
+  pods:
+    command: "pod install"
     deps:
       - "generate"
     inputs:
+      - "Podfile"
+      - "Podfile.lock"
+      - "HandWave.xcodeproj"
+    preset: "utility"
+
+  build:
+    command:
+      - "xcodebuild"
+      - "build"
+      - "-workspace"
+      - "HandWave.xcworkspace"
+      - "-scheme"
+      - "HandWave"
+      - "-configuration"
+      - "Debug"
+      - "-destination"
+      - "generic/platform=iOS Simulator"
+      - "-derivedDataPath"
+      - "Derived/Build"
+    deps:
+      - "pods"
+    inputs:
       - "/packages/contract/config.json"
       - "moon.yml"
+      - "Podfile"
+      - "Podfile.lock"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
 
   test:
     command:
-      - "tuist"
+      - "xcodebuild"
       - "test"
+      - "-workspace"
+      - "HandWave.xcworkspace"
+      - "-scheme"
       - "HandWave"
-      - "--no-selective-testing"
+      - "-configuration"
+      - "Debug"
+      - "-destination"
+      - "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"
+      - "-derivedDataPath"
+      - "Derived/Test"
     deps:
-      - "generate"
+      - "pods"
     inputs:
       - "/packages/contract/config.json"
       - "moon.yml"
+      - "Podfile"
+      - "Podfile.lock"
       - "Project.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
@@ -78,7 +107,7 @@ tasks:
   open:
     command: "xed HandWave.xcworkspace"
     deps:
-      - "generate"
+      - "pods"
     preset: "utility"
 
   format:
