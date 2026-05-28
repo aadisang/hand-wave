@@ -39,11 +39,7 @@
     "schemas": {
       "Config": {
         "type": "object",
-        "required": [
-          "decode",
-          "stream",
-          "mp"
-        ],
+        "required": ["decode", "stream", "mp"],
         "properties": {
           "decode": {
             "$ref": "#/components/schemas/DecodeCfg"
@@ -58,9 +54,7 @@
       },
       "DecodeCfg": {
         "type": "object",
-        "required": [
-          "window"
-        ],
+        "required": ["window"],
         "properties": {
           "window": {
             "type": "integer",
@@ -81,9 +75,7 @@
       },
       "MpCfg": {
         "type": "object",
-        "required": [
-          "smooth"
-        ],
+        "required": ["smooth"],
         "properties": {
           "smooth": {
             "$ref": "#/components/schemas/SmoothSet"
@@ -92,9 +84,7 @@
       },
       "PredictIn": {
         "type": "object",
-        "required": [
-          "frames"
-        ],
+        "required": ["frames"],
         "properties": {
           "frames": {
             "type": "array",
@@ -164,10 +154,7 @@
       },
       "Prediction": {
         "type": "object",
-        "required": [
-          "label",
-          "confidence"
-        ],
+        "required": ["label", "confidence"],
         "properties": {
           "label": {
             "type": "string"
@@ -214,12 +201,7 @@
       },
       "SmoothCfg": {
         "type": "object",
-        "required": [
-          "freq",
-          "cutoff",
-          "beta",
-          "dCutoff"
-        ],
+        "required": ["freq", "cutoff", "beta", "dCutoff"],
         "properties": {
           "freq": {
             "type": "number",
@@ -245,10 +227,7 @@
       },
       "SmoothSet": {
         "type": "object",
-        "required": [
-          "hand",
-          "pose"
-        ],
+        "required": ["hand", "pose"],
         "properties": {
           "hand": {
             "$ref": "#/components/schemas/SmoothCfg"
@@ -260,11 +239,7 @@
       },
       "Span": {
         "type": "object",
-        "required": [
-          "start_frame",
-          "end_frame",
-          "text"
-        ],
+        "required": ["start_frame", "end_frame", "text"],
         "properties": {
           "start_frame": {
             "type": "integer",
