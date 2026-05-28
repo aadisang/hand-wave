@@ -70,7 +70,6 @@ let project = Project(
       "SWIFT_VERSION": "6.0",
       "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
       "DEVELOPMENT_TEAM": "$(DEVELOPMENT_TEAM)",
-      "HANDWAVE_INFERENCE_URL": "http://localhost:8000",
     ],
     configurations: [
       .debug(name: "Debug", xcconfig: "Configurations/HandWave.xcconfig"),
@@ -104,7 +103,18 @@ let project = Project(
       deploymentTargets: .iOS("26.0"),
       infoPlist: .default,
       buildableFolders: ["HandWave/Tests"],
-      dependencies: [.target(name: "HandWave")]
+      dependencies: [.target(name: "HandWave")],
+      settings: .settings(
+        base: [
+          "FRAMEWORK_SEARCH_PATHS": [
+            "$(inherited)",
+            "$(PROJECT_DIR)/Pods/MediaPipeTasksCommon/frameworks",
+            "$(PROJECT_DIR)/Pods/MediaPipeTasksVision/frameworks",
+            "$(BUILT_PRODUCTS_DIR)/XCFrameworkIntermediates/MediaPipeTasksCommon",
+            "$(BUILT_PRODUCTS_DIR)/XCFrameworkIntermediates/MediaPipeTasksVision",
+          ]
+        ]
+      )
     ),
   ]
 )
