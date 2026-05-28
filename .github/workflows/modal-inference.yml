@@ -17,11 +17,31 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
 
     steps:
+      - name: Validate Modal credentials
+        run: |
+          missing=0
+          if [ -z "${MODAL_TOKEN_ID}" ]; then
+            echo "::error title=Missing GitHub secret::Set MODAL_TOKEN_ID in this repository's Actions secrets."
+            missing=1
+          fi
+          if [ -z "${MODAL_TOKEN_SECRET}" ]; then
+            echo "::error title=Missing GitHub secret::Set MODAL_TOKEN_SECRET in this repository's Actions secrets."
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Create a Modal service user token, then run:"
+            echo "  gh secret set MODAL_TOKEN_ID --repo sinarck/hand-wave"
+            echo "  gh secret set MODAL_TOKEN_SECRET --repo sinarck/hand-wave"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -49,6 +69,10 @@ jobs:
       - name: Sync deploy environment
         working-directory: apps/inference
         run: uv sync --frozen --group deploy
+
+      - name: Verify Modal auth
+        working-directory: apps/inference
+        run: uv run --frozen --group deploy modal token info
 
       - name: Deploy Modal app
         working-directory: apps/inference
