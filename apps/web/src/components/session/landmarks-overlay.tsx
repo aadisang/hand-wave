@@ -6,13 +6,19 @@ import {
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import type { CaptureKind } from "@/types/capture";
 import { useHandLandmarks } from "@/hooks/use-landmarks";
+import {
+  createActiveHandSelector,
+  toModelInput,
+} from "@/lib/mediapipe/landmarks";
 import { useDevStore } from "@/stores/dev-store";
+import type { Frame } from "@/types/inference";
 import type { HandFrame } from "@/types/landmarks";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
   captureKind: CaptureKind;
-  onFrame: (frame: HandFrame) => void;
+  draw: boolean;
+  onFrame: (frame: Frame | null) => void;
 };
 
 const handPointColor = "rgba(16, 185, 129, 0.95)";
@@ -23,18 +29,27 @@ const poseLineColor = "rgba(147, 197, 253, 0.55)";
 export function LandmarksOverlay({
   videoRef,
   captureKind,
+  draw,
   onFrame: onInferenceFrame,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const handSelectorRef = useRef(createActiveHandSelector());
 
   const onFrame = useCallback(
     (frame: HandFrame, inferenceMs: number) => {
-      drawFrame(canvasRef.current, videoRef.current, frame);
-      onInferenceFrame(frame);
+      const selectedHand = handSelectorRef.current.select(frame);
+      const input = toModelInput(frame, selectedHand);
+      if (draw && input) {
+        drawFrame(canvasRef.current, videoRef.current, input.frame);
+      } else {
+        clearCanvas(canvasRef.current);
+      }
+
+      onInferenceFrame(input?.features ?? null);
       const dev = useDevStore.getState();
-      if (dev.enabled) dev.push(frame, inferenceMs);
+      if (dev.enabled) dev.push(input?.frame ?? null, inferenceMs);
     },
-    [onInferenceFrame, videoRef],
+    [draw, onInferenceFrame, videoRef],
   );
 
   useHandLandmarks(videoRef, captureKind, onFrame);
@@ -43,6 +58,14 @@ export function LandmarksOverlay({
     const canvas = canvasRef.current;
     return () => clearCanvas(canvas);
   }, []);
+
+  useEffect(() => {
+    handSelectorRef.current.reset();
+  }, [captureKind]);
+
+  useEffect(() => {
+    if (!draw) clearCanvas(canvasRef.current);
+  }, [draw]);
 
   return (
     <canvas

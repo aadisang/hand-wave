@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useCaptureSession } from "@/hooks/use-capture-session";
 import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
+import { useLandmarksStore } from "@/stores/landmarks-store";
 import { DevPanel } from "./dev-panel";
 import { LandmarksOverlay } from "./landmarks-overlay";
 import { IdleStage } from "./idle-stage";
@@ -14,6 +15,7 @@ export function Stage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const capture = useCaptureSession();
   const [full, fullCtrl] = useFullscreen(stageRef);
+  const drawLandmarks = useLandmarksStore((s) => s.draw);
 
   const { state } = capture;
   const isLive = state.status === "live";
@@ -57,6 +59,7 @@ export function Stage() {
         <>
           <LandmarksOverlay
             captureKind={state.kind}
+            draw={drawLandmarks}
             onFrame={onLandmarksFrame}
             videoRef={videoRef}
           />

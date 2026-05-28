@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { createStreamCtrl } from "@/lib/inference/stream";
-import { toFrame } from "@/lib/mediapipe/landmarks";
-import type { StreamCtrl } from "@/types/inference";
-import type { HandFrame } from "@/types/landmarks";
+import type { Frame, StreamCtrl } from "@/types/inference";
 
 export function useInfer(active: boolean) {
   const ctrlRef = useRef<StreamCtrl | null>(null);
@@ -20,7 +18,7 @@ export function useInfer(active: boolean) {
     };
   }, [active]);
 
-  return useCallback((frame: HandFrame) => {
-    ctrlRef.current?.accept(toFrame(frame));
+  return useCallback((frame: Frame | null) => {
+    ctrlRef.current?.accept(frame);
   }, []);
 }
