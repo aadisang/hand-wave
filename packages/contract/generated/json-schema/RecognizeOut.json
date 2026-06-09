@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hand-wave.local/schemas/RecognizeOut.json",
+  "type": "object",
+  "properties": {
+    "state": {
+      "$ref": "https://hand-wave.local/schemas/RecognitionState.json"
+    },
+    "display_prediction": {
+      "anyOf": [
+        {
+          "$ref": "https://hand-wave.local/schemas/Prediction.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "committed": {
+      "type": "boolean"
+    },
+    "trace": {
+      "$ref": "https://hand-wave.local/schemas/RecognitionTrace.json"
+    }
+  },
+  "required": ["state", "committed", "trace"]
+}

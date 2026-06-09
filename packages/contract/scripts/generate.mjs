@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readContract } from "./validate.mjs";
@@ -32,11 +33,10 @@ await writeGeneratedFile(
   swiftConfiguration(contract),
 );
 
-await writeGeneratedFile(
-  path.join(workspaceRoot, "apps/inference/src/inference/contract.py"),
-  pythonConfiguration(contract),
-);
-
+generateWebClient();
+generatePythonSchemas();
+formatPythonSchemas();
+await generateSwiftModels();
 formatContractOutput();
 
 async function writeGeneratedFile(filePath, content) {
@@ -102,10 +102,18 @@ function compileTypeSpec() {
   }
 }
 
-function formatContractOutput() {
+function generateWebClient() {
   const result = spawnSync(
     "pnpm",
-    ["exec", "oxfmt", "--write", "generated", "src/generated.ts"],
+    [
+      "--dir",
+      path.join(workspaceRoot, "apps/web"),
+      "exec",
+      "openapi-typescript",
+      path.join(root, "generated/openapi/openapi.json"),
+      "-o",
+      path.join(workspaceRoot, "apps/web/src/lib/inference/openapi.ts"),
+    ],
     {
       cwd: root,
       stdio: "inherit",
@@ -117,26 +125,158 @@ function formatContractOutput() {
   }
 }
 
-function pythonConfiguration(config) {
-  return [
-    `# ${generatedNotice}`,
-    "",
-    `DECODE_WINDOW = ${config.decode.window}`,
-    "",
-    `STREAM_FPS = ${config.stream.fps}`,
-    `STREAM_MIN = ${config.stream.min}`,
-    `STREAM_STRIDE = ${config.stream.stride}`,
-    `STREAM_IDLE = ${config.stream.idle}`,
-    `STREAM_LOST = ${config.stream.lost}`,
-    `STREAM_HOLD_MS = ${config.stream.holdMs}`,
-    `STREAM_MOTION = ${config.stream.motion}`,
-    "",
-    `MP_HAND_SMOOTH = ${pythonDict(config.mp.smooth.hand)}`,
-    `MP_POSE_SMOOTH = ${pythonDict(config.mp.smooth.pose)}`,
-    "",
-  ].join("\n");
+function generatePythonSchemas() {
+  const result = spawnSync(
+    "uv",
+    [
+      "run",
+      "--project",
+      path.join(workspaceRoot, "apps/inference"),
+      "--group",
+      "dev",
+      "datamodel-codegen",
+      "--input",
+      path.join(root, "generated/openapi/openapi.json"),
+      "--input-file-type",
+      "openapi",
+      "--output-model-type",
+      "pydantic_v2.BaseModel",
+      "--field-constraints",
+      "--use-annotated",
+      "--disable-timestamp",
+      "--output",
+      path.join(
+        workspaceRoot,
+        "apps/inference/src/inference/generated_schemas.py",
+      ),
+    ],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
 }
 
-function pythonDict(value) {
-  return JSON.stringify(value).replaceAll(":", ": ").replaceAll(",", ", ");
+function formatPythonSchemas() {
+  const result = spawnSync(
+    "uv",
+    [
+      "run",
+      "--project",
+      path.join(workspaceRoot, "apps/inference"),
+      "--group",
+      "dev",
+      "ruff",
+      "format",
+      path.join(
+        workspaceRoot,
+        "apps/inference/src/inference/generated_schemas.py",
+      ),
+    ],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+async function generateSwiftModels() {
+  const output = await mkdtemp(path.join(tmpdir(), "handwave-openapi-swift-"));
+  const target = path.join(
+    workspaceRoot,
+    "apps/mobile/HandWave/Sources/Generated/OpenAPI",
+  );
+
+  try {
+    const result = spawnSync(
+      "pnpm",
+      [
+        "exec",
+        "openapi-generator-cli",
+        "generate",
+        "-g",
+        "swift6",
+        "-i",
+        path.join(root, "generated/openapi/openapi.json"),
+        "-o",
+        output,
+        "--global-property",
+        "models,modelDocs=false,modelTests=false,apis=false,supportingFiles=false",
+        "--additional-properties",
+        [
+          "responseAs=AsyncAwait",
+          "projectName=HandWaveInference",
+          "generateAliasAsModel=true",
+          "validatable=false",
+          "modelNamePrefix=Inference",
+        ].join(","),
+      ],
+      {
+        cwd: root,
+        stdio: "inherit",
+      },
+    );
+
+    if (result.status !== 0) {
+      process.exit(result.status ?? 1);
+    }
+
+    await rm(target, { recursive: true, force: true });
+    await mkdir(target, { recursive: true });
+    await cp(path.join(output, "Sources/HandWaveInference/Models"), target, {
+      recursive: true,
+    });
+    formatSwiftModels(target);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+}
+
+function formatSwiftModels(target) {
+  const result = spawnSync(
+    "swift",
+    ["format", "--recursive", "--in-place", target],
+    {
+      cwd: workspaceRoot,
+      stdio: "inherit",
+    },
+  );
+
+  if (result.error?.code === "ENOENT") {
+    return;
+  }
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function formatContractOutput() {
+  const result = spawnSync(
+    "pnpm",
+    [
+      "exec",
+      "oxfmt",
+      "--write",
+      "generated",
+      "src/generated.ts",
+      path.join(workspaceRoot, "apps/web/src/lib/inference/openapi.ts"),
+    ],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
 }

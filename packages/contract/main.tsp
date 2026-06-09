@@ -59,6 +59,89 @@ model PredictOut {
   stable_text: string;
 }
 
+model RecognitionScored {
+  prediction: Prediction;
+  score: float64;
+  source: string;
+  lm_score?: float64 | null;
+  model_agrees: boolean;
+  streak: int32;
+}
+
+model RecognitionCount {
+  text: string;
+  count: int32;
+}
+
+model RecognitionState {
+  display?: RecognitionScored | null;
+  final_candidate?: RecognitionScored | null;
+  selected_text: string;
+  selected_streak: int32;
+  display_misses: int32;
+  counts: RecognitionCount[];
+}
+
+enum EndpointReason {
+  idle: "idle",
+  landmarkLost: "landmark-lost",
+}
+
+model RecognitionContext {
+  @minValue(0)
+  idle_frames: int32;
+
+  @minValue(0)
+  missing_frames: int32;
+
+  @minValue(0)
+  segment_frames: int32;
+
+  @minValue(0)
+  motion: float64;
+
+  endpoint_reason?: EndpointReason | null;
+}
+
+model DecodeTrace {
+  buffered_frames: int32;
+  input_text: string;
+  display_text: string;
+  idle_frames: int32;
+  motion: float64;
+  latency_ms: float64;
+}
+
+model FinalizeTrace {
+  text: string;
+  confidence: float64;
+  committed: boolean;
+  endpoint_reason: EndpointReason;
+  segment_frames: int32;
+}
+
+model RecognitionTrace {
+  prediction?: PredictOut | null;
+  decode?: DecodeTrace | null;
+  finalize?: FinalizeTrace | null;
+}
+
+model RecognizeIn {
+  @maxItems(512)
+  frames?: LandmarkFrame[];
+
+  state?: RecognitionState | null;
+  context: RecognitionContext;
+  finalize?: boolean;
+}
+
+model RecognizeOut {
+  state: RecognitionState;
+  display_prediction?: Prediction | null;
+  committed: boolean;
+  trace: RecognitionTrace;
+}
+
 @jsonSchema("config.schema.json")
 model Config {
   decode: DecodeCfg;
@@ -123,4 +206,8 @@ namespace Routes {
   @post
   @route("/predict")
   op predict(@body body: PredictIn): PredictOut;
+
+  @post
+  @route("/recognize")
+  op recognize(@body body: RecognizeIn): RecognizeOut;
 }

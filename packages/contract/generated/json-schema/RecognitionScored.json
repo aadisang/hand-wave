@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hand-wave.local/schemas/RecognitionScored.json",
+  "type": "object",
+  "properties": {
+    "prediction": {
+      "$ref": "https://hand-wave.local/schemas/Prediction.json"
+    },
+    "score": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string"
+    },
+    "lm_score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "model_agrees": {
+      "type": "boolean"
+    },
+    "streak": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    }
+  },
+  "required": ["prediction", "score", "source", "model_agrees", "streak"]
+}

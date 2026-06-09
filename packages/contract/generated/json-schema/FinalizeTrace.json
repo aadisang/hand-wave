@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hand-wave.local/schemas/FinalizeTrace.json",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "committed": {
+      "type": "boolean"
+    },
+    "endpoint_reason": {
+      "$ref": "https://hand-wave.local/schemas/EndpointReason.json"
+    },
+    "segment_frames": {
+      "type": "integer",
+      "minimum": -2147483648,
+      "maximum": 2147483647
+    }
+  },
+  "required": [
+    "text",
+    "confidence",
+    "committed",
+    "endpoint_reason",
+    "segment_frames"
+  ]
+}
