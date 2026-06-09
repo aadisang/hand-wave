@@ -93,6 +93,7 @@ let project = Project(
         .external(name: "MWDATCore"),
         .external(name: "MWDATCamera"),
         .external(name: "MWDATMockDevice"),
+        .external(name: "Dependencies"),
       ]
     ),
     .target(

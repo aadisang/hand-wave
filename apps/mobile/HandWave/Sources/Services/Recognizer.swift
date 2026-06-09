@@ -29,6 +29,7 @@ actor Recognizer {
     if detStarted { return }
     try await detector.prepare()
     detStarted = true
+    Task { await warmInference() }
   }
 
   func stop() async {
@@ -85,6 +86,18 @@ actor Recognizer {
       backendError = error.localizedDescription
       retryAt = .now.advanced(by: .seconds(5))
       return (nil, backendError)
+    }
+  }
+
+  private func warmInference() async {
+    guard !inferStarted else { return }
+    do {
+      try await inference.start()
+      inferStarted = true
+      backendError = nil
+    } catch {
+      backendError = error.localizedDescription
+      retryAt = .now.advanced(by: .seconds(5))
     }
   }
 

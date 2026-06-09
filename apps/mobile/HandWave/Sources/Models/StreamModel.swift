@@ -1,4 +1,4 @@
-import Foundation
+import Dependencies
 import MWDATCamera
 import MWDATCore
 import Observation
@@ -18,16 +18,20 @@ final class StreamModel {
   private(set) var transcript: [InferSession.Pred] = []
   var errorMessage: String?
 
+  @ObservationIgnored
+  @Dependency(\.recognizer) private var recognizer
+
   private let wearables: WearablesInterface
   private let selector: AutoDeviceSelector
-  private let recognizer = Recognizer()
   private let speech = Speech()
-  private let frameGate = FrameGate(previewFPS: 12, recognitionFPS: 15)
+  private let frameGate = FrameGate(previewFPS: 24, recognitionFPS: 10)
   private var session: DeviceSession?
   private var stream: StreamSession?
   private var stateToken: AnyListenerToken?
   private var frameToken: AnyListenerToken?
   private var errorToken: AnyListenerToken?
+  private var missingRecognitionOutputs = 0
+  private static let missingStatusThreshold = 4
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -81,10 +85,12 @@ final class StreamModel {
   }
 
   private func openStream(on session: DeviceSession) async {
+    speech.prepareForStreaming()
+
     let config = StreamSessionConfig(
       videoCodec: .raw,
       resolution: .low,
-      frameRate: 15
+      frameRate: 24
     )
     let stream: StreamSession
     do {
@@ -137,7 +143,7 @@ final class StreamModel {
         guard decision.hasWork else { return }
 
         if decision.preview {
-          Task { [weak self, frameGate] in
+          Task(priority: .userInitiated) { [weak self, frameGate] in
             let image = frame.makeUIImage()
             await MainActor.run {
               guard let self, self.status != .idle, let image else { return }
@@ -148,7 +154,7 @@ final class StreamModel {
         }
 
         if decision.recognition {
-          Task { [weak self, recognizer, frameGate] in
+          Task(priority: .utility) { [weak self, recognizer, frameGate] in
             do {
               let output = try await recognizer.process(frame)
               await MainActor.run {
@@ -170,9 +176,20 @@ final class StreamModel {
     await stream.start()
   }
 
-  private static func statusText(for output: Recognizer.Output) -> String {
+  private func statusText(for output: Recognizer.Output) -> String {
     if let error = output.error { return "Backend: \(error)" }
-    if output.hasFrame { return "Reading sign" }
+    if output.hasFrame {
+      missingRecognitionOutputs = 0
+      return "Reading sign"
+    }
+
+    missingRecognitionOutputs += 1
+    if missingRecognitionOutputs < Self.missingStatusThreshold,
+      current != nil || statusText == "Reading sign"
+    {
+      return statusText
+    }
+
     return output.overlayFrame.isEmpty
       ? "Looking for hand and body"
       : "Need hand and body in frame"
@@ -183,7 +200,7 @@ final class StreamModel {
       overlayFrame = output.overlayFrame
     }
 
-    let statusText = Self.statusText(for: output)
+    let statusText = statusText(for: output)
     if self.statusText != statusText {
       self.statusText = statusText
     }
@@ -225,67 +242,11 @@ final class StreamModel {
     overlayFrame = .empty
     statusText = "Starting recognition"
     current = nil
+    missingRecognitionOutputs = 0
     transcript.removeAll(keepingCapacity: true)
     speech.reset()
     await recognizer.stop()
     await stream?.stop()
     session?.stop()
-  }
-}
-
-private actor FrameGate {
-  struct Decision: Sendable {
-    let preview: Bool
-    let recognition: Bool
-
-    var hasWork: Bool {
-      preview || recognition
-    }
-  }
-
-  private let previewInterval: TimeInterval
-  private let recognitionInterval: TimeInterval
-  private var previewBusy = false
-  private var recognitionBusy = false
-  private var lastPreviewAt = 0.0
-  private var lastRecognitionAt = 0.0
-
-  init(previewFPS: Double, recognitionFPS: Double) {
-    self.previewInterval = 1.0 / previewFPS
-    self.recognitionInterval = 1.0 / recognitionFPS
-  }
-
-  func accept(now: TimeInterval = Date().timeIntervalSinceReferenceDate) -> Decision {
-    var preview = false
-    var recognition = false
-
-    if !previewBusy, now - lastPreviewAt >= previewInterval {
-      previewBusy = true
-      lastPreviewAt = now
-      preview = true
-    }
-
-    if !recognitionBusy, now - lastRecognitionAt >= recognitionInterval {
-      recognitionBusy = true
-      lastRecognitionAt = now
-      recognition = true
-    }
-
-    return Decision(preview: preview, recognition: recognition)
-  }
-
-  func finishPreview() {
-    previewBusy = false
-  }
-
-  func finishRecognition() {
-    recognitionBusy = false
-  }
-
-  func reset() {
-    previewBusy = false
-    recognitionBusy = false
-    lastPreviewAt = 0
-    lastRecognitionAt = 0
   }
 }

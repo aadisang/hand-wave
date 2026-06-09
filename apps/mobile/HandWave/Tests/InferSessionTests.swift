@@ -7,7 +7,7 @@ import Testing
 struct InferSessionTests {
   @Test
   func finalizesPredictionAfterIdleFrames() async throws {
-    let client = MockInferAPI(responseText: "hello")
+    let client = BlockingInferAPI(responseText: "hello")
     let controller = InferSession(client: client)
     try await controller.start()
 
@@ -15,12 +15,16 @@ struct InferSessionTests {
     for index in 0..<InferCfg.Stream.min {
       lastEvent = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
     }
+    await Self.waitForPredictionStart(client)
+    await client.complete()
     lastEvent = try await Self.nextEvent(from: controller, offset: 0.24)
 
     #expect(Self.text(from: lastEvent) == "hello")
 
-    for _ in 0..<InferCfg.Stream.idle {
-      lastEvent = try await controller.ingest(Self.frame(offset: 0.24))
+    for _ in 0..<(InferCfg.Stream.idle + 2) {
+      if let event = try await controller.ingest(Self.frame(offset: 0.24)) {
+        lastEvent = event
+      }
     }
 
     #expect(Self.finalizedText(from: lastEvent) == "hello")
@@ -56,7 +60,7 @@ struct InferSessionTests {
     let event = try await controller.ingest(nil)
 
     #expect(event == .clear)
-    #expect(await client.predictCount == 0)
+    #expect(await client.recognizeCount == 0)
   }
 
   @Test
@@ -98,6 +102,34 @@ struct InferSessionTests {
     #expect(Self.text(from: event) == "go")
   }
 
+  @Test
+  func preservesDelayedPredictionWhenLandmarksDropBeforeResponse() async throws {
+    let client = BlockingInferAPI(responseText: "cat")
+    let controller = InferSession(client: client)
+    try await controller.start()
+
+    for index in 0..<InferCfg.Stream.min {
+      _ = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
+    }
+    await Self.waitForPredictionStart(client)
+
+    for _ in 0..<(InferCfg.Stream.lost + 2) {
+      let event = try await controller.ingest(nil)
+      #expect(event == nil)
+    }
+
+    await client.complete()
+    for _ in 0..<100 {
+      await Task.yield()
+    }
+
+    let partial = try await controller.ingest(nil)
+    #expect(Self.text(from: partial) == "cat")
+
+    let finalized = try await controller.ingest(nil)
+    #expect(Self.finalizedText(from: finalized) == "cat")
+  }
+
   private static func frame(offset: Double) -> LandmarkFrame {
     LandmarkFrame(
       landmarks: (0..<54).map { index in
@@ -119,6 +151,9 @@ struct InferSessionTests {
     from controller: InferSession,
     offset: Double
   ) async throws -> InferSession.Event? {
+    for _ in 0..<100 {
+      await Task.yield()
+    }
     for index in 0..<10 {
       await Task.yield()
       if let event = try await controller.ingest(
@@ -150,40 +185,42 @@ struct InferSessionTests {
 
 private actor MockInferAPI: InferAPI {
   private let responseText: String
-  private(set) var predictCount = 0
+  private(set) var recognizeCount = 0
 
   init(responseText: String) {
     self.responseText = responseText
   }
 
-  func predict(frames: [LandmarkFrame]) async throws -> StreamPred {
-    predictCount += 1
-    return StreamPred(
-      prediction: Prediction(
-        label: responseText,
-        confidence: 0.92,
-        logitScore: nil,
-        lmScore: 0.1,
-        rawLabel: nil
-      ),
-      alternatives: [],
-      greedyText: responseText,
-      partialText: responseText,
-      stableText: responseText
-    )
+  func recognize(
+    frames: [LandmarkFrame],
+    state: InferenceRecognitionState?,
+    context: InferenceRecognitionContext,
+    finalize: Bool
+  ) async throws -> InferenceRecognizeOut {
+    recognizeCount += 1
+    return recognitionResponse(text: responseText, context: context, finalize: finalize)
   }
 }
 
 private actor BlockingInferAPI: InferAPI {
   private let responseText: String
-  private var continuation: CheckedContinuation<StreamPred, Never>?
+  private var continuation: CheckedContinuation<InferenceRecognizeOut, Never>?
   private(set) var started = false
 
   init(responseText: String) {
     self.responseText = responseText
   }
 
-  func predict(frames: [LandmarkFrame]) async throws -> StreamPred {
+  func recognize(
+    frames: [LandmarkFrame],
+    state: InferenceRecognitionState?,
+    context: InferenceRecognitionContext,
+    finalize: Bool
+  ) async throws -> InferenceRecognizeOut {
+    if finalize {
+      return recognitionResponse(text: responseText, context: context, finalize: true)
+    }
+
     started = true
     return await withCheckedContinuation { continuation in
       self.continuation = continuation
@@ -191,23 +228,65 @@ private actor BlockingInferAPI: InferAPI {
   }
 
   func complete() {
-    continuation?.resume(returning: Self.response(text: responseText))
+    continuation?.resume(
+      returning: recognitionResponse(
+        text: responseText,
+        context: InferenceRecognitionContext(
+          idleFrames: 0,
+          missingFrames: 0,
+          segmentFrames: 0,
+          motion: 0
+        ),
+        finalize: false
+      )
+    )
     continuation = nil
   }
+}
 
-  private static func response(text: String) -> StreamPred {
-    StreamPred(
-      prediction: Prediction(
-        label: text,
-        confidence: 0.92,
-        logitScore: nil,
-        lmScore: 0.1,
-        rawLabel: nil
-      ),
-      alternatives: [],
-      greedyText: text,
-      partialText: text,
-      stableText: text
+private func recognitionResponse(
+  text: String,
+  context: InferenceRecognitionContext,
+  finalize: Bool
+) -> InferenceRecognizeOut {
+  let prediction = InferencePrediction(
+    label: text,
+    confidence: 0.92,
+    logitScore: nil,
+    lmScore: 0.1,
+    rawLabel: nil
+  )
+  return InferenceRecognizeOut(
+    state: InferenceRecognitionState(
+      display: nil,
+      finalCandidate: nil,
+      selectedText: text,
+      selectedStreak: 1,
+      displayMisses: 0,
+      counts: []
+    ),
+    displayPrediction: prediction,
+    committed: finalize,
+    trace: InferenceRecognitionTrace(
+      decode: finalize
+        ? nil
+        : InferenceDecodeTrace(
+          bufferedFrames: 1,
+          inputText: text,
+          displayText: text,
+          idleFrames: context.idleFrames,
+          motion: context.motion,
+          latencyMs: 1
+        ),
+      finalize: finalize
+        ? InferenceFinalizeTrace(
+          text: text,
+          confidence: prediction.confidence,
+          committed: true,
+          endpointReason: context.endpointReason ?? .idle,
+          segmentFrames: context.segmentFrames
+        )
+        : nil
     )
-  }
+  )
 }

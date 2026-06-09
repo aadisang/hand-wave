@@ -2,13 +2,16 @@ import AVFoundation
 import Foundation
 
 @MainActor
-final class Speech: NSObject, AVSpeechSynthesizerDelegate {
+final class Speech {
   private let synth = AVSpeechSynthesizer()
   private var last = ""
 
-  override init() {
-    super.init()
-    synth.delegate = self
+  init() {
+    synth.usesApplicationAudioSession = true
+  }
+
+  func prepareForStreaming() {
+    configureAudioRoute()
   }
 
   func speak(_ text: String) {
@@ -16,7 +19,6 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
     guard !clean.isEmpty, clean != last else { return }
     last = clean
 
-    configAudio()
     if synth.isSpeaking {
       synth.stopSpeaking(at: .immediate)
     }
@@ -32,17 +34,20 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
     synth.stopSpeaking(at: .immediate)
   }
 
-  private func configAudio() {
+  private func configureAudioRoute() {
     do {
       let session = AVAudioSession.sharedInstance()
       try session.setCategory(
-        .playback,
-        mode: .spokenAudio,
-        options: [.allowBluetoothHFP, .allowBluetoothA2DP, .duckOthers]
+        .playAndRecord,
+        mode: .default,
+        options: [.allowBluetoothHFP, .duckOthers]
       )
-      try session.setActive(true)
+      try session.setActive(true, options: .notifyOthersOnDeactivation)
+      if let input = session.availableInputs?.first(where: { $0.portType == .bluetoothHFP }) {
+        try session.setPreferredInput(input)
+      }
     } catch {
-      // Speech still works on the default route if Bluetooth routing setup fails.
+      return
     }
   }
 }
