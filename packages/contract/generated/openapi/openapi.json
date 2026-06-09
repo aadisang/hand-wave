@@ -33,6 +33,34 @@
           }
         }
       }
+    },
+    "/v1/recognize": {
+      "post": {
+        "operationId": "Routes_recognize",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecognizeOut"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecognizeIn"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -61,6 +89,74 @@
             "format": "int32",
             "minimum": 8,
             "maximum": 512
+          }
+        }
+      },
+      "DecodeTrace": {
+        "type": "object",
+        "required": [
+          "buffered_frames",
+          "input_text",
+          "display_text",
+          "idle_frames",
+          "motion",
+          "latency_ms"
+        ],
+        "properties": {
+          "buffered_frames": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "input_text": {
+            "type": "string"
+          },
+          "display_text": {
+            "type": "string"
+          },
+          "idle_frames": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "motion": {
+            "type": "number",
+            "format": "double"
+          },
+          "latency_ms": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "EndpointReason": {
+        "type": "string",
+        "enum": ["idle", "landmark-lost"]
+      },
+      "FinalizeTrace": {
+        "type": "object",
+        "required": [
+          "text",
+          "confidence",
+          "committed",
+          "endpoint_reason",
+          "segment_frames"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "endpoint_reason": {
+            "$ref": "#/components/schemas/EndpointReason"
+          },
+          "segment_frames": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -196,6 +292,231 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "RecognitionContext": {
+        "type": "object",
+        "required": [
+          "idle_frames",
+          "missing_frames",
+          "segment_frames",
+          "motion"
+        ],
+        "properties": {
+          "idle_frames": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "missing_frames": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "segment_frames": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "motion": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "endpoint_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EndpointReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "RecognitionCount": {
+        "type": "object",
+        "required": ["text", "count"],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RecognitionScored": {
+        "type": "object",
+        "required": ["prediction", "score", "source", "model_agrees", "streak"],
+        "properties": {
+          "prediction": {
+            "$ref": "#/components/schemas/Prediction"
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "source": {
+            "type": "string"
+          },
+          "lm_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model_agrees": {
+            "type": "boolean"
+          },
+          "streak": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RecognitionState": {
+        "type": "object",
+        "required": [
+          "selected_text",
+          "selected_streak",
+          "display_misses",
+          "counts"
+        ],
+        "properties": {
+          "display": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecognitionScored"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "final_candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecognitionScored"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_text": {
+            "type": "string"
+          },
+          "selected_streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "display_misses": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "counts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecognitionCount"
+            }
+          }
+        }
+      },
+      "RecognitionTrace": {
+        "type": "object",
+        "properties": {
+          "prediction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PredictOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecodeTrace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finalize": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalizeTrace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "RecognizeIn": {
+        "type": "object",
+        "required": ["context"],
+        "properties": {
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandmarkFrame"
+            },
+            "maxItems": 512
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecognitionState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context": {
+            "$ref": "#/components/schemas/RecognitionContext"
+          },
+          "finalize": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecognizeOut": {
+        "type": "object",
+        "required": ["state", "committed", "trace"],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RecognitionState"
+          },
+          "display_prediction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Prediction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/RecognitionTrace"
           }
         }
       },
