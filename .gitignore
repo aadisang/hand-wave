@@ -12,6 +12,19 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Playwright/browser automation artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+blob-report/
+*.trace.zip
+
+# Raw dev-panel MediaPipe traces are large. Keep compact fixtures only.
+handwave-trace-*.json
+apps/web/src/tests/fixtures/traces/*.json
+apps/inference/tests/fixtures/traces/handwave-trace-*.json
+apps/inference/tests/fixtures/traces/*.raw.json
+
 .venv/
 __pycache__/
 *.py[cod]
