@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import product
 
 from rapidfuzz.distance import Levenshtein
 from wordfreq import top_n_list, zipf_frequency
@@ -25,6 +26,7 @@ class EnglishPrior:
             return ()
 
         candidates = {clean, self._correct_phrase(clean)}
+        candidates.update(self._phrase_context_variants(clean))
         compact = clean.replace(" ", "")
         if compact.isalpha() and len(compact) >= 8:
             segmented = " ".join(segment(compact))
@@ -51,6 +53,28 @@ class EnglishPrior:
         tokens = text.split()
         in_phrase = len(tokens) > 1
         return " ".join(self._correct_token(token, in_phrase) for token in tokens)
+
+    def _phrase_context_variants(self, text: str) -> set[str]:
+        tokens = text.split()
+        if len(tokens) <= 1:
+            return set()
+
+        base_score = self._variant_score(text, text)
+        candidate_groups = [_contextual_token_candidates(token) for token in tokens]
+        combination_count = 1
+        for group in candidate_groups:
+            combination_count *= len(group)
+            if combination_count > 512:
+                return set()
+
+        variants: set[str] = set()
+        for phrase_tokens in product(*candidate_groups):
+            phrase = " ".join(phrase_tokens)
+            if phrase == text:
+                continue
+            if self._variant_score(text, phrase) >= base_score + 0.75:
+                variants.add(phrase)
+        return variants
 
     def _correct_token(self, token: str, in_phrase: bool) -> str:
         if not token.isalpha() or len(token) < 4 or word_score(token) >= 3.2:
@@ -145,6 +169,70 @@ def _tail_pruned_tokens(token: str) -> set[str]:
 
 def _repeat_restored_tokens(token: str) -> set[str]:
     return {token[: index + 1] + token[index] + token[index + 1 :] for index in range(len(token))}
+
+
+@lru_cache(maxsize=4096)
+def _contextual_token_candidates(token: str) -> tuple[str, ...]:
+    if not token.isalpha() or len(token) < 4:
+        return (token,)
+
+    candidates = {token}
+    for form in _ctc_pruned_forms(token):
+        if word_score(form) >= 3.2:
+            candidates.add(form)
+        candidates.update(_nearby_common_words(form))
+
+    scored = sorted(
+        candidates,
+        key=lambda candidate: (
+            word_score(candidate) - Levenshtein.distance(token, candidate) * 0.45,
+            -Levenshtein.distance(token, candidate),
+        ),
+        reverse=True,
+    )
+    return tuple(scored[:8])
+
+
+def _ctc_pruned_forms(token: str) -> set[str]:
+    forms = {token}
+    if len(token) >= 5:
+        forms.add(token[:-1])
+    if len(token) >= 6:
+        forms.add(token[1:])
+        forms.add(token[2:])
+
+    for form in tuple(forms):
+        forms.update(_repeat_pruned_tokens(form))
+    return forms
+
+
+def _repeat_pruned_tokens(token: str) -> set[str]:
+    return {
+        token[:index] + token[index + 1 :]
+        for index in range(1, len(token))
+        if token[index] == token[index - 1]
+    }
+
+
+@lru_cache(maxsize=4096)
+def _nearby_common_words(token: str) -> tuple[str, ...]:
+    if len(token) < 4:
+        return ()
+
+    max_distance = 1 if len(token) <= 5 else 2
+    max_length_delta = 1 if len(token) <= 5 else 2
+    scored: list[tuple[str, float]] = []
+    for word in _common_words():
+        length_delta = abs(len(word) - len(token))
+        if length_delta > max_length_delta or word[0] != token[0]:
+            continue
+        distance = Levenshtein.distance(token, word)
+        if distance > max_distance:
+            continue
+        score = word_score(word)
+        if score >= 3.2:
+            scored.append((word, score - distance * 0.6 - length_delta * 0.15))
+    return tuple(word for word, _score in sorted(scored, key=lambda item: item[1], reverse=True)[:8])
 
 
 def _nearest_common_word(token: str) -> str | None:

@@ -8,9 +8,14 @@ from inference.schemas import LandmarkFrame, Prediction, PredictOut
 class FakeBackend(ModelBackend):
     async def predict_frames(self, frames: list[LandmarkFrame]) -> PredictOut:
         label = "" if len(frames) < 8 else "waiting"
-        confidence = 0.0 if not label else 0.05
+        confidence = 0.0 if not label else 0.92
         return PredictOut(
             prediction=Prediction(label=label, confidence=confidence),
+            alternatives=[],
+            spans=[],
+            greedy_text=label,
+            blank_ratio=0.0,
+            tail_blank_ratio=0.0,
             partial_text=label,
             stable_text="",
             tail_blank_frames=len(frames),
@@ -57,6 +62,38 @@ def test_predict_is_stateless(monkeypatch) -> None:
     assert full.status_code == 200
     assert full.json()["partial_text"] == "waiting"
     assert full.json()["tail_blank_frames"] == 10
+
+
+def test_recognize_returns_state_for_finalize(monkeypatch) -> None:
+    context = {
+        "idle_frames": 0,
+        "missing_frames": 0,
+        "segment_frames": 10,
+        "motion": 0.2,
+    }
+    with client(monkeypatch) as test_client:
+        decode = test_client.post(
+            "/v1/recognize",
+            json={
+                "frames": [landmark_frame(i) for i in range(10)],
+                "context": context,
+            },
+        )
+        finalize = test_client.post(
+            "/v1/recognize",
+            json={
+                "state": decode.json()["state"],
+                "context": {**context, "endpoint_reason": "idle"},
+                "finalize": True,
+            },
+        )
+
+    assert decode.status_code == 200
+    assert decode.json()["display_prediction"]["label"] == "waiting"
+    assert decode.json()["trace"]["decode"]["buffered_frames"] == 10
+    assert finalize.status_code == 200
+    assert finalize.json()["committed"] is True
+    assert finalize.json()["display_prediction"]["label"] == "waiting"
 
 
 def test_session_routes_are_removed(monkeypatch) -> None:
