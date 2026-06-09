@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Stage } from "@/components/session/stage-view";
 import { preloadLandmarker } from "@/hooks/use-landmarks";
+import { warmInference } from "@/lib/inference/client";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   useEffect(() => {
     void preloadLandmarker();
+    void warmInference();
   }, []);
 
   return (

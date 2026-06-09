@@ -10,7 +10,7 @@ export function useInfer(active: boolean) {
 
     const ctrl = createStreamCtrl();
     ctrlRef.current = ctrl;
-    void ctrl.start();
+    ctrl.start();
 
     return () => {
       ctrlRef.current = null;

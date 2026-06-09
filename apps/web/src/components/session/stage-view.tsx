@@ -56,14 +56,12 @@ export function Stage() {
         <IdleStage error={state.status === "error" ? state.message : null} />
       )}
       {state.status === "live" && (
-        <>
-          <LandmarksOverlay
-            captureKind={state.kind}
-            draw={drawLandmarks}
-            onFrame={onLandmarksFrame}
-            videoRef={videoRef}
-          />
-        </>
+        <LandmarksOverlay
+          captureKind={state.kind}
+          draw={drawLandmarks}
+          onFrame={onLandmarksFrame}
+          videoRef={videoRef}
+        />
       )}
       <div className="pointer-events-none absolute top-4 left-4 z-20 max-w-dev-panel">
         <DevPanel />

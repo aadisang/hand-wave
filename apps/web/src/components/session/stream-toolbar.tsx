@@ -9,6 +9,7 @@ import {
   Star,
   Video,
 } from "lucide-react";
+import { memo, useCallback, type ReactElement } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Toolbar,
@@ -25,7 +26,6 @@ import type { CaptureSession } from "@/types/capture";
 import { useDevStore } from "@/stores/dev-store";
 import { useLandmarksStore } from "@/stores/landmarks-store";
 import { CameraSelect } from "./camera-select";
-import type { ReactElement } from "react";
 
 const repositoryUrl = "https://github.com/sinarck/hand-wave";
 
@@ -35,12 +35,18 @@ type Props = {
   onFull: () => void;
 };
 
-export function StreamToolbar({ capture, full, onFull }: Props) {
+export const StreamToolbar = memo(function StreamToolbar({
+  capture,
+  full,
+  onFull,
+}: Props) {
   const devEnabled = useDevStore((s) => s.enabled);
   const toggleDev = useDevStore((s) => s.toggle);
   const drawLandmarks = useLandmarksStore((s) => s.draw);
   const toggleLandmarks = useLandmarksStore((s) => s.toggleDraw);
-  const { state } = capture;
+  const { cameraId, setCameraId, start, state, stop } = capture;
+  const startScreen = useCallback(() => start("screen"), [start]);
+  const startCamera = useCallback(() => start("camera"), [start]);
   const isCapturing = state.status === "live" || state.status === "starting";
   const isCamera = isCapturing && state.kind === "camera";
   const landmarksLabel = drawLandmarks ? "Hide landmarks" : "Show landmarks";
@@ -61,7 +67,7 @@ export function StreamToolbar({ capture, full, onFull }: Props) {
                   render={
                     <Button
                       aria-label="Stop sharing"
-                      onClick={capture.stop}
+                      onClick={stop}
                       size="icon-sm"
                       variant="destructive"
                     />
@@ -74,12 +80,7 @@ export function StreamToolbar({ capture, full, onFull }: Props) {
               <>
                 <ControlTooltip label="Share screen">
                   <TooltipTrigger
-                    render={
-                      <Button
-                        onClick={() => capture.start("screen")}
-                        size="sm"
-                      />
-                    }
+                    render={<Button onClick={startScreen} size="sm" />}
                   >
                     <Share2 />
                     Share Screen
@@ -89,7 +90,7 @@ export function StreamToolbar({ capture, full, onFull }: Props) {
                   <TooltipTrigger
                     render={
                       <Button
-                        onClick={() => capture.start("camera")}
+                        onClick={startCamera}
                         size="sm"
                         variant="outline"
                       />
@@ -103,7 +104,9 @@ export function StreamToolbar({ capture, full, onFull }: Props) {
             )}
           </ToolbarGroup>
 
-          {isCamera && <CameraSelect capture={capture} />}
+          {isCamera && (
+            <CameraSelect cameraId={cameraId} setCameraId={setCameraId} />
+          )}
 
           <ToolbarSeparator orientation="vertical" />
 
@@ -176,7 +179,7 @@ export function StreamToolbar({ capture, full, onFull }: Props) {
       </TooltipProvider>
     </div>
   );
-}
+});
 
 function ControlTooltip({
   children,

@@ -1,4 +1,5 @@
 import { useMediaDevices } from "@reactuses/core";
+import { memo, useMemo } from "react";
 import {
   Select,
   SelectContent,
@@ -8,10 +9,10 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarSeparator } from "@/components/ui/toolbar";
-import type { CaptureSession } from "@/types/capture";
 
 type Props = {
-  capture: CaptureSession;
+  cameraId: string | null;
+  setCameraId: (cameraId: string | null) => void;
 };
 
 const cleanLabel = (label: string) =>
@@ -20,21 +21,26 @@ const cleanLabel = (label: string) =>
 const labelFor = (device: Pick<MediaDeviceInfo, "label">, index: number) =>
   cleanLabel(device.label) || `Camera ${index + 1}`;
 
-export function CameraSelect({ capture }: Props) {
-  const [{ devices }] = useMediaDevices({
-    constraints: { audio: false, video: true },
-  });
-  const cameras = devices.filter((device) => device.kind === "videoinput");
+const mediaDevicesOptions = {
+  constraints: { audio: false, video: true },
+};
+
+export const CameraSelect = memo(function CameraSelect({
+  cameraId,
+  setCameraId,
+}: Props) {
+  const [{ devices }] = useMediaDevices(mediaDevicesOptions);
+  const cameras = useMemo(
+    () => devices.filter((device) => device.kind === "videoinput"),
+    [devices],
+  );
 
   if (cameras.length < 2) return null;
 
   return (
     <>
       <ToolbarSeparator orientation="vertical" />
-      <Select
-        onValueChange={(value) => capture.setCameraId(value)}
-        value={capture.cameraId}
-      >
+      <Select onValueChange={setCameraId} value={cameraId}>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -65,4 +71,4 @@ export function CameraSelect({ capture }: Props) {
       </Select>
     </>
   );
-}
+});

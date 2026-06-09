@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -85,8 +84,8 @@ body {
     "Satoshi", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   --font-mono:
-    "Geist Mono Variable", ui-monospace, "SFMono-Regular", "SF Mono", Consolas,
-    "Liberation Mono", monospace;
+    ui-monospace, "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono",
+    monospace;
   --font-sans:
     "Satoshi", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;

@@ -1,64 +1,18 @@
-import type {
-  FrameSchema,
-  InferOutSchema,
-  PredSchema,
-  SpanSchema,
-} from "@/lib/inference/schema";
+import type { components } from "@/lib/inference/openapi";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 
-export type Frame = typeof FrameSchema.Type;
-export type InferOut = typeof InferOutSchema.Type;
-export type Pred = typeof PredSchema.Type;
-export type Span = typeof SpanSchema.Type;
-
-export type Source = "partial" | "raw" | `alt ${number}`;
-export type TextKind = "letter" | "short" | "phrase" | "long" | "word";
-
-export type DecodeCtx = {
-  latencyMs: number;
-  idleFrames: number;
-  motion: number;
-  frames: number;
-};
-
-export type Candidate = {
-  source: Source;
-  rawText: string;
-  text: string;
-  confidence: number;
-  lmScore: number | null;
-  modelAgrees: boolean;
-  score: number;
-};
-
-export type Scored = {
-  prediction: DetectionPrediction;
-  score: number;
-  source: Source;
-  lmScore: number | null;
-  modelAgrees: boolean;
-  streak: number;
-};
-
-export type CandidateIn = Omit<Candidate, "score" | "text">;
-
-export type Threshold = {
-  instant: number;
-  seen: number;
-  streak: number;
-  confidence: number;
-};
-
-export type DecisionState = {
-  context: DecodeCtx;
-  misses: number;
-  seenCount: number;
-  score: number;
-  streak: number;
-};
+export type Frame = components["schemas"]["LandmarkFrame"];
+export type InferOut = components["schemas"]["PredictOut"];
+export type RecognizeIn = components["schemas"]["RecognizeIn"];
+export type RecognizeOut = components["schemas"]["RecognizeOut"];
+export type RecognitionState = components["schemas"]["RecognitionState"];
+export type RecognitionContext = components["schemas"]["RecognitionContext"];
+export type WirePrediction = components["schemas"]["Prediction"];
+export type WireDecodeTrace = components["schemas"]["DecodeTrace"];
+export type WireFinalizeTrace = components["schemas"]["FinalizeTrace"];
 
 export type StreamCtrl = {
-  start: () => Promise<void>;
+  start: () => void;
   dispose: () => void;
   accept: (frame: Frame | null) => void;
 };
@@ -74,6 +28,16 @@ export type DecodeTrace = {
   latencyMs: number;
 };
 
+export type PredictTrace = {
+  type: "predict";
+  at: string;
+  frames: number;
+  idleFrames: number;
+  motion: number;
+  latencyMs: number;
+  prediction: InferOut;
+};
+
 export type FinalizeTrace = {
   type: "finalize";
   at: string;
@@ -86,20 +50,14 @@ export type FinalizeTrace = {
 
 export type EndpointReason = "idle" | "landmark-lost";
 
-export type FinalCtx = {
-  endpointReason: EndpointReason;
-  idleFrames: number;
-  missingFrames: number;
-  segmentFrames: number;
-};
-
-export type ArbiterUpdate = {
-  displayPrediction: DetectionPrediction | null;
-  trace: Omit<DecodeTrace, "type" | "at">;
-};
-
-export type FinalPred = {
-  displayPrediction: DetectionPrediction | null;
-  committed: boolean;
-  trace: Omit<FinalizeTrace, "type" | "at">;
-};
+export function toDetectionPrediction(
+  prediction: WirePrediction | null | undefined,
+  processingTimeMs = 0,
+): DetectionPrediction | null {
+  if (!prediction) return null;
+  return {
+    text: prediction.label,
+    confidence: prediction.confidence,
+    processingTimeMs,
+  };
+}
