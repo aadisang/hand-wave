@@ -14,7 +14,7 @@ actor InferSession {
   }
 
   private let client: InferAPI
-  private var arbiter = Arbiter()
+  private var recognitionState: InferenceRecognitionState?
   private var frames: [LandmarkFrame] = []
   private var seen = 0
   private var inFlight = false
@@ -32,7 +32,9 @@ actor InferSession {
     self.client = client
   }
 
-  func start() async throws {}
+  func start() async throws {
+    try await client.warmConnection()
+  }
 
   func stop() async {
     gen += 1
@@ -40,8 +42,8 @@ actor InferSession {
     inFlight = false
     pendingEvent = nil
     pendingError = nil
+    recognitionState = nil
     resetSegment()
-    arbiter.reset()
   }
 
   func ingest(_ frame: LandmarkFrame?) async throws -> Event? {
@@ -49,18 +51,17 @@ actor InferSession {
       pendingError = nil
       throw error
     }
-    let pending = takePendingEvent()
-
-    let event: Event?
-    if let frame {
-      event = accept(frame)
-    } else {
-      event = acceptMissingFrame()
+    if let pending = takePendingEvent() {
+      return pending
     }
-    return event ?? pending
+
+    if let frame {
+      return try await accept(frame)
+    }
+    return try await acceptMissingFrame()
   }
 
-  private func accept(_ frame: LandmarkFrame) -> Event? {
+  private func accept(_ frame: LandmarkFrame) async throws -> Event? {
     let motion = frameMotion(previous: last, current: frame)
     last = frame
     lost = 0
@@ -84,7 +85,7 @@ actor InferSession {
     seen += 1
 
     if idle >= InferCfg.Stream.idle {
-      return finalizeSegment(reason: .idle)
+      return try await finalizeSegment(reason: .idle)
     }
 
     if seen < InferCfg.Stream.min { return nil }
@@ -102,49 +103,44 @@ actor InferSession {
     requestId += 1
     let id = requestId
     let generation = gen
+    let state = recognitionState
+    let context = recognitionContext(idleFrames: idleFrames, motion: motion)
     inFlight = true
-    let started = ContinuousClock.now
 
     Task { [client] in
       do {
-        let response = try await client.predict(frames: batch)
-        finishDecode(
+        let response = try await client.recognize(
+          frames: batch,
+          state: state,
+          context: context,
+          finalize: false
+        )
+        await self.finishDecode(
           response,
           id: id,
-          generation: generation,
-          idleFrames: idleFrames,
-          motion: motion,
-          started: started
+          generation: generation
         )
       } catch {
-        failDecode(error, id: id, generation: generation)
+        await self.failDecode(error, id: id, generation: generation)
       }
     }
   }
 
   private func finishDecode(
-    _ response: StreamPred,
+    _ response: InferenceRecognizeOut,
     id: Int,
-    generation: Int,
-    idleFrames: Int,
-    motion: Double,
-    started: ContinuousClock.Instant
+    generation: Int
   ) {
     guard id == requestId else { return }
     inFlight = false
     guard generation == gen else { return }
 
-    let elapsed = started.duration(to: .now)
-    let update = arbiter.accept(
-      response,
-      context: Arbiter.DecodeContext(
-        latencyMs: Double(elapsed.components.seconds) * 1_000
-          + Double(elapsed.components.attoseconds) / 1e15,
-        idleFrames: idleFrames,
-        motion: motion
+    recognitionState = response.state
+    pendingEvent = response.displayPrediction.map {
+      Event.partial(
+        Self.prediction(from: $0, processingTimeMs: response.trace.decode?.latencyMs ?? 0)
       )
-    )
-    pendingEvent = update.displayPrediction.map(Event.partial)
+    }
   }
 
   private func failDecode(_ error: Error, id: Int, generation: Int) {
@@ -160,7 +156,7 @@ actor InferSession {
     return event
   }
 
-  private func acceptMissingFrame() -> Event? {
+  private func acceptMissingFrame() async throws -> Event? {
     guard !ended else { return nil }
     guard moved, seen >= InferCfg.Stream.min else {
       resetLiveState()
@@ -172,35 +168,42 @@ actor InferSession {
     if lost >= InferCfg.Stream.lost
       || idle >= InferCfg.Stream.idle
     {
-      return finalizeSegment(reason: .landmarkLost)
+      if inFlight { return nil }
+      return try await finalizeSegment(reason: .landmarkLost)
     }
     return nil
   }
 
-  private func finalizeSegment(reason: Arbiter.EndpointReason) -> Event? {
-    let finalized = arbiter.finalize(
-      context: Arbiter.FinalizeContext(
-        endpointReason: reason,
-        segmentFrames: seen
-      )
-    )
+  private func finalizeSegment(reason: InferenceEndpointReason) async throws -> Event? {
+    let state = recognitionState
+    let context = recognitionContext(endpointReason: reason)
     ended = true
     gen += 1
     requestId += 1
     inFlight = false
     pendingEvent = nil
-    arbiter.reset()
+    recognitionState = nil
     resetSegment()
 
-    guard let pred = finalized.displayPrediction, !pred.text.isEmpty else {
+    guard let state else {
       return .clear
     }
-    return .finalized(pred)
+    let response = try await client.recognize(
+      frames: [],
+      state: state,
+      context: context,
+      finalize: true
+    )
+
+    guard let prediction = response.displayPrediction, !prediction.label.isEmpty else {
+      return .clear
+    }
+    return .finalized(Self.prediction(from: prediction, processingTimeMs: 0))
   }
 
   private func resetLiveState() {
     resetSegment()
-    arbiter.reset()
+    recognitionState = nil
   }
 
   private func resetSegment() {
@@ -224,5 +227,30 @@ actor InferSession {
       total += abs(a.x - b.x) + abs(a.y - b.y)
     }
     return total / Double(count)
+  }
+
+  private func recognitionContext(
+    idleFrames: Int? = nil,
+    motion: Double? = nil,
+    endpointReason: InferenceEndpointReason? = nil
+  ) -> InferenceRecognitionContext {
+    InferenceRecognitionContext(
+      idleFrames: idleFrames ?? idle,
+      missingFrames: lost,
+      segmentFrames: seen,
+      motion: motion ?? 0,
+      endpointReason: endpointReason
+    )
+  }
+
+  private static func prediction(
+    from prediction: InferencePrediction,
+    processingTimeMs: Double
+  ) -> Pred {
+    Pred(
+      text: prediction.label,
+      confidence: prediction.confidence,
+      processingTimeMs: processingTimeMs
+    )
   }
 }

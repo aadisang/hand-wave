@@ -1,7 +1,18 @@
 import Foundation
 
 protocol InferAPI: Sendable {
-  func predict(frames: [LandmarkFrame]) async throws -> StreamPred
+  func warmConnection() async throws
+
+  func recognize(
+    frames: [LandmarkFrame],
+    state: InferenceRecognitionState?,
+    context: InferenceRecognitionContext,
+    finalize: Bool
+  ) async throws -> InferenceRecognizeOut
+}
+
+extension InferAPI {
+  func warmConnection() async throws {}
 }
 
 struct InferClient: Sendable {
@@ -42,15 +53,40 @@ struct InferClient: Sendable {
     self.session = session
   }
 
-  func predict(frames: [LandmarkFrame]) async throws -> StreamPred {
-    struct Request: Encodable {
-      let frames: [LandmarkFrame]
+  func recognize(
+    frames: [LandmarkFrame],
+    state: InferenceRecognitionState?,
+    context: InferenceRecognitionContext,
+    finalize: Bool = false
+  ) async throws -> InferenceRecognizeOut {
+    return try await post(
+      path: "/v1/recognize",
+      body: InferenceRecognizeIn(
+        frames: frames.map(\.inferenceFeatures),
+        state: state,
+        context: context,
+        finalize: finalize
+      )
+    )
+  }
+
+  func warmConnection() async throws {
+    guard let baseURL else {
+      throw ClientError.missingBaseURL
     }
 
-    return try await post(
-      path: "/v1/predict",
-      body: Request(frames: frames)
-    )
+    guard baseURL.isUsableFromCurrentDevice else {
+      throw ClientError.localhostOnDevice(baseURL)
+    }
+
+    var request = URLRequest(url: baseURL)
+    request.httpMethod = "HEAD"
+
+    do {
+      _ = try await session.data(for: request)
+    } catch {
+      throw ClientError.requestFailed(baseURL, error.localizedDescription)
+    }
   }
 
   private func post<Response: Decodable, Body: Encodable>(
@@ -99,8 +135,9 @@ struct InferClient: Sendable {
 
   private static func defaultSession() -> URLSession {
     let configuration = URLSessionConfiguration.default
-    configuration.timeoutIntervalForRequest = 3
-    configuration.timeoutIntervalForResource = 6
+    configuration.waitsForConnectivity = true
+    configuration.timeoutIntervalForRequest = 10
+    configuration.timeoutIntervalForResource = 15
     return URLSession(configuration: configuration)
   }
 }
