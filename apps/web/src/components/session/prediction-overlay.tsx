@@ -10,13 +10,13 @@ import { useDetectionsStore } from "@/stores/detections-store";
 const easeOut = [0.23, 1, 0.32, 1] as const;
 const hidden = { opacity: 0 };
 const shown = { opacity: 1 };
+const instantTransition = { duration: 0 };
+const visibleTransition = { duration: 0.16, ease: easeOut };
 
 export function PredictionOverlay() {
   const prediction = useDetectionsStore((s) => s.currentPrediction);
   const shouldReduceMotion = useReducedMotion();
-  const transition = shouldReduceMotion
-    ? { duration: 0 }
-    : { duration: 0.16, ease: easeOut };
+  const transition = shouldReduceMotion ? instantTransition : visibleTransition;
 
   return (
     <LazyMotion features={domAnimation}>

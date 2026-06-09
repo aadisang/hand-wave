@@ -3,7 +3,13 @@ import {
   HandLandmarker,
   PoseLandmarker,
 } from "@mediapipe/tasks-vision";
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import type { CaptureKind } from "@/types/capture";
 import { useHandLandmarks } from "@/hooks/use-landmarks";
 import {
@@ -33,23 +39,38 @@ export function LandmarksOverlay({
   onFrame: onInferenceFrame,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const handSelectorRef = useRef(createActiveHandSelector());
+  const canvasDirtyRef = useRef(false);
+  const [handSelector] = useState(createActiveHandSelector);
 
   const onFrame = useCallback(
     (frame: HandFrame, inferenceMs: number) => {
-      const selectedHand = handSelectorRef.current.select(frame);
+      const selectedHand = handSelector.select(frame);
       const input = toModelInput(frame, selectedHand);
       if (draw && input) {
         drawFrame(canvasRef.current, videoRef.current, input.frame);
-      } else {
+        canvasDirtyRef.current = true;
+      } else if (canvasDirtyRef.current) {
         clearCanvas(canvasRef.current);
+        canvasDirtyRef.current = false;
       }
 
       onInferenceFrame(input?.features ?? null);
       const dev = useDevStore.getState();
-      if (dev.enabled) dev.push(input?.frame ?? null, inferenceMs);
+      if (dev.enabled) {
+        dev.push(input?.frame ?? null, inferenceMs);
+        if (dev.recording) {
+          dev.pushFrameTrace({
+            inferenceMs,
+            captureKind,
+            selectedHand,
+            rawFrame: frame,
+            modelFrame: input?.frame ?? null,
+            features: input?.features ?? null,
+          });
+        }
+      }
     },
-    [draw, onInferenceFrame, videoRef],
+    [captureKind, draw, handSelector, onInferenceFrame, videoRef],
   );
 
   useHandLandmarks(videoRef, captureKind, onFrame);
@@ -60,17 +81,19 @@ export function LandmarksOverlay({
   }, []);
 
   useEffect(() => {
-    handSelectorRef.current.reset();
-  }, [captureKind]);
+    handSelector.reset();
+  }, [captureKind, handSelector]);
 
   useEffect(() => {
-    if (!draw) clearCanvas(canvasRef.current);
+    if (!draw && canvasDirtyRef.current) {
+      clearCanvas(canvasRef.current);
+      canvasDirtyRef.current = false;
+    }
   }, [draw]);
 
   return (
     <canvas
       ref={canvasRef}
-      aria-hidden="true"
       className={[
         "pointer-events-none absolute inset-0 z-10 h-full w-full",
         captureKind === "camera" ? "object-cover" : "object-contain",
@@ -118,10 +141,17 @@ function drawFrame(
     });
   }
 
-  for (const hand of [
-    ...frame.rightHandLandmarks,
-    ...frame.leftHandLandmarks,
-  ]) {
+  drawHands(drawing, frame.rightHandLandmarks, lineWidth, radius);
+  drawHands(drawing, frame.leftHandLandmarks, lineWidth, radius);
+}
+
+function drawHands(
+  drawing: DrawingUtils,
+  hands: HandFrame["rightHandLandmarks"],
+  lineWidth: number,
+  radius: number,
+) {
+  for (const hand of hands) {
     drawing.drawConnectors(hand, HandLandmarker.HAND_CONNECTIONS, {
       color: handLineColor,
       lineWidth,

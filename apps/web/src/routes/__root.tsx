@@ -1,16 +1,15 @@
 /// <reference types="vite/client" />
 
-import {
-  createRootRoute,
-  HeadContent,
-  Outlet,
-  Scripts,
-} from "@tanstack/react-router";
-import { Analytics } from "@vercel/analytics/react";
-import type { ReactNode } from "react";
+import { createRootRoute } from "@tanstack/react-router";
 import { NotFound } from "@/components/app/not-found";
+import { RootComponent, RootDocument } from "@/components/app/root-route";
 import { appJsonLd, homeUrl, site } from "@/config/site";
-import { handModelUrl, poseModelUrl } from "@/hooks/use-landmarks";
+import {
+  handModelUrl,
+  poseModelUrl,
+  visionWasmBinaryUrl,
+  visionWasmScriptUrl,
+} from "@/lib/mediapipe/assets";
 import appCss from "./globals.css?url";
 
 export const Route = createRootRoute({
@@ -59,6 +58,19 @@ export const Route = createRootRoute({
       {
         rel: "preload",
         as: "fetch",
+        href: visionWasmBinaryUrl,
+        type: "application/wasm",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        as: "script",
+        href: visionWasmScriptUrl,
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        as: "fetch",
         href: handModelUrl,
         crossOrigin: "anonymous",
       },
@@ -80,25 +92,3 @@ export const Route = createRootRoute({
   notFoundComponent: NotFound,
   shellComponent: RootDocument,
 });
-
-function RootComponent() {
-  return <Outlet />;
-}
-
-function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <html className="dark" lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <a className="skip-link" href="#main">
-          Skip to main content
-        </a>
-        {children}
-        <Analytics />
-        <Scripts />
-      </body>
-    </html>
-  );
-}

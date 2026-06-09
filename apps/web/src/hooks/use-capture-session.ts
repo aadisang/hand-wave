@@ -148,5 +148,8 @@ export function useCaptureSession(): CaptureSession {
       : { status: "starting", ...request };
   }, [error, request, stream]);
 
-  return { state, cameraId, start, stop, setCameraId };
+  return useMemo(
+    () => ({ state, cameraId, start, stop, setCameraId }),
+    [cameraId, setCameraId, start, state, stop],
+  );
 }
