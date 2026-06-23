@@ -9,8 +9,8 @@ import {
   Star,
   Video,
 } from "lucide-react";
-import { memo, useCallback, type ReactElement } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Fragment, memo, useCallback, type ReactElement } from "react";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   Toolbar,
   ToolbarGroup,
@@ -58,11 +58,11 @@ export const StreamToolbar = memo(function StreamToolbar({
       <TooltipProvider delay={350}>
         <Toolbar
           aria-label="Stream controls"
-          className="h-control-center items-center gap-1 bg-toolbar px-1.5 py-1 backdrop-blur-md"
+          className="min-h-control-center w-fit max-w-[calc(100svw-1.5rem)] flex-nowrap items-center justify-center gap-1 px-1.5 py-1"
         >
-          <ToolbarGroup>
+          <ToolbarGroup className="shrink-0 justify-center">
             {isCapturing ? (
-              <ControlTooltip label="Stop sharing">
+              <ControlTooltip key="stop-sharing" label="Stop sharing">
                 <TooltipTrigger
                   render={
                     <Button
@@ -77,19 +77,26 @@ export const StreamToolbar = memo(function StreamToolbar({
                 </TooltipTrigger>
               </ControlTooltip>
             ) : (
-              <>
+              <Fragment key="start-actions">
                 <ControlTooltip label="Share screen">
                   <TooltipTrigger
-                    render={<Button onClick={startScreen} size="sm" />}
+                    render={
+                      <Button
+                        aria-label="Share screen"
+                        onClick={startScreen}
+                        size="sm"
+                      />
+                    }
                   >
                     <Share2 />
-                    Share Screen
+                    <span className="hidden sm:inline">Share Screen</span>
                   </TooltipTrigger>
                 </ControlTooltip>
                 <ControlTooltip label="Start camera">
                   <TooltipTrigger
                     render={
                       <Button
+                        aria-label="Start camera"
                         onClick={startCamera}
                         size="sm"
                         variant="outline"
@@ -97,15 +104,19 @@ export const StreamToolbar = memo(function StreamToolbar({
                     }
                   >
                     <Video />
-                    Start Camera
+                    <span className="hidden sm:inline">Start Camera</span>
                   </TooltipTrigger>
                 </ControlTooltip>
-              </>
+              </Fragment>
             )}
           </ToolbarGroup>
 
           {isCamera && (
-            <CameraSelect cameraId={cameraId} setCameraId={setCameraId} />
+            <CameraSelect
+              cameraId={cameraId}
+              reserve={state.status === "starting"}
+              setCameraId={setCameraId}
+            />
           )}
 
           <ToolbarSeparator orientation="vertical" />
@@ -145,15 +156,14 @@ export const StreamToolbar = memo(function StreamToolbar({
           <ControlTooltip label="Star on GitHub">
             <TooltipTrigger
               render={
-                <a
+                <ButtonLink
                   aria-label="Star hand-wave on GitHub"
-                  className={buttonVariants({
-                    size: "icon-sm",
-                    variant: "ghost",
-                  })}
+                  className="max-sm:hidden"
                   href={repositoryUrl}
                   rel="noreferrer"
+                  size="icon-sm"
                   target="_blank"
+                  variant="ghost"
                 />
               }
             >

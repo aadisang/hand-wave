@@ -3,7 +3,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border font-medium outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border font-medium outline-none transition-[background-color,border-color,color,box-shadow,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 disabled:active:scale-100 motion-reduce:transition-none motion-reduce:active:scale-100 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     defaultVariants: {
       size: "sm",
@@ -11,8 +11,9 @@ export const buttonVariants = cva(
     },
     variants: {
       size: {
-        sm: "h-8 px-2.5 text-sm sm:h-7",
-        "icon-sm": "size-8 sm:size-7",
+        xs: "h-7 gap-1 rounded-md px-2 text-xs",
+        sm: "h-9 px-3 text-sm sm:h-8 sm:px-2.5",
+        "icon-sm": "size-9 sm:size-8",
       },
       variant: {
         default:
@@ -34,6 +35,11 @@ type ButtonProps = ComponentProps<"button"> & {
   size?: VariantProps<typeof buttonVariants>["size"];
 };
 
+type ButtonLinkProps = ComponentProps<"a"> & {
+  variant?: VariantProps<typeof buttonVariants>["variant"];
+  size?: VariantProps<typeof buttonVariants>["size"];
+};
+
 export function Button({
   className,
   variant,
@@ -47,5 +53,23 @@ export function Button({
       type="button"
       {...props}
     />
+  );
+}
+
+export function ButtonLink({
+  children,
+  className,
+  variant,
+  size,
+  ...props
+}: ButtonLinkProps): ReactElement {
+  return (
+    <a
+      className={cn(buttonVariants({ className, size, variant }))}
+      data-slot="button-link"
+      {...props}
+    >
+      {children}
+    </a>
   );
 }

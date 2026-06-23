@@ -1,6 +1,7 @@
 "use client";
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
+import { cva } from "class-variance-authority";
 import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,10 @@ export const TooltipProvider: typeof TooltipPrimitive.Provider =
 export const TooltipTrigger: typeof TooltipPrimitive.Trigger =
   TooltipPrimitive.Trigger;
 export const TooltipCreateHandle = TooltipPrimitive.createHandle;
+
+const tooltipPopupVariants = cva(
+  "max-w-64 origin-(--transform-origin) rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground shadow-lg/5 outline-none transition-[opacity,scale] duration-125 ease-[cubic-bezier(0.23,1,0.32,1)] data-[ending-style]:scale-95 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 data-[instant]:transition-none motion-reduce:transition-none",
+);
 
 export function TooltipPopup({
   className,
@@ -41,10 +46,7 @@ export function TooltipPopup({
         sideOffset={sideOffset}
       >
         <TooltipPrimitive.Popup
-          className={cn(
-            "max-w-64 rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground shadow-lg/5 outline-none",
-            className,
-          )}
+          className={cn(tooltipPopupVariants(), className)}
           data-slot="tooltip-popup"
           {...props}
         >
