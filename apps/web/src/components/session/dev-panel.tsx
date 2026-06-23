@@ -1,6 +1,8 @@
 import { DownloadIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cfg } from "@hand-wave/contract";
+import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import { useDevStore } from "@/stores/dev-store";
 import type { DevRecording, DevTrace } from "@/types/dev";
 
@@ -70,17 +72,14 @@ function DevPanelContent() {
 
   return (
     <div className="pointer-events-none w-dev-panel max-w-full">
-      <div className="pointer-events-auto rounded-xl border bg-toolbar p-3 font-mono text-card-foreground text-xs leading-relaxed shadow-sm backdrop-blur-md">
+      <Surface
+        className="pointer-events-auto font-mono text-xs leading-relaxed"
+        padding="sm"
+      >
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="text-muted-foreground">Dev</span>
           <div className="flex items-center gap-1">
-            <button
-              className={[
-                "inline-flex items-center rounded border border-input px-1.5 py-0.5 transition-colors hover:bg-accent",
-                recording
-                  ? "bg-destructive text-destructive-foreground"
-                  : "text-foreground",
-              ].join(" ")}
+            <Button
               onClick={() => {
                 if (recording) {
                   stopRecording();
@@ -89,25 +88,26 @@ function DevPanelContent() {
                 }
                 startRecording(prompt("Trace label")?.trim() || "unlabeled");
               }}
-              type="button"
+              size="xs"
+              variant={recording ? "destructive" : "outline"}
             >
               {recording ? "Stop" : "Rec"}
-            </button>
-            <button
-              className="inline-flex items-center gap-1 rounded border border-input px-1.5 py-0.5 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            </Button>
+            <Button
               disabled={!canExport}
               onClick={() => downloadTraces(traces, exportRecordings)}
-              type="button"
+              size="xs"
+              variant="outline"
             >
               <DownloadIcon className="size-3" />
               Trace
-            </button>
+            </Button>
           </div>
         </div>
         <div className="mb-2 space-y-1.5 border-b pb-2">
           <textarea
             aria-label="Trace batch labels"
-            className="h-16 w-full resize-none rounded border border-input bg-background/70 px-2 py-1 text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-16 w-full resize-none rounded-md border border-input bg-background/70 px-2 py-1 text-foreground outline-none transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none"
             onChange={(event) => setBatchText(event.currentTarget.value)}
             placeholder="one label per line"
             spellCheck={false}
@@ -120,30 +120,30 @@ function DevPanelContent() {
                 : `${batchLabels.length} queued`}
             </span>
             <div className="flex shrink-0 items-center gap-1">
-              <button
-                className="inline-flex items-center rounded border border-input px-1.5 py-0.5 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              <Button
                 disabled={!canStartBatch}
                 onClick={startBatch}
-                type="button"
+                size="xs"
+                variant="outline"
               >
                 Start
-              </button>
-              <button
-                className="inline-flex items-center rounded border border-input px-1.5 py-0.5 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              </Button>
+              <Button
                 disabled={batchIndex === null || !recording}
                 onClick={nextBatchLabel}
-                type="button"
+                size="xs"
+                variant="outline"
               >
                 Next
-              </button>
-              <button
-                className="inline-flex items-center rounded border border-input px-1.5 py-0.5 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              </Button>
+              <Button
                 disabled={batchIndex === null && !recording}
                 onClick={finishBatch}
-                type="button"
+                size="xs"
+                variant="outline"
               >
                 Finish
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -172,7 +172,7 @@ function DevPanelContent() {
             </div>
           );
         })}
-      </div>
+      </Surface>
     </div>
   );
 }
