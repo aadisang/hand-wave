@@ -12,6 +12,7 @@ import { ToolbarSeparator } from "@/components/ui/toolbar";
 
 type Props = {
   cameraId: string | null;
+  reserve?: boolean;
   setCameraId: (cameraId: string | null) => void;
 };
 
@@ -21,12 +22,19 @@ const cleanLabel = (label: string) =>
 const labelFor = (device: Pick<MediaDeviceInfo, "label">, index: number) =>
   cleanLabel(device.label) || `Camera ${index + 1}`;
 
+const triggerLabelFor = (label: string) =>
+  label.replace(/\s+(?:virtual\s+camera|web\s+camera|webcam|camera)$/i, "") ||
+  label;
+
 const mediaDevicesOptions = {
   constraints: { audio: false, video: true },
 };
 
+const triggerWidth = "clamp(7rem, 24vw, 10rem)";
+
 export const CameraSelect = memo(function CameraSelect({
   cameraId,
+  reserve = false,
   setCameraId,
 }: Props) {
   const [{ devices }] = useMediaDevices(mediaDevicesOptions);
@@ -34,8 +42,26 @@ export const CameraSelect = memo(function CameraSelect({
     () => devices.filter((device) => device.kind === "videoinput"),
     [devices],
   );
+  const selectedIndex = cameras.findIndex((d) => d.deviceId === cameraId);
+  const selectedLabel =
+    selectedIndex === -1
+      ? "Select camera"
+      : labelFor(cameras[selectedIndex], selectedIndex);
 
-  if (cameras.length < 2) return null;
+  if (cameras.length < 2) {
+    if (!reserve) return null;
+
+    return (
+      <>
+        <ToolbarSeparator orientation="vertical" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none shrink-0"
+          style={{ width: triggerWidth }}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -45,8 +71,9 @@ export const CameraSelect = memo(function CameraSelect({
           <TooltipTrigger
             render={
               <SelectTrigger
-                className="w-control-select border-input bg-overlay"
+                className="min-w-0 border-input bg-overlay"
                 size="sm"
+                style={{ width: triggerWidth }}
               />
             }
           >
@@ -55,11 +82,11 @@ export const CameraSelect = memo(function CameraSelect({
                 if (typeof value !== "string") return null;
                 const index = cameras.findIndex((d) => d.deviceId === value);
                 if (index === -1) return null;
-                return labelFor(cameras[index], index);
+                return triggerLabelFor(labelFor(cameras[index], index));
               }}
             </SelectValue>
           </TooltipTrigger>
-          <TooltipPopup>Select camera</TooltipPopup>
+          <TooltipPopup>{selectedLabel}</TooltipPopup>
         </Tooltip>
         <SelectContent>
           {cameras.map((device, index) => (

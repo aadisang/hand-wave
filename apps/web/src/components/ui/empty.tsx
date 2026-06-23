@@ -1,8 +1,10 @@
+import { cva } from "class-variance-authority";
 import type { ComponentProps, ReactElement } from "react";
 import { cn } from "@/lib/utils";
 
-const mediaClassName =
-  "relative flex size-9 shrink-0 items-center justify-center rounded-md border bg-card text-foreground shadow-sm/5 [&_svg]:size-4.5 [&_svg]:shrink-0";
+const emptyMediaFrameVariants = cva(
+  "relative flex size-9 shrink-0 items-center justify-center rounded-md border bg-card text-foreground shadow-sm/5 [&_svg]:size-4.5 [&_svg]:shrink-0",
+);
 
 export function Empty({
   className,
@@ -51,19 +53,19 @@ export function EmptyMedia({
     >
       <div
         aria-hidden="true"
-        className={cn(
-          mediaClassName,
-          "pointer-events-none absolute bottom-px origin-bottom-left -translate-x-0.5 -rotate-10 scale-84 shadow-none",
-        )}
+        className={emptyMediaFrameVariants({
+          className:
+            "pointer-events-none absolute bottom-px origin-bottom-left -translate-x-0.5 -rotate-10 scale-84 shadow-none",
+        })}
       />
       <div
         aria-hidden="true"
-        className={cn(
-          mediaClassName,
-          "pointer-events-none absolute bottom-px origin-bottom-right translate-x-0.5 rotate-10 scale-84 shadow-none",
-        )}
+        className={emptyMediaFrameVariants({
+          className:
+            "pointer-events-none absolute bottom-px origin-bottom-right translate-x-0.5 rotate-10 scale-84 shadow-none",
+        })}
       />
-      <div className={mediaClassName}>{children}</div>
+      <div className={emptyMediaFrameVariants()}>{children}</div>
     </div>
   );
 }

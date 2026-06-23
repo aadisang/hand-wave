@@ -114,8 +114,7 @@ body {
 
   --spacing-stage-content: 100rem;
   --spacing-action: 2.25rem;
-  --spacing-control-center: 2.5rem;
-  --spacing-control-select: 12.5rem;
+  --spacing-control-center: 2.75rem;
   --spacing-dev-panel: 18rem;
 
   --radius-md: calc(var(--radius) * 0.8);
@@ -152,7 +151,7 @@ body {
 @layer components {
   .stage-frame {
     width: min(
-      100%,
+      calc(100svw - 2rem),
       var(--spacing-stage-content),
       calc((100svh - var(--stage-page-chrome)) * 16 / 9)
     );

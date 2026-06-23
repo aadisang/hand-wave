@@ -3,6 +3,7 @@
 import { Toolbar as ToolbarPrimitive } from "@base-ui/react/toolbar";
 import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
+import { surfaceVariants } from "./surface-variants";
 
 export function Toolbar({
   className,
@@ -11,7 +12,8 @@ export function Toolbar({
   return (
     <ToolbarPrimitive.Root
       className={cn(
-        "relative flex gap-2 rounded-xl border bg-card not-dark:bg-clip-padding p-1 text-card-foreground",
+        surfaceVariants({ padding: "toolbar" }),
+        "relative flex gap-2",
         className,
       )}
       data-slot="toolbar"
