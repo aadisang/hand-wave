@@ -34,15 +34,6 @@ function Home() {
           target="_blank"
         >
           Aadi Sanghvi
-        </a>{" "}
-        and{" "}
-        <a
-          className="text-foreground transition-colors hover:text-muted-foreground"
-          href="https://www.linkedin.com/in/shiven-velagapudi/"
-          rel="noreferrer"
-          target="_blank"
-        >
-          Shiven Velagapudi
         </a>
       </footer>
     </div>
