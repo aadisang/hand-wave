@@ -36,7 +36,7 @@
   --secondary: --alpha(var(--color-black) / 4%);
   --secondary-foreground: var(--color-neutral-800);
   --stage: var(--color-neutral-950);
-  --stage-page-chrome: 5rem;
+  --stage-page-chrome: 3.75rem;
   --toolbar: --alpha(var(--color-white) / 72%);
   --radius: 0.625rem;
 }
@@ -66,7 +66,7 @@
   --secondary: --alpha(var(--color-white) / 5%);
   --secondary-foreground: oklch(0.97 0 0);
   --stage: var(--color-neutral-950);
-  --stage-page-chrome: 5rem;
+  --stage-page-chrome: 3.75rem;
   --toolbar: --alpha(var(--background) / 72%);
 }
 
@@ -151,7 +151,7 @@ body {
 @layer components {
   .stage-frame {
     width: min(
-      calc(100svw - 2rem),
+      calc(100svw - clamp(1.5rem, 2vw, 2rem)),
       var(--spacing-stage-content),
       calc((100svh - var(--stage-page-chrome)) * 16 / 9)
     );
