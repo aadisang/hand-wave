@@ -1,8 +1,5 @@
 import SwiftUI
 
-// Layout and motion tokens. 8-pt grid; the easing matches the web client's
-// `cubic-bezier(0.23, 1, 0.32, 1)`.
-
 enum Spacing {
   static let xs: CGFloat = 4
   static let sm: CGFloat = 8

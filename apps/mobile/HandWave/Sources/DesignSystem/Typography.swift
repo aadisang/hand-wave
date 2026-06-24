@@ -1,9 +1,6 @@
 import CoreText
 import SwiftUI
 
-// Satoshi — the same typeface as the web client. The variable WOFF2 can't load
-// on iOS, so four static TTFs live in `Resources/Fonts` and register at launch.
-
 enum AppFont {
   static func register() {
     for face in ["Satoshi-Regular", "Satoshi-SemiBold"] {
@@ -18,7 +15,9 @@ enum AppFont {
 }
 
 extension Font {
-  static func satoshi(_ size: CGFloat, _ weight: Font.Weight, relativeTo style: Font.TextStyle = .body) -> Font {
+  static func satoshi(
+    _ size: CGFloat, _ weight: Font.Weight, relativeTo style: Font.TextStyle = .body
+  ) -> Font {
     .custom(AppFont.name(for: weight), size: size, relativeTo: style)
   }
 
