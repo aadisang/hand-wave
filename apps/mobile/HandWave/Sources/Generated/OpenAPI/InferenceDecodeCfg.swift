@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceDecodeCfg.swift
 //
@@ -9,20 +10,21 @@ import Foundation
 
 public struct InferenceDecodeCfg: Sendable, Codable, Hashable {
 
-  public var window: Int
+    public var window: Int
 
-  public init(window: Int) {
-    self.window = window
-  }
+    public init(window: Int) {
+        self.window = window
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case window
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case window
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(window, forKey: .window)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(window, forKey: .window)
+    }
 }
+

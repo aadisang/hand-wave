@@ -15,6 +15,8 @@
     "**/.venv",
     "**/__pycache__",
     "apps/web/src/routeTree.gen.ts",
+    "apps/web/src/lib/inference/openapi.ts",
+    "packages/contract/generated",
     "pnpm-lock.yaml",
     "uv.lock"
   ]

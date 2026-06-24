@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceLandmarkFrame.swift
 //

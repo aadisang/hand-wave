@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferencePrediction.swift
 //
@@ -9,39 +10,37 @@ import Foundation
 
 public struct InferencePrediction: Sendable, Codable, Hashable {
 
-  public var label: String
-  public var confidence: Double
-  public var logitScore: Double?
-  public var lmScore: Double?
-  public var rawLabel: String?
+    public var label: String
+    public var confidence: Double
+    public var logitScore: Double?
+    public var lmScore: Double?
+    public var rawLabel: String?
 
-  public init(
-    label: String, confidence: Double, logitScore: Double? = nil, lmScore: Double? = nil,
-    rawLabel: String? = nil
-  ) {
-    self.label = label
-    self.confidence = confidence
-    self.logitScore = logitScore
-    self.lmScore = lmScore
-    self.rawLabel = rawLabel
-  }
+    public init(label: String, confidence: Double, logitScore: Double? = nil, lmScore: Double? = nil, rawLabel: String? = nil) {
+        self.label = label
+        self.confidence = confidence
+        self.logitScore = logitScore
+        self.lmScore = lmScore
+        self.rawLabel = rawLabel
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case label
-    case confidence
-    case logitScore = "logit_score"
-    case lmScore = "lm_score"
-    case rawLabel = "raw_label"
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case label
+        case confidence
+        case logitScore = "logit_score"
+        case lmScore = "lm_score"
+        case rawLabel = "raw_label"
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(label, forKey: .label)
-    try container.encode(confidence, forKey: .confidence)
-    try container.encodeIfPresent(logitScore, forKey: .logitScore)
-    try container.encodeIfPresent(lmScore, forKey: .lmScore)
-    try container.encodeIfPresent(rawLabel, forKey: .rawLabel)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(label, forKey: .label)
+        try container.encode(confidence, forKey: .confidence)
+        try container.encodeIfPresent(logitScore, forKey: .logitScore)
+        try container.encodeIfPresent(lmScore, forKey: .lmScore)
+        try container.encodeIfPresent(rawLabel, forKey: .rawLabel)
+    }
 }
+

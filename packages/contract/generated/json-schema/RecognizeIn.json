@@ -1,31 +1,33 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/RecognizeIn.json",
-  "type": "object",
-  "properties": {
-    "frames": {
-      "type": "array",
-      "items": {
-        "$ref": "https://hand-wave.local/schemas/LandmarkFrame.json"
-      },
-      "maxItems": 512
-    },
-    "state": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/RecognitionState.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognizeIn.json",
+    "type": "object",
+    "properties": {
+        "frames": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/LandmarkFrame.json"
+            },
+            "maxItems": 512
         },
-        {
-          "type": "null"
+        "state": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/RecognitionState.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
+        "context": {
+            "$ref": "https://hand-wave.local/schemas/RecognitionContext.json"
+        },
+        "finalize": {
+            "type": "boolean"
         }
-      ]
     },
-    "context": {
-      "$ref": "https://hand-wave.local/schemas/RecognitionContext.json"
-    },
-    "finalize": {
-      "type": "boolean"
-    }
-  },
-  "required": ["context"]
+    "required": [
+        "context"
+    ]
 }

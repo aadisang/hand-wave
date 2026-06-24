@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceMpCfg.swift
 //
@@ -9,20 +10,21 @@ import Foundation
 
 public struct InferenceMpCfg: Sendable, Codable, Hashable {
 
-  public var smooth: InferenceSmoothSet
+    public var smooth: InferenceSmoothSet
 
-  public init(smooth: InferenceSmoothSet) {
-    self.smooth = smooth
-  }
+    public init(smooth: InferenceSmoothSet) {
+        self.smooth = smooth
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case smooth
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case smooth
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(smooth, forKey: .smooth)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(smooth, forKey: .smooth)
+    }
 }
+

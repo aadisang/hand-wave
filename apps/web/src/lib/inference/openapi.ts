@@ -4,248 +4,248 @@
  */
 
 export interface paths {
-  "/v1/predict": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/predict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Routes_predict"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["Routes_predict"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/recognize": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/recognize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Routes_recognize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["Routes_recognize"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    Config: {
-      decode: components["schemas"]["DecodeCfg"];
-      stream: components["schemas"]["StreamCfg"];
-      mp: components["schemas"]["MpCfg"];
+    schemas: {
+        Config: {
+            decode: components["schemas"]["DecodeCfg"];
+            stream: components["schemas"]["StreamCfg"];
+            mp: components["schemas"]["MpCfg"];
+        };
+        DecodeCfg: {
+            /** Format: int32 */
+            window: number;
+        };
+        DecodeTrace: {
+            /** Format: int32 */
+            buffered_frames: number;
+            input_text: string;
+            display_text: string;
+            /** Format: int32 */
+            idle_frames: number;
+            /** Format: double */
+            motion: number;
+            /** Format: double */
+            latency_ms: number;
+        };
+        /** @enum {string} */
+        EndpointReason: "idle" | "landmark-lost";
+        FinalizeTrace: {
+            text: string;
+            /** Format: double */
+            confidence: number;
+            committed: boolean;
+            endpoint_reason: components["schemas"]["EndpointReason"];
+            /** Format: int32 */
+            segment_frames: number;
+        };
+        LandmarkFrame: number[];
+        MpCfg: {
+            smooth: components["schemas"]["SmoothSet"];
+        };
+        PredictIn: {
+            frames: components["schemas"]["LandmarkFrame"][];
+        };
+        PredictOut: {
+            prediction: components["schemas"]["Prediction"];
+            alternatives: components["schemas"]["Prediction"][];
+            spans: components["schemas"]["Span"][];
+            greedy_text: string;
+            /** Format: double */
+            blank_ratio: number;
+            /** Format: double */
+            tail_blank_ratio: number;
+            /** Format: int32 */
+            tail_blank_frames: number;
+            partial_text: string;
+            stable_text: string;
+        };
+        Prediction: {
+            label: string;
+            /** Format: double */
+            confidence: number;
+            logit_score?: number | null;
+            lm_score?: number | null;
+            raw_label?: string | null;
+        };
+        RecognitionContext: {
+            /** Format: int32 */
+            idle_frames: number;
+            /** Format: int32 */
+            missing_frames: number;
+            /** Format: int32 */
+            segment_frames: number;
+            /** Format: double */
+            motion: number;
+            endpoint_reason?: components["schemas"]["EndpointReason"] | null;
+        };
+        RecognitionCount: {
+            text: string;
+            /** Format: int32 */
+            count: number;
+        };
+        RecognitionScored: {
+            prediction: components["schemas"]["Prediction"];
+            /** Format: double */
+            score: number;
+            source: string;
+            lm_score?: number | null;
+            model_agrees: boolean;
+            /** Format: int32 */
+            streak: number;
+        };
+        RecognitionState: {
+            display?: components["schemas"]["RecognitionScored"] | null;
+            final_candidate?: components["schemas"]["RecognitionScored"] | null;
+            selected_text: string;
+            /** Format: int32 */
+            selected_streak: number;
+            /** Format: int32 */
+            display_misses: number;
+            counts: components["schemas"]["RecognitionCount"][];
+        };
+        RecognitionTrace: {
+            prediction?: components["schemas"]["PredictOut"] | null;
+            decode?: components["schemas"]["DecodeTrace"] | null;
+            finalize?: components["schemas"]["FinalizeTrace"] | null;
+        };
+        RecognizeIn: {
+            frames?: components["schemas"]["LandmarkFrame"][];
+            state?: components["schemas"]["RecognitionState"] | null;
+            context: components["schemas"]["RecognitionContext"];
+            finalize?: boolean;
+        };
+        RecognizeOut: {
+            state: components["schemas"]["RecognitionState"];
+            display_prediction?: components["schemas"]["Prediction"] | null;
+            committed: boolean;
+            trace: components["schemas"]["RecognitionTrace"];
+        };
+        SmoothCfg: {
+            /** Format: double */
+            freq: number;
+            /** Format: double */
+            cutoff: number;
+            /** Format: double */
+            beta: number;
+            /** Format: double */
+            dCutoff: number;
+        };
+        SmoothSet: {
+            hand: components["schemas"]["SmoothCfg"];
+            pose: components["schemas"]["SmoothCfg"];
+        };
+        Span: {
+            /** Format: int32 */
+            start_frame: number;
+            /** Format: int32 */
+            end_frame: number;
+            text: string;
+        };
+        StreamCfg: {
+            /** Format: int32 */
+            fps: number;
+            /** Format: int32 */
+            min: number;
+            /** Format: int32 */
+            stride: number;
+            /** Format: int32 */
+            idle: number;
+            /** Format: int32 */
+            lost: number;
+            /** Format: int32 */
+            holdMs: number;
+            /** Format: double */
+            motion: number;
+        };
     };
-    DecodeCfg: {
-      /** Format: int32 */
-      window: number;
-    };
-    DecodeTrace: {
-      /** Format: int32 */
-      buffered_frames: number;
-      input_text: string;
-      display_text: string;
-      /** Format: int32 */
-      idle_frames: number;
-      /** Format: double */
-      motion: number;
-      /** Format: double */
-      latency_ms: number;
-    };
-    /** @enum {string} */
-    EndpointReason: "idle" | "landmark-lost";
-    FinalizeTrace: {
-      text: string;
-      /** Format: double */
-      confidence: number;
-      committed: boolean;
-      endpoint_reason: components["schemas"]["EndpointReason"];
-      /** Format: int32 */
-      segment_frames: number;
-    };
-    LandmarkFrame: number[];
-    MpCfg: {
-      smooth: components["schemas"]["SmoothSet"];
-    };
-    PredictIn: {
-      frames: components["schemas"]["LandmarkFrame"][];
-    };
-    PredictOut: {
-      prediction: components["schemas"]["Prediction"];
-      alternatives: components["schemas"]["Prediction"][];
-      spans: components["schemas"]["Span"][];
-      greedy_text: string;
-      /** Format: double */
-      blank_ratio: number;
-      /** Format: double */
-      tail_blank_ratio: number;
-      /** Format: int32 */
-      tail_blank_frames: number;
-      partial_text: string;
-      stable_text: string;
-    };
-    Prediction: {
-      label: string;
-      /** Format: double */
-      confidence: number;
-      logit_score?: number | null;
-      lm_score?: number | null;
-      raw_label?: string | null;
-    };
-    RecognitionContext: {
-      /** Format: int32 */
-      idle_frames: number;
-      /** Format: int32 */
-      missing_frames: number;
-      /** Format: int32 */
-      segment_frames: number;
-      /** Format: double */
-      motion: number;
-      endpoint_reason?: components["schemas"]["EndpointReason"] | null;
-    };
-    RecognitionCount: {
-      text: string;
-      /** Format: int32 */
-      count: number;
-    };
-    RecognitionScored: {
-      prediction: components["schemas"]["Prediction"];
-      /** Format: double */
-      score: number;
-      source: string;
-      lm_score?: number | null;
-      model_agrees: boolean;
-      /** Format: int32 */
-      streak: number;
-    };
-    RecognitionState: {
-      display?: components["schemas"]["RecognitionScored"] | null;
-      final_candidate?: components["schemas"]["RecognitionScored"] | null;
-      selected_text: string;
-      /** Format: int32 */
-      selected_streak: number;
-      /** Format: int32 */
-      display_misses: number;
-      counts: components["schemas"]["RecognitionCount"][];
-    };
-    RecognitionTrace: {
-      prediction?: components["schemas"]["PredictOut"] | null;
-      decode?: components["schemas"]["DecodeTrace"] | null;
-      finalize?: components["schemas"]["FinalizeTrace"] | null;
-    };
-    RecognizeIn: {
-      frames?: components["schemas"]["LandmarkFrame"][];
-      state?: components["schemas"]["RecognitionState"] | null;
-      context: components["schemas"]["RecognitionContext"];
-      finalize?: boolean;
-    };
-    RecognizeOut: {
-      state: components["schemas"]["RecognitionState"];
-      display_prediction?: components["schemas"]["Prediction"] | null;
-      committed: boolean;
-      trace: components["schemas"]["RecognitionTrace"];
-    };
-    SmoothCfg: {
-      /** Format: double */
-      freq: number;
-      /** Format: double */
-      cutoff: number;
-      /** Format: double */
-      beta: number;
-      /** Format: double */
-      dCutoff: number;
-    };
-    SmoothSet: {
-      hand: components["schemas"]["SmoothCfg"];
-      pose: components["schemas"]["SmoothCfg"];
-    };
-    Span: {
-      /** Format: int32 */
-      start_frame: number;
-      /** Format: int32 */
-      end_frame: number;
-      text: string;
-    };
-    StreamCfg: {
-      /** Format: int32 */
-      fps: number;
-      /** Format: int32 */
-      min: number;
-      /** Format: int32 */
-      stride: number;
-      /** Format: int32 */
-      idle: number;
-      /** Format: int32 */
-      lost: number;
-      /** Format: int32 */
-      holdMs: number;
-      /** Format: double */
-      motion: number;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  Routes_predict: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PredictIn"];
-      };
-    };
-    responses: {
-      /** @description The request has succeeded. */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    Routes_predict: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["PredictOut"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PredictIn"];
+            };
         };
-      };
-    };
-  };
-  Routes_recognize: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["RecognizeIn"];
-      };
-    };
-    responses: {
-      /** @description The request has succeeded. */
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PredictOut"];
+                };
+            };
         };
-        content: {
-          "application/json": components["schemas"]["RecognizeOut"];
-        };
-      };
     };
-  };
+    Routes_recognize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecognizeIn"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecognizeOut"];
+                };
+            };
+        };
+    };
 }

@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceConfig.swift
 //
@@ -9,28 +10,29 @@ import Foundation
 
 public struct InferenceConfig: Sendable, Codable, Hashable {
 
-  public var decode: InferenceDecodeCfg
-  public var stream: InferenceStreamCfg
-  public var mp: InferenceMpCfg
+    public var decode: InferenceDecodeCfg
+    public var stream: InferenceStreamCfg
+    public var mp: InferenceMpCfg
 
-  public init(decode: InferenceDecodeCfg, stream: InferenceStreamCfg, mp: InferenceMpCfg) {
-    self.decode = decode
-    self.stream = stream
-    self.mp = mp
-  }
+    public init(decode: InferenceDecodeCfg, stream: InferenceStreamCfg, mp: InferenceMpCfg) {
+        self.decode = decode
+        self.stream = stream
+        self.mp = mp
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case decode
-    case stream
-    case mp
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case decode
+        case stream
+        case mp
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(decode, forKey: .decode)
-    try container.encode(stream, forKey: .stream)
-    try container.encode(mp, forKey: .mp)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(decode, forKey: .decode)
+        try container.encode(stream, forKey: .stream)
+        try container.encode(mp, forKey: .mp)
+    }
 }
+

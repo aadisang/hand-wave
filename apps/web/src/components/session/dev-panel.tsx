@@ -107,7 +107,7 @@ function DevPanelContent() {
         <div className="mb-2 space-y-1.5 border-b pb-2">
           <textarea
             aria-label="Trace batch labels"
-            className="h-16 w-full resize-none rounded-md border border-input bg-background/70 px-2 py-1 text-foreground outline-none transition-[background-color,border-color,box-shadow] duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none"
+            className="h-trace-input w-full resize-none rounded-md border border-input bg-background/70 px-2 py-1 text-foreground outline-none transition duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none"
             onChange={(event) => setBatchText(event.currentTarget.value)}
             placeholder="one label per line"
             spellCheck={false}

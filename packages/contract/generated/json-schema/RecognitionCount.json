@@ -1,16 +1,19 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/RecognitionCount.json",
-  "type": "object",
-  "properties": {
-    "text": {
-      "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognitionCount.json",
+    "type": "object",
+    "properties": {
+        "text": {
+            "type": "string"
+        },
+        "count": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        }
     },
-    "count": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    }
-  },
-  "required": ["text", "count"]
+    "required": [
+        "text",
+        "count"
+    ]
 }

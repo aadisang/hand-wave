@@ -58,7 +58,7 @@ export const StreamToolbar = memo(function StreamToolbar({
       <TooltipProvider delay={350}>
         <Toolbar
           aria-label="Stream controls"
-          className="min-h-control-center w-fit max-w-[calc(100svw-1.5rem)] flex-nowrap items-center justify-center gap-1 px-1.5 py-1"
+          className="min-h-control-center w-fit max-w-toolbar-inset flex-nowrap items-center justify-center gap-1 px-1.5 py-1"
         >
           <ToolbarGroup className="shrink-0 justify-center">
             {isCapturing ? (

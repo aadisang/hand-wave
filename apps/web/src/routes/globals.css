@@ -116,6 +116,11 @@ body {
   --spacing-action: 2.25rem;
   --spacing-control-center: 2.75rem;
   --spacing-dev-panel: 18rem;
+  --spacing-trace-input: 4rem;
+  --spacing-toolbar-inset: calc(100svw - 1.5rem);
+
+  --shadow-stage:
+    0 28px 90px rgba(0, 0, 0, 0.36), 0 2px 10px rgba(0, 0, 0, 0.24);
 
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

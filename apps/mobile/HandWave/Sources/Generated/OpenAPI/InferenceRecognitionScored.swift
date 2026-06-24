@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognitionScored.swift
 //
@@ -9,43 +10,41 @@ import Foundation
 
 public struct InferenceRecognitionScored: Sendable, Codable, Hashable {
 
-  public var prediction: InferencePrediction
-  public var score: Double
-  public var source: String
-  public var lmScore: Double?
-  public var modelAgrees: Bool
-  public var streak: Int
+    public var prediction: InferencePrediction
+    public var score: Double
+    public var source: String
+    public var lmScore: Double?
+    public var modelAgrees: Bool
+    public var streak: Int
 
-  public init(
-    prediction: InferencePrediction, score: Double, source: String, lmScore: Double? = nil,
-    modelAgrees: Bool, streak: Int
-  ) {
-    self.prediction = prediction
-    self.score = score
-    self.source = source
-    self.lmScore = lmScore
-    self.modelAgrees = modelAgrees
-    self.streak = streak
-  }
+    public init(prediction: InferencePrediction, score: Double, source: String, lmScore: Double? = nil, modelAgrees: Bool, streak: Int) {
+        self.prediction = prediction
+        self.score = score
+        self.source = source
+        self.lmScore = lmScore
+        self.modelAgrees = modelAgrees
+        self.streak = streak
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case prediction
-    case score
-    case source
-    case lmScore = "lm_score"
-    case modelAgrees = "model_agrees"
-    case streak
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case prediction
+        case score
+        case source
+        case lmScore = "lm_score"
+        case modelAgrees = "model_agrees"
+        case streak
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(prediction, forKey: .prediction)
-    try container.encode(score, forKey: .score)
-    try container.encode(source, forKey: .source)
-    try container.encodeIfPresent(lmScore, forKey: .lmScore)
-    try container.encode(modelAgrees, forKey: .modelAgrees)
-    try container.encode(streak, forKey: .streak)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(prediction, forKey: .prediction)
+        try container.encode(score, forKey: .score)
+        try container.encode(source, forKey: .source)
+        try container.encodeIfPresent(lmScore, forKey: .lmScore)
+        try container.encode(modelAgrees, forKey: .modelAgrees)
+        try container.encode(streak, forKey: .streak)
+    }
 }
+

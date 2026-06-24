@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceSmoothSet.swift
 //
@@ -9,24 +10,25 @@ import Foundation
 
 public struct InferenceSmoothSet: Sendable, Codable, Hashable {
 
-  public var hand: InferenceSmoothCfg
-  public var pose: InferenceSmoothCfg
+    public var hand: InferenceSmoothCfg
+    public var pose: InferenceSmoothCfg
 
-  public init(hand: InferenceSmoothCfg, pose: InferenceSmoothCfg) {
-    self.hand = hand
-    self.pose = pose
-  }
+    public init(hand: InferenceSmoothCfg, pose: InferenceSmoothCfg) {
+        self.hand = hand
+        self.pose = pose
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case hand
-    case pose
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case hand
+        case pose
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(hand, forKey: .hand)
-    try container.encode(pose, forKey: .pose)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hand, forKey: .hand)
+        try container.encode(pose, forKey: .pose)
+    }
 }
+

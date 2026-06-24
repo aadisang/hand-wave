@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognitionTrace.swift
 //
@@ -9,31 +10,29 @@ import Foundation
 
 public struct InferenceRecognitionTrace: Sendable, Codable, Hashable {
 
-  public var prediction: InferencePredictOut?
-  public var decode: InferenceDecodeTrace?
-  public var finalize: InferenceFinalizeTrace?
+    public var prediction: InferencePredictOut?
+    public var decode: InferenceDecodeTrace?
+    public var finalize: InferenceFinalizeTrace?
 
-  public init(
-    prediction: InferencePredictOut? = nil, decode: InferenceDecodeTrace? = nil,
-    finalize: InferenceFinalizeTrace? = nil
-  ) {
-    self.prediction = prediction
-    self.decode = decode
-    self.finalize = finalize
-  }
+    public init(prediction: InferencePredictOut? = nil, decode: InferenceDecodeTrace? = nil, finalize: InferenceFinalizeTrace? = nil) {
+        self.prediction = prediction
+        self.decode = decode
+        self.finalize = finalize
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case prediction
-    case decode
-    case finalize
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case prediction
+        case decode
+        case finalize
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(prediction, forKey: .prediction)
-    try container.encodeIfPresent(decode, forKey: .decode)
-    try container.encodeIfPresent(finalize, forKey: .finalize)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(prediction, forKey: .prediction)
+        try container.encodeIfPresent(decode, forKey: .decode)
+        try container.encodeIfPresent(finalize, forKey: .finalize)
+    }
 }
+

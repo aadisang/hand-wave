@@ -32,7 +32,7 @@ export function Stage() {
     <div
       ref={stageRef}
       className={cn(
-        "relative aspect-video w-full overflow-hidden border bg-stage shadow-[0_28px_90px_rgba(0,0,0,0.36),0_2px_10px_rgba(0,0,0,0.24)] outline outline-1 -outline-offset-1 outline-white/10",
+        "relative aspect-video w-full overflow-hidden border bg-stage shadow-stage outline outline-1 -outline-offset-1 outline-white/10",
         full ? "rounded-none" : "rounded-2xl",
       )}
     >

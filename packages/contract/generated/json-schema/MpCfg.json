@@ -1,11 +1,13 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/MpCfg.json",
-  "type": "object",
-  "properties": {
-    "smooth": {
-      "$ref": "https://hand-wave.local/schemas/SmoothSet.json"
-    }
-  },
-  "required": ["smooth"]
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/MpCfg.json",
+    "type": "object",
+    "properties": {
+        "smooth": {
+            "$ref": "https://hand-wave.local/schemas/SmoothSet.json"
+        }
+    },
+    "required": [
+        "smooth"
+    ]
 }

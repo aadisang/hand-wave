@@ -1,37 +1,37 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/RecognitionTrace.json",
-  "type": "object",
-  "properties": {
-    "prediction": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/PredictOut.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognitionTrace.json",
+    "type": "object",
+    "properties": {
+        "prediction": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/PredictOut.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "decode": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/DecodeTrace.json"
+        "decode": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/DecodeTrace.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
-        {
-          "type": "null"
+        "finalize": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/FinalizeTrace.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         }
-      ]
-    },
-    "finalize": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/FinalizeTrace.json"
-        },
-        {
-          "type": "null"
-        }
-      ]
     }
-  }
 }

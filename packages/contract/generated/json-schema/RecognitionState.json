@@ -1,47 +1,52 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/RecognitionState.json",
-  "type": "object",
-  "properties": {
-    "display": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/RecognitionScored.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognitionState.json",
+    "type": "object",
+    "properties": {
+        "display": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/RecognitionScored.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "final_candidate": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/RecognitionScored.json"
+        "final_candidate": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/RecognitionScored.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
-        {
-          "type": "null"
+        "selected_text": {
+            "type": "string"
+        },
+        "selected_streak": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "display_misses": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "counts": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/RecognitionCount.json"
+            }
         }
-      ]
     },
-    "selected_text": {
-      "type": "string"
-    },
-    "selected_streak": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "display_misses": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "counts": {
-      "type": "array",
-      "items": {
-        "$ref": "https://hand-wave.local/schemas/RecognitionCount.json"
-      }
-    }
-  },
-  "required": ["selected_text", "selected_streak", "display_misses", "counts"]
+    "required": [
+        "selected_text",
+        "selected_streak",
+        "display_misses",
+        "counts"
+    ]
 }

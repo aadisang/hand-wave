@@ -1,13 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/DecodeCfg.json",
-  "type": "object",
-  "properties": {
-    "window": {
-      "type": "integer",
-      "minimum": 8,
-      "maximum": 512
-    }
-  },
-  "required": ["window"]
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/DecodeCfg.json",
+    "type": "object",
+    "properties": {
+        "window": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 512
+        }
+    },
+    "required": [
+        "window"
+    ]
 }
