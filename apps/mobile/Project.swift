@@ -84,6 +84,9 @@ let project = Project(
       bundleId: "sh.handwave.HandWave",
       deploymentTargets: .iOS("26.0"),
       infoPlist: .extendingDefault(with: infoPlist),
+      resources: [
+        "../../packages/contract/config.json"
+      ],
       buildableFolders: [
         "HandWave/Sources",
         "HandWave/Resources",
