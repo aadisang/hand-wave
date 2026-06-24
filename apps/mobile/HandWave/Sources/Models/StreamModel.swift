@@ -26,7 +26,7 @@ final class StreamModel {
   private let speech = Speech()
   private let frameGate = FrameGate(previewFPS: 24, recognitionFPS: 10)
   private var session: DeviceSession?
-  private var stream: StreamSession?
+  private var stream: MWDATCamera.Stream?
   private var stateToken: AnyListenerToken?
   private var frameToken: AnyListenerToken?
   private var errorToken: AnyListenerToken?
@@ -87,12 +87,12 @@ final class StreamModel {
   private func openStream(on session: DeviceSession) async {
     speech.prepareForStreaming()
 
-    let config = StreamSessionConfig(
+    let config = StreamConfiguration(
       videoCodec: .raw,
       resolution: .low,
       frameRate: 24
     )
-    let stream: StreamSession
+    let stream: MWDATCamera.Stream
     do {
       guard let opened = try session.addStream(config: config) else {
         errorMessage = "Couldn't open stream — the device rejected the configuration."
