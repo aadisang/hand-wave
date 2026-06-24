@@ -34,9 +34,9 @@ tasks:
       - "config.json"
       - "moon.yml"
       - "openapitools.json"
+      - "swift6-models.yaml"
       - "package.json"
       - "/pnpm-lock.yaml"
-      - "scripts/**/*"
       - "src/**/*"
       - "generated/**/*"
       - "/.oxfmtrc.json"
@@ -54,21 +54,242 @@ tasks:
       - "tspconfig.yaml"
       - "config.json"
       - "moon.yml"
+      - "openapitools.json"
+      - "swift6-models.yaml"
       - "package.json"
       - "/pnpm-lock.yaml"
-      - "scripts/**/*"
       - "src/**/*"
       - "generated/**/*"
       - "/.oxfmtrc.json"
+
+  cleanGenerated:
+    command:
+      - "rm"
+      - "-rf"
+      - "generated"
+      - "../../apps/web/src/lib/inference/openapi.ts"
+      - "../../apps/mobile/HandWave/Sources/Generated/OpenAPI"
+      - "../../apps/inference/src/inference/generated_schemas.py"
+    preset: "utility"
+
+  compile:
+    command:
+      - "pnpm"
+      - "exec"
+      - "tsp"
+      - "compile"
+      - "."
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "moon.yml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
+    outputs:
+      - "generated/**/*"
+
+  compileFresh:
+    command:
+      - "pnpm"
+      - "exec"
+      - "tsp"
+      - "compile"
+      - "."
+    deps:
+      - "cleanGenerated"
+    inputs:
+      - "main.tsp"
+      - "tspconfig.yaml"
+      - "moon.yml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
+    outputs:
+      - "generated/**/*"
+    options:
+      cache: false
+
+  validateConfig:
+    command:
+      - "pnpm"
+      - "exec"
+      - "ajv"
+      - "validate"
+      - "--spec=draft2020"
+      - "-s"
+      - "generated/json-schema/Config.json"
+      - "-r"
+      - "generated/json-schema/DecodeCfg.json"
+      - "-r"
+      - "generated/json-schema/StreamCfg.json"
+      - "-r"
+      - "generated/json-schema/MpCfg.json"
+      - "-r"
+      - "generated/json-schema/SmoothSet.json"
+      - "-r"
+      - "generated/json-schema/SmoothCfg.json"
+      - "-d"
+      - "config.json"
+    deps:
+      - "compileFresh"
+    inputs:
+      - "config.json"
+      - "generated/json-schema/**/*.json"
+      - "package.json"
+      - "/pnpm-lock.yaml"
+
+  generateWeb:
+    command:
+      - "pnpm"
+      - "--dir"
+      - "../../apps/web"
+      - "exec"
+      - "openapi-typescript"
+      - "../../packages/contract/generated/openapi/openapi.json"
+      - "-o"
+      - "src/lib/inference/openapi.ts"
+    deps:
+      - "compileFresh"
+    options:
+      cache: false
+    inputs:
+      - "generated/openapi/openapi.json"
+      - "/apps/web/package.json"
+      - "/pnpm-lock.yaml"
+    outputs:
+      - "/apps/web/src/lib/inference/openapi.ts"
+
+  formatWeb:
+    command:
+      - "pnpm"
+      - "--dir"
+      - "../../apps/web"
+      - "exec"
+      - "oxfmt"
+      - "--write"
+      - "src/lib/inference/openapi.ts"
+    deps:
+      - "generateWeb"
+    options:
+      cache: false
+    inputs:
+      - "/apps/web/src/lib/inference/openapi.ts"
+      - "/apps/web/package.json"
+      - "/pnpm-lock.yaml"
+      - "/.oxfmtrc.json"
+    outputs:
+      - "/apps/web/src/lib/inference/openapi.ts"
+
+  generatePython:
+    command:
+      - "uv"
+      - "run"
+      - "--project"
+      - "../../apps/inference"
+      - "--group"
+      - "dev"
+      - "datamodel-codegen"
+      - "--input"
+      - "generated/openapi/openapi.json"
+      - "--input-file-type"
+      - "openapi"
+      - "--output-model-type"
+      - "pydantic_v2.BaseModel"
+      - "--field-constraints"
+      - "--use-annotated"
+      - "--disable-timestamp"
+      - "--formatters"
+      - "isort"
+      - "ruff-format"
+      - "--output"
+      - "../../apps/inference/src/inference/generated_schemas.py"
+    deps:
+      - "compileFresh"
+    options:
+      cache: false
+    inputs:
+      - "generated/openapi/openapi.json"
+      - "/apps/inference/pyproject.toml"
+      - "/apps/inference/uv.lock"
+    outputs:
+      - "/apps/inference/src/inference/generated_schemas.py"
+
+  formatPython:
+    command:
+      - "uv"
+      - "run"
+      - "--project"
+      - "../../apps/inference"
+      - "--group"
+      - "dev"
+      - "ruff"
+      - "format"
+      - "../../apps/inference/src/inference/generated_schemas.py"
+    deps:
+      - "generatePython"
+    options:
+      cache: false
+    inputs:
+      - "/apps/inference/src/inference/generated_schemas.py"
+      - "/apps/inference/pyproject.toml"
+      - "/apps/inference/uv.lock"
+    outputs:
+      - "/apps/inference/src/inference/generated_schemas.py"
+
+  generateSwift:
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        JAVA_OPTS=-Dlog.level=error pnpm exec openapi-generator-cli generate
+        -g swift6
+        -i generated/openapi/openapi.json
+        -o ../../apps/mobile/HandWave/Sources/Generated/OpenAPI
+        --global-property models,modelDocs=false,modelTests=false,apis=false,supportingFiles=false
+        --additional-properties generateAliasAsModel=true
+        -c swift6-models.yaml
+        >/dev/null
+    deps:
+      - "compileFresh"
+    options:
+      cache: false
+    inputs:
+      - "generated/openapi/openapi.json"
+      - "openapitools.json"
+      - "swift6-models.yaml"
+      - "package.json"
+      - "/pnpm-lock.yaml"
+    outputs:
+      - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*"
+
+  formatSwift:
+    command:
+      - "swift"
+      - "format"
+      - "--recursive"
+      - "--in-place"
+      - "../../apps/mobile/HandWave/Sources/Generated/OpenAPI"
+    deps:
+      - "generateSwift"
+    options:
+      cache: false
+    inputs:
+      - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*.swift"
+    outputs:
+      - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*.swift"
 
   generate:
     command:
       - "pnpm"
       - "exec"
-      - "node"
-      - "scripts/generate.mjs"
-    options:
-      cache: false
+      - "oxfmt"
+      - "--write"
+      - "generated"
+      - "src/index.ts"
+    deps:
+      - "validateConfig"
+      - "formatWeb"
+      - "formatPython"
+      - "formatSwift"
     inputs:
       - "main.tsp"
       - "tspconfig.yaml"
@@ -79,14 +300,12 @@ tasks:
       - "/apps/inference/pyproject.toml"
       - "/apps/inference/uv.lock"
       - "/apps/web/package.json"
-      - "scripts/generate.mjs"
-      - "scripts/validate.mjs"
-      - "scripts/check.mjs"
+      - "openapitools.json"
+      - "swift6-models.yaml"
+      - "src/index.ts"
     outputs:
       - "generated/**/*"
-      - "src/generated.ts"
       - "/apps/web/src/lib/inference/openapi.ts"
-      - "/apps/mobile/HandWave/Sources/Generated/InferCfg.swift"
       - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*"
       - "/apps/inference/src/inference/generated_schemas.py"
 
@@ -94,8 +313,25 @@ tasks:
     command:
       - "pnpm"
       - "exec"
-      - "node"
-      - "scripts/check.mjs"
+      - "ajv"
+      - "validate"
+      - "--spec=draft2020"
+      - "-s"
+      - "generated/json-schema/Config.json"
+      - "-r"
+      - "generated/json-schema/DecodeCfg.json"
+      - "-r"
+      - "generated/json-schema/StreamCfg.json"
+      - "-r"
+      - "generated/json-schema/MpCfg.json"
+      - "-r"
+      - "generated/json-schema/SmoothSet.json"
+      - "-r"
+      - "generated/json-schema/SmoothCfg.json"
+      - "-d"
+      - "config.json"
+    deps:
+      - "compile"
     inputs:
       - "main.tsp"
       - "tspconfig.yaml"
@@ -103,5 +339,4 @@ tasks:
       - "moon.yml"
       - "package.json"
       - "/pnpm-lock.yaml"
-      - "scripts/validate.mjs"
-      - "scripts/check.mjs"
+      - "generated/json-schema/**/*.json"
