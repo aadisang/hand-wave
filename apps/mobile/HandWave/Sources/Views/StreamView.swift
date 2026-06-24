@@ -25,8 +25,6 @@ private struct StreamContent: View {
 
   var body: some View {
     ZStack {
-      // Full-bleed camera stage. Only this layer ignores the safe area, so the
-      // floating controls stay clear of the notch and home indicator.
       ZStack {
         Color.stage
         PreviewPane(frame: latestFrame)
@@ -58,14 +56,10 @@ private struct StreamContent: View {
   }
 }
 
-// MARK: - Prediction
-
 private struct PredictionOverlay: View {
   let prediction: InferSession.Pred
 
   var body: some View {
-    // Hierarchy: the recognized sign is the whole point of the screen, so it
-    // gets real size and weight — not a caption.
     Text(prediction.text)
       .font(.satoshi(22, .semibold))
       .foregroundStyle(.textPrimary)
@@ -73,13 +67,10 @@ private struct PredictionOverlay: View {
       .minimumScaleFactor(0.6)
       .padding(.horizontal, Spacing.xl)
       .padding(.vertical, Spacing.md)
-    .glassEffect(.regular, in: .capsule)
-    // Mirrors the web prediction overlay: blur + subtle scale.
-    .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
+      .glassEffect(.regular, in: .capsule)
+      .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
   }
 }
-
-// MARK: - Controls
 
 private struct ControlBar: View {
   @Binding var showLandmarks: Bool
@@ -115,8 +106,6 @@ private struct ControlBar: View {
     .sensoryFeedback(Haptic.toggle, trigger: showLandmarks)
   }
 }
-
-// MARK: - Camera
 
 private struct PreviewPane: View {
   let frame: UIImage?

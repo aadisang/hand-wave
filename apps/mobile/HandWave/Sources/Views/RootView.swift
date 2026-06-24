@@ -63,7 +63,6 @@ struct RootView: View {
   }
 }
 
-/// App-wide event haptics, driven off observable state transitions.
 private struct EventHaptics: ViewModifier {
   let registered: Bool
   let streamActive: Bool
@@ -74,7 +73,9 @@ private struct EventHaptics: ViewModifier {
     content
       .sensoryFeedback(trigger: registered) { _, isOn in isOn ? Haptic.connected : nil }
       .sensoryFeedback(trigger: streamActive) { _, isOn in isOn ? Haptic.streamLive : nil }
-      .sensoryFeedback(trigger: wearablesError) { _, message in message != nil ? Haptic.failure : nil }
+      .sensoryFeedback(trigger: wearablesError) { _, message in
+        message != nil ? Haptic.failure : nil
+      }
       .sensoryFeedback(trigger: streamError) { _, message in message != nil ? Haptic.failure : nil }
   }
 }
