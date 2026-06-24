@@ -3,6 +3,20 @@ import SwiftUI
 struct LandmarkOverlay: View {
   let frame: HandLandmarksFrame
 
+  /// Visual constants for the skeleton, matched to the web client's
+  /// `landmarks-overlay` (emerald hands, sky-blue pose) so both clients render
+  /// identically.
+  private enum Style {
+    static let handPoint = Color(hex: 0x10B981).opacity(0.95) // emerald-500
+    static let handLine = Color.white.opacity(0.85)
+    static let posePoint = Color(hex: 0x60A5FA).opacity(0.85) // blue-400
+    static let poseLine = Color(hex: 0x93C5FD).opacity(0.55) // blue-300
+    static let handLineWidth: CGFloat = 3
+    static let poseLineWidth: CGFloat = 2
+    static let handRadius: CGFloat = 3
+    static let poseRadius: CGFloat = 2.5
+  }
+
   var body: some View {
     Canvas { context, size in
       guard !frame.isEmpty else { return }
@@ -13,10 +27,10 @@ struct LandmarkOverlay: View {
           in: pose,
           on: &context,
           size: size,
-          color: .blue.opacity(0.55),
-          lineWidth: 2
+          color: Style.poseLine,
+          lineWidth: Style.poseLineWidth
         )
-        drawPoints(pose, on: &context, size: size, color: .blue.opacity(0.85), radius: 2.5)
+        drawPoints(pose, on: &context, size: size, color: Style.posePoint, radius: Style.poseRadius)
       }
 
       for hand in frame.rightHandLandmarks + frame.leftHandLandmarks {
@@ -25,10 +39,10 @@ struct LandmarkOverlay: View {
           in: hand,
           on: &context,
           size: size,
-          color: .white.opacity(0.85),
-          lineWidth: 3
+          color: Style.handLine,
+          lineWidth: Style.handLineWidth
         )
-        drawPoints(hand, on: &context, size: size, color: .cyan, radius: 3)
+        drawPoints(hand, on: &context, size: size, color: Style.handPoint, radius: Style.handRadius)
       }
     }
     .allowsHitTesting(false)
