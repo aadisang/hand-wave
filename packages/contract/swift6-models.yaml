@@ -1,0 +1,7 @@
+responseAs: AsyncAwait
+projectName: HandWaveInference
+generateAliasAsModel: true
+validatable: false
+modelNamePrefix: Inference
+swiftPackagePath: .
+modelPackage: .

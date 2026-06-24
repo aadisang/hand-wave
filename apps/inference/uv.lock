@@ -380,6 +380,7 @@ deploy = [
     { name = "modal" },
 ]
 dev = [
+    { name = "black" },
     { name = "datamodel-code-generator" },
     { name = "httpx" },
     { name = "pyright" },
@@ -403,6 +404,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 deploy = [{ name = "modal", specifier = ">=1.0.0" }]
 dev = [
+    { name = "black", specifier = ">=26.5.1" },
     { name = "datamodel-code-generator", specifier = ">=0.58.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pyright", specifier = ">=1.1.390" },

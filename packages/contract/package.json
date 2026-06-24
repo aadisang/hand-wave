@@ -4,8 +4,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/generated.ts",
-      "default": "./src/generated.ts"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./config.json": "./config.json",
     "./openapi.json": "./generated/openapi/openapi.json",
@@ -17,6 +17,7 @@
     "@typespec/http": "^1.12.0",
     "@typespec/json-schema": "^1.12.0",
     "@typespec/openapi3": "^1.12.0",
+    "ajv-cli": "^5.0.0",
     "oxfmt": "^0.50.0"
   }
 }

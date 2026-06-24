@@ -30,8 +30,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+**/.ruff_cache/
 
 *.log
+
+apps/mobile/HandWave/Sources/Generated/OpenAPI/.openapi-generator/
 
 .moon/cache/
 .moon/docker/
