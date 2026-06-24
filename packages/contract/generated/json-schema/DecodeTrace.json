@@ -1,37 +1,37 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/DecodeTrace.json",
-  "type": "object",
-  "properties": {
-    "buffered_frames": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/DecodeTrace.json",
+    "type": "object",
+    "properties": {
+        "buffered_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "input_text": {
+            "type": "string"
+        },
+        "display_text": {
+            "type": "string"
+        },
+        "idle_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "motion": {
+            "type": "number"
+        },
+        "latency_ms": {
+            "type": "number"
+        }
     },
-    "input_text": {
-      "type": "string"
-    },
-    "display_text": {
-      "type": "string"
-    },
-    "idle_frames": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "motion": {
-      "type": "number"
-    },
-    "latency_ms": {
-      "type": "number"
-    }
-  },
-  "required": [
-    "buffered_frames",
-    "input_text",
-    "display_text",
-    "idle_frames",
-    "motion",
-    "latency_ms"
-  ]
+    "required": [
+        "buffered_frames",
+        "input_text",
+        "display_text",
+        "idle_frames",
+        "motion",
+        "latency_ms"
+    ]
 }

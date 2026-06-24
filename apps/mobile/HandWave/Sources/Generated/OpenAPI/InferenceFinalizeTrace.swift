@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceFinalizeTrace.swift
 //
@@ -9,39 +10,37 @@ import Foundation
 
 public struct InferenceFinalizeTrace: Sendable, Codable, Hashable {
 
-  public var text: String
-  public var confidence: Double
-  public var committed: Bool
-  public var endpointReason: InferenceEndpointReason
-  public var segmentFrames: Int
+    public var text: String
+    public var confidence: Double
+    public var committed: Bool
+    public var endpointReason: InferenceEndpointReason
+    public var segmentFrames: Int
 
-  public init(
-    text: String, confidence: Double, committed: Bool, endpointReason: InferenceEndpointReason,
-    segmentFrames: Int
-  ) {
-    self.text = text
-    self.confidence = confidence
-    self.committed = committed
-    self.endpointReason = endpointReason
-    self.segmentFrames = segmentFrames
-  }
+    public init(text: String, confidence: Double, committed: Bool, endpointReason: InferenceEndpointReason, segmentFrames: Int) {
+        self.text = text
+        self.confidence = confidence
+        self.committed = committed
+        self.endpointReason = endpointReason
+        self.segmentFrames = segmentFrames
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case text
-    case confidence
-    case committed
-    case endpointReason = "endpoint_reason"
-    case segmentFrames = "segment_frames"
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case text
+        case confidence
+        case committed
+        case endpointReason = "endpoint_reason"
+        case segmentFrames = "segment_frames"
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(text, forKey: .text)
-    try container.encode(confidence, forKey: .confidence)
-    try container.encode(committed, forKey: .committed)
-    try container.encode(endpointReason, forKey: .endpointReason)
-    try container.encode(segmentFrames, forKey: .segmentFrames)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(text, forKey: .text)
+        try container.encode(confidence, forKey: .confidence)
+        try container.encode(committed, forKey: .committed)
+        try container.encode(endpointReason, forKey: .endpointReason)
+        try container.encode(segmentFrames, forKey: .segmentFrames)
+    }
 }
+

@@ -1,6 +1,9 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/EndpointReason.json",
-  "type": "string",
-  "enum": ["idle", "landmark-lost"]
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/EndpointReason.json",
+    "type": "string",
+    "enum": [
+        "idle",
+        "landmark-lost"
+    ]
 }

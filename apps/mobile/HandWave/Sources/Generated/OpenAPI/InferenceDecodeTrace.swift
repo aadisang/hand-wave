@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceDecodeTrace.swift
 //
@@ -9,43 +10,41 @@ import Foundation
 
 public struct InferenceDecodeTrace: Sendable, Codable, Hashable {
 
-  public var bufferedFrames: Int
-  public var inputText: String
-  public var displayText: String
-  public var idleFrames: Int
-  public var motion: Double
-  public var latencyMs: Double
+    public var bufferedFrames: Int
+    public var inputText: String
+    public var displayText: String
+    public var idleFrames: Int
+    public var motion: Double
+    public var latencyMs: Double
 
-  public init(
-    bufferedFrames: Int, inputText: String, displayText: String, idleFrames: Int, motion: Double,
-    latencyMs: Double
-  ) {
-    self.bufferedFrames = bufferedFrames
-    self.inputText = inputText
-    self.displayText = displayText
-    self.idleFrames = idleFrames
-    self.motion = motion
-    self.latencyMs = latencyMs
-  }
+    public init(bufferedFrames: Int, inputText: String, displayText: String, idleFrames: Int, motion: Double, latencyMs: Double) {
+        self.bufferedFrames = bufferedFrames
+        self.inputText = inputText
+        self.displayText = displayText
+        self.idleFrames = idleFrames
+        self.motion = motion
+        self.latencyMs = latencyMs
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case bufferedFrames = "buffered_frames"
-    case inputText = "input_text"
-    case displayText = "display_text"
-    case idleFrames = "idle_frames"
-    case motion
-    case latencyMs = "latency_ms"
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case bufferedFrames = "buffered_frames"
+        case inputText = "input_text"
+        case displayText = "display_text"
+        case idleFrames = "idle_frames"
+        case motion
+        case latencyMs = "latency_ms"
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(bufferedFrames, forKey: .bufferedFrames)
-    try container.encode(inputText, forKey: .inputText)
-    try container.encode(displayText, forKey: .displayText)
-    try container.encode(idleFrames, forKey: .idleFrames)
-    try container.encode(motion, forKey: .motion)
-    try container.encode(latencyMs, forKey: .latencyMs)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(bufferedFrames, forKey: .bufferedFrames)
+        try container.encode(inputText, forKey: .inputText)
+        try container.encode(displayText, forKey: .displayText)
+        try container.encode(idleFrames, forKey: .idleFrames)
+        try container.encode(motion, forKey: .motion)
+        try container.encode(latencyMs, forKey: .latencyMs)
+    }
 }
+

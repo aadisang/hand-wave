@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognitionState.swift
 //
@@ -9,44 +10,41 @@ import Foundation
 
 public struct InferenceRecognitionState: Sendable, Codable, Hashable {
 
-  public var display: InferenceRecognitionScored?
-  public var finalCandidate: InferenceRecognitionScored?
-  public var selectedText: String
-  public var selectedStreak: Int
-  public var displayMisses: Int
-  public var counts: [InferenceRecognitionCount]
+    public var display: InferenceRecognitionScored?
+    public var finalCandidate: InferenceRecognitionScored?
+    public var selectedText: String
+    public var selectedStreak: Int
+    public var displayMisses: Int
+    public var counts: [InferenceRecognitionCount]
 
-  public init(
-    display: InferenceRecognitionScored? = nil, finalCandidate: InferenceRecognitionScored? = nil,
-    selectedText: String, selectedStreak: Int, displayMisses: Int,
-    counts: [InferenceRecognitionCount]
-  ) {
-    self.display = display
-    self.finalCandidate = finalCandidate
-    self.selectedText = selectedText
-    self.selectedStreak = selectedStreak
-    self.displayMisses = displayMisses
-    self.counts = counts
-  }
+    public init(display: InferenceRecognitionScored? = nil, finalCandidate: InferenceRecognitionScored? = nil, selectedText: String, selectedStreak: Int, displayMisses: Int, counts: [InferenceRecognitionCount]) {
+        self.display = display
+        self.finalCandidate = finalCandidate
+        self.selectedText = selectedText
+        self.selectedStreak = selectedStreak
+        self.displayMisses = displayMisses
+        self.counts = counts
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case display
-    case finalCandidate = "final_candidate"
-    case selectedText = "selected_text"
-    case selectedStreak = "selected_streak"
-    case displayMisses = "display_misses"
-    case counts
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case display
+        case finalCandidate = "final_candidate"
+        case selectedText = "selected_text"
+        case selectedStreak = "selected_streak"
+        case displayMisses = "display_misses"
+        case counts
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(display, forKey: .display)
-    try container.encodeIfPresent(finalCandidate, forKey: .finalCandidate)
-    try container.encode(selectedText, forKey: .selectedText)
-    try container.encode(selectedStreak, forKey: .selectedStreak)
-    try container.encode(displayMisses, forKey: .displayMisses)
-    try container.encode(counts, forKey: .counts)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(display, forKey: .display)
+        try container.encodeIfPresent(finalCandidate, forKey: .finalCandidate)
+        try container.encode(selectedText, forKey: .selectedText)
+        try container.encode(selectedStreak, forKey: .selectedStreak)
+        try container.encode(displayMisses, forKey: .displayMisses)
+        try container.encode(counts, forKey: .counts)
+    }
 }
+

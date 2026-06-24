@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognizeOut.swift
 //
@@ -9,35 +10,33 @@ import Foundation
 
 public struct InferenceRecognizeOut: Sendable, Codable, Hashable {
 
-  public var state: InferenceRecognitionState
-  public var displayPrediction: InferencePrediction?
-  public var committed: Bool
-  public var trace: InferenceRecognitionTrace
+    public var state: InferenceRecognitionState
+    public var displayPrediction: InferencePrediction?
+    public var committed: Bool
+    public var trace: InferenceRecognitionTrace
 
-  public init(
-    state: InferenceRecognitionState, displayPrediction: InferencePrediction? = nil,
-    committed: Bool, trace: InferenceRecognitionTrace
-  ) {
-    self.state = state
-    self.displayPrediction = displayPrediction
-    self.committed = committed
-    self.trace = trace
-  }
+    public init(state: InferenceRecognitionState, displayPrediction: InferencePrediction? = nil, committed: Bool, trace: InferenceRecognitionTrace) {
+        self.state = state
+        self.displayPrediction = displayPrediction
+        self.committed = committed
+        self.trace = trace
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case state
-    case displayPrediction = "display_prediction"
-    case committed
-    case trace
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case state
+        case displayPrediction = "display_prediction"
+        case committed
+        case trace
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(state, forKey: .state)
-    try container.encodeIfPresent(displayPrediction, forKey: .displayPrediction)
-    try container.encode(committed, forKey: .committed)
-    try container.encode(trace, forKey: .trace)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(state, forKey: .state)
+        try container.encodeIfPresent(displayPrediction, forKey: .displayPrediction)
+        try container.encode(committed, forKey: .committed)
+        try container.encode(trace, forKey: .trace)
+    }
 }
+

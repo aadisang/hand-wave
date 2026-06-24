@@ -1,57 +1,57 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/PredictOut.json",
-  "type": "object",
-  "properties": {
-    "prediction": {
-      "$ref": "https://hand-wave.local/schemas/Prediction.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/PredictOut.json",
+    "type": "object",
+    "properties": {
+        "prediction": {
+            "$ref": "https://hand-wave.local/schemas/Prediction.json"
+        },
+        "alternatives": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/Prediction.json"
+            }
+        },
+        "spans": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/Span.json"
+            }
+        },
+        "greedy_text": {
+            "type": "string"
+        },
+        "blank_ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "tail_blank_ratio": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "tail_blank_frames": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+        },
+        "partial_text": {
+            "type": "string"
+        },
+        "stable_text": {
+            "type": "string"
+        }
     },
-    "alternatives": {
-      "type": "array",
-      "items": {
-        "$ref": "https://hand-wave.local/schemas/Prediction.json"
-      }
-    },
-    "spans": {
-      "type": "array",
-      "items": {
-        "$ref": "https://hand-wave.local/schemas/Span.json"
-      }
-    },
-    "greedy_text": {
-      "type": "string"
-    },
-    "blank_ratio": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "tail_blank_ratio": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "tail_blank_frames": {
-      "type": "integer",
-      "minimum": -2147483648,
-      "maximum": 2147483647
-    },
-    "partial_text": {
-      "type": "string"
-    },
-    "stable_text": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "prediction",
-    "alternatives",
-    "spans",
-    "greedy_text",
-    "blank_ratio",
-    "tail_blank_ratio",
-    "tail_blank_frames",
-    "partial_text",
-    "stable_text"
-  ]
+    "required": [
+        "prediction",
+        "alternatives",
+        "spans",
+        "greedy_text",
+        "blank_ratio",
+        "tail_blank_ratio",
+        "tail_blank_frames",
+        "partial_text",
+        "stable_text"
+    ]
 }

@@ -12,6 +12,7 @@ export default [
       "dist/**",
       "node_modules/**",
       "src/routeTree.gen.ts",
+      "src/lib/inference/openapi.ts",
       "eslint.config.js",
     ],
   },

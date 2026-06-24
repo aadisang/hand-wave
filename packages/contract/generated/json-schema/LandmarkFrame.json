@@ -1,10 +1,10 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/LandmarkFrame.json",
-  "type": "array",
-  "items": {
-    "type": "number"
-  },
-  "minItems": 162,
-  "maxItems": 162
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/LandmarkFrame.json",
+    "type": "array",
+    "items": {
+        "type": "number"
+    },
+    "minItems": 162,
+    "maxItems": 162
 }

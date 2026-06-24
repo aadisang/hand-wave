@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "moon run :build",
+    "contract:regen": "moon run contract:cleanGenerated && moon run contract:generate --force",
     "check": "moon run :formatCheck :lint :typecheck :test",
     "check:affected": "moon run :formatCheck :lint :typecheck :test --affected",
     "dev": "moon run :dev",

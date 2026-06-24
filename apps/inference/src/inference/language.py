@@ -232,7 +232,8 @@ def _nearby_common_words(token: str) -> tuple[str, ...]:
         score = word_score(word)
         if score >= 3.2:
             scored.append((word, score - distance * 0.6 - length_delta * 0.15))
-    return tuple(word for word, _score in sorted(scored, key=lambda item: item[1], reverse=True)[:8])
+    ranked = sorted(scored, key=lambda item: item[1], reverse=True)
+    return tuple(word for word, _score in ranked[:8])
 
 
 def _nearest_common_word(token: str) -> str | None:

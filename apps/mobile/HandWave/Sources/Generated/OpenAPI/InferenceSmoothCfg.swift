@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceSmoothCfg.swift
 //
@@ -9,32 +10,33 @@ import Foundation
 
 public struct InferenceSmoothCfg: Sendable, Codable, Hashable {
 
-  public var freq: Double
-  public var cutoff: Double
-  public var beta: Double
-  public var dCutoff: Double
+    public var freq: Double
+    public var cutoff: Double
+    public var beta: Double
+    public var dCutoff: Double
 
-  public init(freq: Double, cutoff: Double, beta: Double, dCutoff: Double) {
-    self.freq = freq
-    self.cutoff = cutoff
-    self.beta = beta
-    self.dCutoff = dCutoff
-  }
+    public init(freq: Double, cutoff: Double, beta: Double, dCutoff: Double) {
+        self.freq = freq
+        self.cutoff = cutoff
+        self.beta = beta
+        self.dCutoff = dCutoff
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case freq
-    case cutoff
-    case beta
-    case dCutoff
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case freq
+        case cutoff
+        case beta
+        case dCutoff
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(freq, forKey: .freq)
-    try container.encode(cutoff, forKey: .cutoff)
-    try container.encode(beta, forKey: .beta)
-    try container.encode(dCutoff, forKey: .dCutoff)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(freq, forKey: .freq)
+        try container.encode(cutoff, forKey: .cutoff)
+        try container.encode(beta, forKey: .beta)
+        try container.encode(dCutoff, forKey: .dCutoff)
+    }
 }
+

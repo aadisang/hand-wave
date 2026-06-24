@@ -67,7 +67,11 @@
     "schemas": {
       "Config": {
         "type": "object",
-        "required": ["decode", "stream", "mp"],
+        "required": [
+          "decode",
+          "stream",
+          "mp"
+        ],
         "properties": {
           "decode": {
             "$ref": "#/components/schemas/DecodeCfg"
@@ -82,7 +86,9 @@
       },
       "DecodeCfg": {
         "type": "object",
-        "required": ["window"],
+        "required": [
+          "window"
+        ],
         "properties": {
           "window": {
             "type": "integer",
@@ -129,7 +135,10 @@
       },
       "EndpointReason": {
         "type": "string",
-        "enum": ["idle", "landmark-lost"]
+        "enum": [
+          "idle",
+          "landmark-lost"
+        ]
       },
       "FinalizeTrace": {
         "type": "object",
@@ -171,7 +180,9 @@
       },
       "MpCfg": {
         "type": "object",
-        "required": ["smooth"],
+        "required": [
+          "smooth"
+        ],
         "properties": {
           "smooth": {
             "$ref": "#/components/schemas/SmoothSet"
@@ -180,7 +191,9 @@
       },
       "PredictIn": {
         "type": "object",
-        "required": ["frames"],
+        "required": [
+          "frames"
+        ],
         "properties": {
           "frames": {
             "type": "array",
@@ -250,7 +263,10 @@
       },
       "Prediction": {
         "type": "object",
-        "required": ["label", "confidence"],
+        "required": [
+          "label",
+          "confidence"
+        ],
         "properties": {
           "label": {
             "type": "string"
@@ -338,7 +354,10 @@
       },
       "RecognitionCount": {
         "type": "object",
-        "required": ["text", "count"],
+        "required": [
+          "text",
+          "count"
+        ],
         "properties": {
           "text": {
             "type": "string"
@@ -351,7 +370,13 @@
       },
       "RecognitionScored": {
         "type": "object",
-        "required": ["prediction", "score", "source", "model_agrees", "streak"],
+        "required": [
+          "prediction",
+          "score",
+          "source",
+          "model_agrees",
+          "streak"
+        ],
         "properties": {
           "prediction": {
             "$ref": "#/components/schemas/Prediction"
@@ -468,7 +493,9 @@
       },
       "RecognizeIn": {
         "type": "object",
-        "required": ["context"],
+        "required": [
+          "context"
+        ],
         "properties": {
           "frames": {
             "type": "array",
@@ -497,7 +524,11 @@
       },
       "RecognizeOut": {
         "type": "object",
-        "required": ["state", "committed", "trace"],
+        "required": [
+          "state",
+          "committed",
+          "trace"
+        ],
         "properties": {
           "state": {
             "$ref": "#/components/schemas/RecognitionState"
@@ -522,7 +553,12 @@
       },
       "SmoothCfg": {
         "type": "object",
-        "required": ["freq", "cutoff", "beta", "dCutoff"],
+        "required": [
+          "freq",
+          "cutoff",
+          "beta",
+          "dCutoff"
+        ],
         "properties": {
           "freq": {
             "type": "number",
@@ -548,7 +584,10 @@
       },
       "SmoothSet": {
         "type": "object",
-        "required": ["hand", "pose"],
+        "required": [
+          "hand",
+          "pose"
+        ],
         "properties": {
           "hand": {
             "$ref": "#/components/schemas/SmoothCfg"
@@ -560,7 +599,11 @@
       },
       "Span": {
         "type": "object",
-        "required": ["start_frame", "end_frame", "text"],
+        "required": [
+          "start_frame",
+          "end_frame",
+          "text"
+        ],
         "properties": {
           "start_frame": {
             "type": "integer",

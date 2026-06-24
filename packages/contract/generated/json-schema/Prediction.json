@@ -1,46 +1,49 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/Prediction.json",
-  "type": "object",
-  "properties": {
-    "label": {
-      "type": "string"
-    },
-    "confidence": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "logit_score": {
-      "anyOf": [
-        {
-          "type": "number"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/Prediction.json",
+    "type": "object",
+    "properties": {
+        "label": {
+            "type": "string"
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "lm_score": {
-      "anyOf": [
-        {
-          "type": "number"
+        "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "raw_label": {
-      "anyOf": [
-        {
-          "type": "string"
+        "logit_score": {
+            "anyOf": [
+                {
+                    "type": "number"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
-        {
-          "type": "null"
+        "lm_score": {
+            "anyOf": [
+                {
+                    "type": "number"
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
+        "raw_label": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         }
-      ]
-    }
-  },
-  "required": ["label", "confidence"]
+    },
+    "required": [
+        "label",
+        "confidence"
+    ]
 }

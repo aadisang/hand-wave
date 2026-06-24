@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognitionCount.swift
 //
@@ -9,24 +10,25 @@ import Foundation
 
 public struct InferenceRecognitionCount: Sendable, Codable, Hashable {
 
-  public var text: String
-  public var count: Int
+    public var text: String
+    public var count: Int
 
-  public init(text: String, count: Int) {
-    self.text = text
-    self.count = count
-  }
+    public init(text: String, count: Int) {
+        self.text = text
+        self.count = count
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case text
-    case count
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case text
+        case count
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(text, forKey: .text)
-    try container.encode(count, forKey: .count)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(text, forKey: .text)
+        try container.encode(count, forKey: .count)
+    }
 }
+

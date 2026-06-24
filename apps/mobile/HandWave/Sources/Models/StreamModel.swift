@@ -87,7 +87,7 @@ final class StreamModel {
   private func openStream(on session: DeviceSession) async {
     speech.prepareForStreaming()
 
-    let config = StreamConfiguration(
+    let config = MWDATCamera.StreamConfiguration(
       videoCodec: .raw,
       resolution: .low,
       frameRate: 24
@@ -115,7 +115,7 @@ final class StreamModel {
       return
     }
 
-    stateToken = stream.statePublisher.listen { [weak self] state in
+    stateToken = stream.statePublisher.listen { [weak self] (state: MWDATCamera.StreamState) in
       Task { @MainActor [weak self] in
         guard let self else { return }
         switch state {
@@ -129,7 +129,7 @@ final class StreamModel {
       }
     }
 
-    errorToken = stream.errorPublisher.listen { [weak self] error in
+    errorToken = stream.errorPublisher.listen { [weak self] (error: MWDATCamera.StreamError) in
       Task { @MainActor [weak self] in
         self?.errorMessage = "Stream failed: \(String(describing: error))"
         await self?.teardown()
@@ -137,7 +137,7 @@ final class StreamModel {
     }
 
     let frameGate = frameGate
-    frameToken = stream.videoFramePublisher.listen { [weak self, recognizer, frameGate] frame in
+    frameToken = stream.videoFramePublisher.listen { [weak self, recognizer, frameGate] (frame: MWDATCamera.VideoFrame) in
       Task { [weak self, recognizer, frameGate] in
         let decision = await frameGate.accept()
         guard decision.hasWork else { return }

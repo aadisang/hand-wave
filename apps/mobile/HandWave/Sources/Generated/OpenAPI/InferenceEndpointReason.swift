@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceEndpointReason.swift
 //
@@ -8,6 +9,6 @@
 import Foundation
 
 public enum InferenceEndpointReason: String, Sendable, Codable, CaseIterable {
-  case idle = "idle"
-  case landmarkLost = "landmark-lost"
+    case idle = "idle"
+    case landmarkLost = "landmark-lost"
 }

@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferencePredictIn.swift
 //
@@ -9,20 +10,21 @@ import Foundation
 
 public struct InferencePredictIn: Sendable, Codable, Hashable {
 
-  public var frames: [InferenceLandmarkFrame]
+    public var frames: [InferenceLandmarkFrame]
 
-  public init(frames: [InferenceLandmarkFrame]) {
-    self.frames = frames
-  }
+    public init(frames: [InferenceLandmarkFrame]) {
+        self.frames = frames
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case frames
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case frames
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(frames, forKey: .frames)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(frames, forKey: .frames)
+    }
 }
+

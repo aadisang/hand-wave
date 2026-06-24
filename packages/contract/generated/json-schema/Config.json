@@ -1,17 +1,21 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/config.schema.json",
-  "type": "object",
-  "properties": {
-    "decode": {
-      "$ref": "https://hand-wave.local/schemas/DecodeCfg.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/config.schema.json",
+    "type": "object",
+    "properties": {
+        "decode": {
+            "$ref": "https://hand-wave.local/schemas/DecodeCfg.json"
+        },
+        "stream": {
+            "$ref": "https://hand-wave.local/schemas/StreamCfg.json"
+        },
+        "mp": {
+            "$ref": "https://hand-wave.local/schemas/MpCfg.json"
+        }
     },
-    "stream": {
-      "$ref": "https://hand-wave.local/schemas/StreamCfg.json"
-    },
-    "mp": {
-      "$ref": "https://hand-wave.local/schemas/MpCfg.json"
-    }
-  },
-  "required": ["decode", "stream", "mp"]
+    "required": [
+        "decode",
+        "stream",
+        "mp"
+    ]
 }

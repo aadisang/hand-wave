@@ -1,37 +1,42 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hand-wave.local/schemas/RecognitionContext.json",
-  "type": "object",
-  "properties": {
-    "idle_frames": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 2147483647
-    },
-    "missing_frames": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 2147483647
-    },
-    "segment_frames": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 2147483647
-    },
-    "motion": {
-      "type": "number",
-      "minimum": 0
-    },
-    "endpoint_reason": {
-      "anyOf": [
-        {
-          "$ref": "https://hand-wave.local/schemas/EndpointReason.json"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognitionContext.json",
+    "type": "object",
+    "properties": {
+        "idle_frames": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
         },
-        {
-          "type": "null"
+        "missing_frames": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+        },
+        "segment_frames": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+        },
+        "motion": {
+            "type": "number",
+            "minimum": 0
+        },
+        "endpoint_reason": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/EndpointReason.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
         }
-      ]
-    }
-  },
-  "required": ["idle_frames", "missing_frames", "segment_frames", "motion"]
+    },
+    "required": [
+        "idle_frames",
+        "missing_frames",
+        "segment_frames",
+        "motion"
+    ]
 }

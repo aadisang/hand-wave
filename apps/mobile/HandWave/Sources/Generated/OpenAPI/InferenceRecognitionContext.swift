@@ -1,3 +1,4 @@
+// swift-format-ignore-file
 //
 // InferenceRecognitionContext.swift
 //
@@ -9,39 +10,37 @@ import Foundation
 
 public struct InferenceRecognitionContext: Sendable, Codable, Hashable {
 
-  public var idleFrames: Int
-  public var missingFrames: Int
-  public var segmentFrames: Int
-  public var motion: Double
-  public var endpointReason: InferenceEndpointReason?
+    public var idleFrames: Int
+    public var missingFrames: Int
+    public var segmentFrames: Int
+    public var motion: Double
+    public var endpointReason: InferenceEndpointReason?
 
-  public init(
-    idleFrames: Int, missingFrames: Int, segmentFrames: Int, motion: Double,
-    endpointReason: InferenceEndpointReason? = nil
-  ) {
-    self.idleFrames = idleFrames
-    self.missingFrames = missingFrames
-    self.segmentFrames = segmentFrames
-    self.motion = motion
-    self.endpointReason = endpointReason
-  }
+    public init(idleFrames: Int, missingFrames: Int, segmentFrames: Int, motion: Double, endpointReason: InferenceEndpointReason? = nil) {
+        self.idleFrames = idleFrames
+        self.missingFrames = missingFrames
+        self.segmentFrames = segmentFrames
+        self.motion = motion
+        self.endpointReason = endpointReason
+    }
 
-  public enum CodingKeys: String, CodingKey, CaseIterable {
-    case idleFrames = "idle_frames"
-    case missingFrames = "missing_frames"
-    case segmentFrames = "segment_frames"
-    case motion
-    case endpointReason = "endpoint_reason"
-  }
+    public enum CodingKeys: String, CodingKey, CaseIterable {
+        case idleFrames = "idle_frames"
+        case missingFrames = "missing_frames"
+        case segmentFrames = "segment_frames"
+        case motion
+        case endpointReason = "endpoint_reason"
+    }
 
-  // Encodable protocol methods
+    // Encodable protocol methods
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(idleFrames, forKey: .idleFrames)
-    try container.encode(missingFrames, forKey: .missingFrames)
-    try container.encode(segmentFrames, forKey: .segmentFrames)
-    try container.encode(motion, forKey: .motion)
-    try container.encodeIfPresent(endpointReason, forKey: .endpointReason)
-  }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(idleFrames, forKey: .idleFrames)
+        try container.encode(missingFrames, forKey: .missingFrames)
+        try container.encode(segmentFrames, forKey: .segmentFrames)
+        try container.encode(motion, forKey: .motion)
+        try container.encodeIfPresent(endpointReason, forKey: .endpointReason)
+    }
 }
+
