@@ -4,9 +4,6 @@ struct PairingView: View {
   @Environment(AppModel.self) private var appModel
 
   var body: some View {
-    // Balance: bias the hero into the optical upper third (1:2 weighting) so the
-    // brand commands the top and the CTA is grounded at the bottom — intentional
-    // asymmetry rather than a dead-centered float.
     VStack(spacing: 0) {
       Spacer(minLength: Spacing.xl)
       Hero()
@@ -23,14 +20,9 @@ struct PairingView: View {
   }
 }
 
-// MARK: - Hero
-
 private struct Hero: View {
   var body: some View {
     VStack(spacing: Spacing.xl) {
-      // Contrast/Hierarchy: a confident app mark. Surface fill + a top sheen
-      // ("lit from above") and a brighter rim give it real presence against the
-      // near-black canvas instead of dissolving into it.
       Image(systemName: "hand.wave")
         .font(.system(size: 28, weight: .medium))
         .foregroundStyle(.textPrimary)
@@ -50,8 +42,6 @@ private struct Hero: View {
         .overlay(shape.strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.5), radius: 18, y: 10)
 
-      // Proximity: title and tagline are a tight pair, set slightly apart from
-      // the mark above.
       VStack(spacing: Spacing.sm) {
         Text("Hand Wave")
           .font(.appLargeTitle)
@@ -69,8 +59,6 @@ private struct Hero: View {
     RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
   }
 }
-
-// MARK: - Actions
 
 private struct PrimaryAction: View {
   @Environment(AppModel.self) private var appModel
@@ -90,8 +78,6 @@ private struct PrimaryAction: View {
         Text(title)
           .font(.satoshi(15, .semibold))
       }
-      // Light text on a translucent glass capsule — readable on the dark
-      // canvas, and unmistakably Liquid Glass (not a solid white fill).
       .foregroundStyle(.textPrimary)
       .frame(maxWidth: .infinity)
       .padding(.vertical, Spacing.xs)
