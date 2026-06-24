@@ -4,189 +4,103 @@ struct PairingView: View {
   @Environment(AppModel.self) private var appModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      header
-        .padding(.bottom, 40)
+    // Balance: bias the hero into the optical upper third (1:2 weighting) so the
+    // brand commands the top and the CTA is grounded at the bottom — intentional
+    // asymmetry rather than a dead-centered float.
+    VStack(spacing: 0) {
+      Spacer(minLength: Spacing.xl)
+      Hero()
+      Spacer(minLength: Spacing.xl)
+      Spacer(minLength: Spacing.xl)
+      PrimaryAction()
+    }
+    .padding(.horizontal, Spacing.xl)
+    .padding(.top, Spacing.lg)
+    .padding(.bottom, Spacing.xl)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(.canvas)
+    .animation(Motion.standard, value: appModel.wearables.isRegistered)
+  }
+}
 
-      VStack(alignment: .leading, spacing: 28) {
-        LabeledSection("Status") { StatusLine() }
-        if appModel.wearables.isRegistered {
-          LabeledSection("Device") { DeviceList() }
-        }
-      }
+// MARK: - Hero
 
-      Spacer(minLength: 0)
-
-      VStack(spacing: 12) {
-        PrimaryAction()
-        if appModel.wearables.isRegistered {
-          Button(role: .destructive) {
-            Task { await appModel.wearables.disconnect() }
-          } label: {
-            Text("Disconnect")
-              .font(.subheadline.weight(.medium))
-              .padding(.vertical, 6)
+private struct Hero: View {
+  var body: some View {
+    VStack(spacing: Spacing.xl) {
+      // Contrast/Hierarchy: a confident app mark. Surface fill + a top sheen
+      // ("lit from above") and a brighter rim give it real presence against the
+      // near-black canvas instead of dissolving into it.
+      Image(systemName: "hand.wave")
+        .font(.system(size: 28, weight: .medium))
+        .foregroundStyle(.textPrimary)
+        .frame(width: 64, height: 64)
+        .background {
+          ZStack {
+            shape.fill(.surface)
+            shape.fill(
+              LinearGradient(
+                colors: [.white.opacity(0.08), .clear],
+                startPoint: .top,
+                endPoint: .center
+              )
+            )
           }
         }
-      }
-    }
-    .padding(.horizontal, 24)
-    .padding(.top, 12)
-    .padding(.bottom, 24)
-    .frame(maxWidth: .infinity, alignment: .leading)
-  }
+        .overlay(shape.strokeBorder(.white.opacity(0.12)))
+        .shadow(color: .black.opacity(0.5), radius: 18, y: 10)
 
-  private var header: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text("HAND WAVE")
-        .font(.system(.caption2, design: .monospaced))
-        .tracking(2)
-        .foregroundStyle(.tertiary)
-      Text("Sign language,\nfrom the wearable.")
-        .font(.system(size: 32, weight: .semibold, design: .serif))
-        .lineSpacing(2)
-        .foregroundStyle(.primary)
-    }
-  }
-}
-
-// MARK: - Section primitive
-
-private struct LabeledSection<Content: View>: View {
-  let label: String
-  @ViewBuilder let content: () -> Content
-
-  init(_ label: String, @ViewBuilder content: @escaping () -> Content) {
-    self.label = label
-    self.content = content
-  }
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text(label.uppercased())
-        .font(.system(.caption2, design: .monospaced))
-        .tracking(1.4)
-        .foregroundStyle(.tertiary)
-      content()
-    }
-  }
-}
-
-// MARK: - Status
-
-private struct StatusLine: View {
-  @Environment(AppModel.self) private var appModel
-
-  var body: some View {
-    HStack(spacing: 12) {
-      StatusDot(color: state.color, pulse: state.pulse)
-      Text(state.label)
-        .font(.body.weight(.medium))
-        .foregroundStyle(.primary)
-        .contentTransition(.opacity)
-      Spacer()
-    }
-    .animation(.easeInOut(duration: 0.2), value: state)
-  }
-
-  private var state: ConnectionState {
-    let wearables = appModel.wearables
-    if !wearables.isRegistered {
-      return wearables.isRegistering ? .connecting : .disconnected
-    }
-    if wearables.devices.isEmpty { return .waitingOnDevice }
-    return appModel.stream.hasActiveDevice ? .ready : .asleep
-  }
-}
-
-private enum ConnectionState: Hashable {
-  case disconnected, connecting, waitingOnDevice, asleep, ready
-
-  var label: String {
-    switch self {
-    case .disconnected: "Not connected"
-    case .connecting: "Connecting"
-    case .waitingOnDevice: "Waiting on device"
-    case .asleep: "Glasses asleep"
-    case .ready: "Ready to stream"
-    }
-  }
-
-  var color: Color {
-    switch self {
-    case .disconnected: .secondary
-    case .connecting: .blue
-    case .waitingOnDevice, .asleep: .orange
-    case .ready: .green
-    }
-  }
-
-  var pulse: Bool {
-    switch self {
-    case .connecting, .asleep, .waitingOnDevice: true
-    case .disconnected, .ready: false
-    }
-  }
-}
-
-private struct StatusDot: View {
-  let color: Color
-  let pulse: Bool
-
-  var body: some View {
-    Image(systemName: "circle.fill")
-      .font(.system(size: 8))
-      .foregroundStyle(color)
-      .symbolEffect(.pulse, isActive: pulse)
-  }
-}
-
-// MARK: - Devices
-
-private struct DeviceList: View {
-  @Environment(AppModel.self) private var appModel
-
-  var body: some View {
-    if appModel.wearables.devices.isEmpty {
-      Text("Open the Meta AI app and grant camera access to register your glasses.")
-        .font(.callout)
-        .foregroundStyle(.secondary)
-    } else {
-      VStack(alignment: .leading, spacing: 0) {
-        ForEach(Array(appModel.wearables.devices.enumerated()), id: \.element) { index, id in
-          if index > 0 { Divider() }
-          HStack(spacing: 12) {
-            Text(appModel.wearables.deviceName(for: id))
-              .font(.body)
-              .foregroundStyle(.primary)
-            Spacer()
-            Text(appModel.stream.hasActiveDevice ? "Active" : "Sleeping")
-              .font(.system(.footnote, design: .monospaced))
-              .foregroundStyle(appModel.stream.hasActiveDevice ? .secondary : .tertiary)
-          }
-          .padding(.vertical, 14)
-        }
+      // Proximity: title and tagline are a tight pair, set slightly apart from
+      // the mark above.
+      VStack(spacing: Spacing.sm) {
+        Text("Hand Wave")
+          .font(.appLargeTitle)
+          .tracking(-0.4)
+          .foregroundStyle(.textPrimary)
+        Text("Sign language, from your wearable.")
+          .font(.appCallout)
+          .foregroundStyle(.textSecondary)
+          .multilineTextAlignment(.center)
       }
     }
   }
+
+  private var shape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+  }
 }
 
-// MARK: - Primary action
+// MARK: - Actions
 
 private struct PrimaryAction: View {
   @Environment(AppModel.self) private var appModel
+  @State private var taps = 0
 
   var body: some View {
-    Button(action: tap) {
-      Text(title)
-        .font(.body.weight(.semibold))
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+    Button {
+      taps &+= 1
+      tap()
+    } label: {
+      HStack(spacing: Spacing.sm) {
+        if busy {
+          ProgressView()
+            .controlSize(.small)
+            .tint(.textPrimary)
+        }
+        Text(title)
+          .font(.satoshi(15, .semibold))
+      }
+      // Light text on a translucent glass capsule — readable on the dark
+      // canvas, and unmistakably Liquid Glass (not a solid white fill).
+      .foregroundStyle(.textPrimary)
+      .frame(maxWidth: .infinity)
+      .padding(.vertical, Spacing.xs)
     }
-    .buttonStyle(.glassProminent)
-    .controlSize(.extraLarge)
+    .buttonStyle(.glass)
+    .controlSize(.large)
     .buttonBorderShape(.capsule)
     .disabled(disabled)
+    .sensoryFeedback(Haptic.primaryTap, trigger: taps)
   }
 
   private func tap() {
@@ -199,6 +113,11 @@ private struct PrimaryAction: View {
         await appModel.wearables.connect()
       }
     }
+  }
+
+  private var busy: Bool {
+    if !appModel.wearables.isRegistered { return appModel.wearables.isRegistering }
+    return appModel.stream.status == .connecting
   }
 
   private var title: String {
