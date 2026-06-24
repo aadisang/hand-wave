@@ -15,6 +15,7 @@ struct HandWaveApp: App {
   @State private var appModel: AppModel
 
   init() {
+    AppFont.register()
     do {
       try Wearables.configure()
     } catch {
