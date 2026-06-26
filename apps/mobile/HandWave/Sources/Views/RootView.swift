@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
+  @Environment(\.scenePhase) private var scenePhase
   @Environment(AppModel.self) private var appModel
 
   var body: some View {
@@ -60,6 +62,19 @@ struct RootView: View {
     .preferredColorScheme(.dark)
     .task { await appModel.wearables.observe() }
     .task { await appModel.stream.observe() }
+    .task { await stopStreamBeforeTermination() }
+    .onChange(of: scenePhase) { _, phase in
+      guard phase == .background else { return }
+      Task { await appModel.stream.stop() }
+    }
+  }
+
+  private func stopStreamBeforeTermination() async {
+    for await _ in NotificationCenter.default.notifications(
+      named: UIApplication.willTerminateNotification
+    ) {
+      await appModel.stream.stop()
+    }
   }
 }
 

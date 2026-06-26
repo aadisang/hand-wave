@@ -165,7 +165,11 @@ enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
     case .capabilityNotFound:
       "The camera capability was removed before streaming could begin. Try starting the stream again."
     case .unexpectedError(let description):
-      "The SDK reported an unexpected session error: \(description)"
+      if description.localizedCaseInsensitiveContains("session ended by device") {
+        "The glasses ended the session before streaming could start. Keep them open and worn, close any other DAT app, then try again. If this repeats, close the glasses in the case for 30 seconds to clear the retained camera slot."
+      } else {
+        "The SDK reported an unexpected session error: \(description)"
+      }
     case .thermalCritical:
       "The glasses are too warm for streaming. Let them cool down before trying again."
     case .thermalEmergency:
