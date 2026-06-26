@@ -19,13 +19,15 @@ let infoPlist: [String: Plist.Value] = [
       "CFBundleURLSchemes": [.string(urlScheme)],
     ]
   ],
+  "LSApplicationQueriesSchemes": ["fb-viewapp"],
   "MWDAT": [
     "AppLinkURLScheme": "\(urlScheme)://",
     "MetaAppID": "$(META_APP_ID)",
     "ClientToken": "$(CLIENT_TOKEN)",
-    "TeamID": "$(DEVELOPMENT_TEAM)",
+    "TeamID": "$(HANDWAVE_DEVELOPMENT_TEAM)",
   ],
   "HandWaveInferenceURL": "$(HANDWAVE_INFERENCE_URL)",
+  "HandWaveInferenceURLs": "$(HANDWAVE_INFERENCE_URLS)",
   "NSAppTransportSecurity": [
     "NSAllowsArbitraryLoads": true
   ],
@@ -51,7 +53,11 @@ let infoPlist: [String: Plist.Value] = [
     "UIApplicationSupportsMultipleScenes": false
   ],
   "UIApplicationSupportsIndirectInputEvents": true,
-  "UILaunchScreen": [:],
+  "UILaunchScreen": [
+    "UIColorName": "LaunchBackground",
+    "UIImageName": "LaunchMark",
+    "UIImageRespectsSafeAreaInsets": true,
+  ],
   "UISupportedInterfaceOrientations": [
     "UIInterfaceOrientationPortrait"
   ],
@@ -69,7 +75,6 @@ let project = Project(
     base: [
       "SWIFT_VERSION": "6.0",
       "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
-      "DEVELOPMENT_TEAM": "$(DEVELOPMENT_TEAM)",
     ],
     configurations: [
       .debug(name: "Debug", xcconfig: "Configurations/HandWave.xcconfig"),
@@ -97,7 +102,14 @@ let project = Project(
         .external(name: "MWDATCamera"),
         .external(name: "MWDATMockDevice"),
         .external(name: "Dependencies"),
-      ]
+      ],
+      settings: .settings(
+        base: [
+          "CODE_SIGN_STYLE": "Automatic",
+          "CODE_SIGN_IDENTITY": "Apple Development",
+          "DEVELOPMENT_TEAM": "$(HANDWAVE_DEVELOPMENT_TEAM)",
+        ]
+      )
     ),
     .target(
       name: "HandWaveTests",
