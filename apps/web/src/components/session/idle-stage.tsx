@@ -1,5 +1,3 @@
-import { MonitorOff } from "lucide-react";
-
 type Props = {
   error: string | null;
 };
@@ -8,7 +6,12 @@ export function IdleStage({ error }: Props) {
   return (
     <div className="flex h-full w-full items-center justify-center px-6 pb-20 pt-8">
       <div className="max-w-xs space-y-3 text-center">
-        <MonitorOff className="mx-auto size-14 text-muted-foreground" />
+        <img
+          alt=""
+          aria-hidden="true"
+          className="mx-auto size-16 rounded-[1.35rem] shadow-[0_18px_44px_rgba(0,0,0,0.35)]"
+          src="/favicon.svg"
+        />
         <p className="text-balance font-medium">
           {error ?? "No active stream"}
         </p>
