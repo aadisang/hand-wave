@@ -7,7 +7,7 @@ actor Recognizer {
     let event: InferSession.Event?
     let overlayFrame: HandLandmarksFrame
     let hasFrame: Bool
-    let error: String?
+    let failure: InferenceFailure?
   }
 
   private let detector: LandmarkDetector
@@ -15,7 +15,7 @@ actor Recognizer {
   private var detStarted = false
   private var inferStarted = false
   private var retryAt = ContinuousClock.now
-  private var backendError: String?
+  private var backendFailure: InferenceFailure?
 
   init(
     detector: LandmarkDetector = LandmarkDetector(),
@@ -36,7 +36,7 @@ actor Recognizer {
     detStarted = false
     inferStarted = false
     retryAt = .now
-    backendError = nil
+    backendFailure = nil
     await detector.resetSelection()
     await inference.stop()
   }
@@ -54,38 +54,38 @@ actor Recognizer {
       event: infer.event,
       overlayFrame: detection.overlayFrame,
       hasFrame: detection.inferenceFrame != nil,
-      error: infer.error
+      failure: infer.failure
     )
   }
 
   private func ingest(
     _ frame: LandmarkFrame?
-  ) async -> (event: InferSession.Event?, error: String?) {
+  ) async -> (event: InferSession.Event?, failure: InferenceFailure?) {
     guard inferStarted || ContinuousClock.now >= retryAt else {
-      return (nil, backendError)
+      return (nil, backendFailure)
     }
 
     if !inferStarted {
       do {
         try await inference.start()
         inferStarted = true
-        backendError = nil
+        backendFailure = nil
       } catch {
-        backendError = error.localizedDescription
+        backendFailure = error
         retryAt = .now.advanced(by: .seconds(5))
-        return (nil, backendError)
+        return (nil, backendFailure)
       }
     }
 
     do {
       let event = try await inference.ingest(frame)
-      backendError = nil
+      backendFailure = nil
       return (event, nil)
     } catch {
       inferStarted = false
-      backendError = error.localizedDescription
+      backendFailure = error
       retryAt = .now.advanced(by: .seconds(5))
-      return (nil, backendError)
+      return (nil, backendFailure)
     }
   }
 
@@ -94,9 +94,9 @@ actor Recognizer {
     do {
       try await inference.start()
       inferStarted = true
-      backendError = nil
+      backendFailure = nil
     } catch {
-      backendError = error.localizedDescription
+      backendFailure = error
       retryAt = .now.advanced(by: .seconds(5))
     }
   }

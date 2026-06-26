@@ -26,13 +26,13 @@ actor InferSession {
   private var gen = 0
   private var requestId = 0
   private var pendingEvent: Event?
-  private var pendingError: Error?
+  private var pendingError: InferenceFailure?
 
   init(client: InferAPI = InferClient()) {
     self.client = client
   }
 
-  func start() async throws {
+  func start() async throws(InferenceFailure) {
     try await client.warmConnection()
   }
 
@@ -46,7 +46,7 @@ actor InferSession {
     resetSegment()
   }
 
-  func ingest(_ frame: LandmarkFrame?) async throws -> Event? {
+  func ingest(_ frame: LandmarkFrame?) async throws(InferenceFailure) -> Event? {
     if let error = pendingError {
       pendingError = nil
       throw error
@@ -61,7 +61,7 @@ actor InferSession {
     return try await acceptMissingFrame()
   }
 
-  private func accept(_ frame: LandmarkFrame) async throws -> Event? {
+  private func accept(_ frame: LandmarkFrame) async throws(InferenceFailure) -> Event? {
     let motion = frameMotion(previous: last, current: frame)
     last = frame
     lost = 0
@@ -115,13 +115,19 @@ actor InferSession {
           context: context,
           finalize: false
         )
-        await self.finishDecode(
+        self.finishDecode(
           response,
           id: id,
           generation: generation
         )
+      } catch let error as InferenceFailure {
+        self.failDecode(error, id: id, generation: generation)
       } catch {
-        await self.failDecode(error, id: id, generation: generation)
+        self.failDecode(
+          .unexpected(FailureDescriptions.describe(error)),
+          id: id,
+          generation: generation
+        )
       }
     }
   }
@@ -143,7 +149,7 @@ actor InferSession {
     }
   }
 
-  private func failDecode(_ error: Error, id: Int, generation: Int) {
+  private func failDecode(_ error: InferenceFailure, id: Int, generation: Int) {
     guard id == requestId else { return }
     inFlight = false
     guard generation == gen else { return }
@@ -156,7 +162,7 @@ actor InferSession {
     return event
   }
 
-  private func acceptMissingFrame() async throws -> Event? {
+  private func acceptMissingFrame() async throws(InferenceFailure) -> Event? {
     guard !ended else { return nil }
     guard moved, seen >= InferCfg.Stream.min else {
       resetLiveState()
@@ -174,7 +180,9 @@ actor InferSession {
     return nil
   }
 
-  private func finalizeSegment(reason: InferenceEndpointReason) async throws -> Event? {
+  private func finalizeSegment(
+    reason: InferenceEndpointReason
+  ) async throws(InferenceFailure) -> Event? {
     let state = recognitionState
     let context = recognitionContext(endpointReason: reason)
     ended = true
