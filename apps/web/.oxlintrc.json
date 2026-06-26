@@ -1,0 +1,60 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "vitest",
+    "import",
+    "jsx-a11y",
+    "react-perf",
+    "promise"
+  ],
+  "env": {
+    "browser": true,
+    "builtin": true,
+    "node": true
+  },
+  "options": {
+    "reportUnusedDisableDirectives": "warn"
+  },
+  "ignorePatterns": [
+    ".output/**",
+    ".tanstack/**",
+    ".vite-hooks/**",
+    "dist/**",
+    "node_modules/**",
+    "src/routeTree.gen.ts",
+    "src/lib/inference/openapi.ts"
+  ],
+  "rules": {
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "react/exhaustive-deps": "warn",
+    "react/jsx-key": "error",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/rules-of-hooks": "error",
+    "typescript/no-explicit-any": "warn",
+    "promise/no-callback-in-promise": "off",
+    "vitest/no-conditional-expect": "off",
+    "vitest/no-conditional-tests": "off",
+    "vitest/require-mock-type-parameters": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/tests/**/*.test.ts"],
+      "env": {
+        "vitest": true
+      },
+      "rules": {
+        "vitest/no-disabled-tests": "error",
+        "vitest/no-focused-tests": "error"
+      }
+    }
+  ]
+}
