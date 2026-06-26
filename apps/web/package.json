@@ -12,8 +12,8 @@
     "@mediapipe/tasks-vision": "^0.10.35",
     "@reactuses/core": "^6.3.1",
     "@t3-oss/env-core": "^0.13.11",
-    "@tanstack/react-router": "^1.170.3",
-    "@tanstack/react-start": "^1.168.5",
+    "@tanstack/react-router": "^1.170.16",
+    "@tanstack/react-start": "^1.168.26",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -29,22 +29,18 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@tailwindcss/vite": "^4.2.4",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "@typescript-eslint/eslint-plugin": "^8.20.0",
-    "@typescript-eslint/parser": "^8.20.0",
-    "@vitejs/plugin-react": "^5.1.2",
-    "eslint": "^9.18.0",
-    "eslint-plugin-react-hooks": "^5.1.0",
-    "nitro": "npm:nitro-nightly@3.0.1-20260227-181935-bfbb207c",
+    "@vitejs/plugin-react": "6.0.2",
+    "nitro": "3.0.260610-beta",
     "openapi-typescript": "^7.13.0",
-    "oxfmt": "^0.50.0",
-    "tailwindcss": "^4.2.4",
+    "oxfmt": "0.55.0",
+    "oxlint": "1.70.0",
+    "tailwindcss": "^4.3.1",
     "typescript": "^5.9.2",
-    "vite": "^7.0.0",
-    "vitest": "^4.1.6"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
   }
 }
