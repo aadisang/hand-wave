@@ -114,13 +114,12 @@ private struct PrimaryAction: View {
 
 private struct ReadinessLine: View {
   let state: PairingActionState
+  @ScaledMetric private var iconBoxSize = 34
+  @ScaledMetric private var iconSize = 15
 
   var body: some View {
-    HStack(alignment: .top, spacing: Spacing.sm) {
-      Image(systemName: state.systemImage)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(state.iconStyle)
-        .frame(width: 22, height: 22)
+    HStack(alignment: .center, spacing: Spacing.md) {
+      icon
 
       VStack(alignment: .leading, spacing: 3) {
         Text(state.headline)
@@ -131,14 +130,31 @@ private struct ReadinessLine: View {
           .foregroundStyle(.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
+      .layoutPriority(1)
 
       Spacer(minLength: 0)
     }
-    .padding(.horizontal, Spacing.lg)
+    .padding(.horizontal, Spacing.md)
     .padding(.vertical, Spacing.md)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(.surface, in: RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
     .accessibilityElement(children: .combine)
+  }
+
+  private var icon: some View {
+    Image(systemName: state.systemImage)
+      .font(.system(size: iconSize, weight: .semibold))
+      .foregroundStyle(state.iconStyle)
+      .frame(width: iconBoxSize, height: iconBoxSize)
+      .background(
+        Circle()
+          .fill(state.iconStyle.opacity(0.14))
+      )
+      .overlay(
+        Circle()
+          .strokeBorder(state.iconStyle.opacity(0.18), lineWidth: 1)
+      )
+      .accessibilityHidden(true)
   }
 }
 
