@@ -7,7 +7,7 @@ import Observation
 final class WearablesModel {
   private(set) var registrationState: RegistrationState
   private(set) var devices: [DeviceIdentifier]
-  var errorMessage: String?
+  var failure: WearablesFailure?
 
   private let wearables: WearablesInterface
 
@@ -37,7 +37,7 @@ final class WearablesModel {
     do {
       try await wearables.startRegistration()
     } catch {
-      errorMessage = error.description
+      failure = .registrationFailed(error)
     }
   }
 
@@ -45,13 +45,13 @@ final class WearablesModel {
     do {
       try await wearables.startUnregistration()
     } catch {
-      errorMessage = error.description
+      failure = .unregistrationFailed(error)
     }
   }
 
   func ensureCameraPermission() async -> Bool {
     guard isRegistered else {
-      errorMessage = "Connect your glasses before starting a stream."
+      failure = .cameraPermissionRequiresRegistration
       return false
     }
     do {
@@ -61,7 +61,7 @@ final class WearablesModel {
       }
       return status == .granted
     } catch {
-      errorMessage = error.description
+      failure = .cameraPermissionFailed(error)
       return false
     }
   }
@@ -70,7 +70,7 @@ final class WearablesModel {
     do {
       _ = try await wearables.handleUrl(url)
     } catch {
-      errorMessage = error.localizedDescription
+      failure = .callbackFailed(error)
     }
   }
 

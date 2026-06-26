@@ -16,20 +16,41 @@ final class StreamModel {
   private(set) var statusText = "Starting recognition"
   private(set) var current: InferSession.Pred?
   private(set) var transcript: [InferSession.Pred] = []
-  var errorMessage: String?
+  var failure: StreamFailure?
 
   @ObservationIgnored
   @Dependency(\.recognizer) private var recognizer
 
+  @ObservationIgnored
   private let wearables: WearablesInterface
+  @ObservationIgnored
   private let selector: AutoDeviceSelector
+  @ObservationIgnored
   private let speech = Speech()
-  private let frameGate = FrameGate(previewFPS: 24, recognitionFPS: 10)
+  @ObservationIgnored
+  private let frameGate = FrameGate(
+    previewFPS: Double(InferCfg.Stream.fps),
+    recognitionFPS: min(12, Double(InferCfg.Stream.fps))
+  )
+  @ObservationIgnored
   private var session: DeviceSession?
+  @ObservationIgnored
   private var stream: MWDATCamera.Stream?
+  @ObservationIgnored
   private var stateToken: AnyListenerToken?
+  @ObservationIgnored
   private var frameToken: AnyListenerToken?
+  @ObservationIgnored
   private var errorToken: AnyListenerToken?
+  @ObservationIgnored
+  private var sessionErrorTask: Task<Void, Never>?
+  @ObservationIgnored
+  private var startupSessionError: DeviceSessionError?
+  @ObservationIgnored
+  private var activeDeviceAvailableSince: Date?
+  @ObservationIgnored
+  private var streamHasStarted = false
+  @ObservationIgnored
   private var missingRecognitionOutputs = 0
   private static let missingStatusThreshold = 4
 
@@ -45,14 +66,21 @@ final class StreamModel {
   /// by SwiftUI's `.task` modifier on `RootView` — cancels on view disappear.
   func observe() async {
     for await device in selector.activeDeviceStream() {
-      hasActiveDevice = device != nil
+      let isActive = device != nil
+      if isActive, !hasActiveDevice {
+        activeDeviceAvailableSince = Date()
+      } else if !isActive {
+        activeDeviceAvailableSince = nil
+      }
+      hasActiveDevice = isActive
     }
   }
 
   func start() async {
     guard status == .idle else { return }
+    await waitForActiveDeviceToSettle()
     guard hasActiveDevice else {
-      errorMessage = "Put on your glasses to start streaming."
+      failure = .noActiveDevice
       return
     }
     status = .connecting
@@ -63,6 +91,7 @@ final class StreamModel {
       // Subscribe to the state stream *before* starting the session so we
       // don't miss the synchronous `.started` event the SDK emits.
       let stateStream = session.stateStream()
+      observeSessionErrors(session)
       try session.start()
 
       for await sessionState in stateStream {
@@ -70,12 +99,13 @@ final class StreamModel {
           await openStream(on: session)
           return
         } else if sessionState == .stopped {
+          failure = .sessionStoppedBeforeStart(startupSessionError)
           await teardown()
           return
         }
       }
     } catch {
-      errorMessage = "Couldn't start session: \(error.localizedDescription)"
+      failure = .sessionStartFailed(error)
       await teardown()
     }
   }
@@ -90,18 +120,18 @@ final class StreamModel {
     let config = MWDATCamera.StreamConfiguration(
       videoCodec: .raw,
       resolution: .low,
-      frameRate: 24
+      frameRate: UInt(InferCfg.Stream.fps)
     )
     let stream: MWDATCamera.Stream
     do {
       guard let opened = try session.addStream(config: config) else {
-        errorMessage = "Couldn't open stream — the device rejected the configuration."
+        failure = .streamRejectedConfiguration
         await teardown()
         return
       }
       stream = opened
     } catch {
-      errorMessage = "Couldn't open stream: \(error.localizedDescription)"
+      failure = .streamOpenFailed(error)
       await teardown()
       return
     }
@@ -110,7 +140,7 @@ final class StreamModel {
     do {
       try await recognizer.start()
     } catch {
-      errorMessage = "Recognition failed: \(error.localizedDescription)"
+      failure = .recognitionStartFailed(error)
       await teardown()
       return
     }
@@ -120,10 +150,13 @@ final class StreamModel {
         guard let self else { return }
         switch state {
         case .streaming:
+          self.streamHasStarted = true
           self.status = .streaming
         case .stopped:
+          guard self.streamHasStarted else { return }
           Task { await self.teardown() }
         case .waitingForDevice, .starting, .paused, .stopping:
+          self.streamHasStarted = true
           self.status = .connecting
         }
       }
@@ -131,13 +164,14 @@ final class StreamModel {
 
     errorToken = stream.errorPublisher.listen { [weak self] (error: MWDATCamera.StreamError) in
       Task { @MainActor [weak self] in
-        self?.errorMessage = "Stream failed: \(String(describing: error))"
+        self?.failure = .streamRuntimeFailed(String(describing: error))
         await self?.teardown()
       }
     }
 
     let frameGate = frameGate
-    frameToken = stream.videoFramePublisher.listen { [weak self, recognizer, frameGate] (frame: MWDATCamera.VideoFrame) in
+    frameToken = stream.videoFramePublisher.listen {
+      [weak self, recognizer, frameGate] (frame: MWDATCamera.VideoFrame) in
       Task { [weak self, recognizer, frameGate] in
         let decision = await frameGate.accept()
         guard decision.hasWork else { return }
@@ -164,7 +198,7 @@ final class StreamModel {
             } catch {
               await MainActor.run {
                 guard self?.status != .idle else { return }
-                self?.statusText = "Recognition failed: \(error.localizedDescription)"
+                self?.failure = .recognitionProcessingFailed(error)
               }
             }
             await frameGate.finishRecognition()
@@ -176,8 +210,32 @@ final class StreamModel {
     await stream.start()
   }
 
+  private func observeSessionErrors(_ session: DeviceSession) {
+    let errorStream = session.errorStream()
+    sessionErrorTask = Task { [weak self] in
+      for await error in errorStream {
+        await MainActor.run {
+          guard let self, self.status != .idle else { return }
+          self.startupSessionError = error
+          if error.requiresImmediateSessionStop {
+            self.failure = .sessionRuntimeFailed(error)
+          }
+        }
+      }
+    }
+  }
+
+  private func waitForActiveDeviceToSettle() async {
+    guard let activeDeviceAvailableSince else { return }
+    let elapsed = Date().timeIntervalSince(activeDeviceAvailableSince)
+    let remaining = 2.0 - elapsed
+    if remaining > 0 {
+      try? await Task.sleep(for: .milliseconds(Int(remaining * 1_000)))
+    }
+  }
+
   private func statusText(for output: Recognizer.Output) -> String {
-    if let error = output.error { return "Backend: \(error)" }
+    if let failure = output.failure { return "Backend: \(failure.statusDescription)" }
     if output.hasFrame {
       missingRecognitionOutputs = 0
       return "Reading sign"
@@ -236,6 +294,10 @@ final class StreamModel {
     stateToken = nil
     frameToken = nil
     errorToken = nil
+    sessionErrorTask?.cancel()
+    sessionErrorTask = nil
+    startupSessionError = nil
+    streamHasStarted = false
     await frameGate.reset()
     status = .idle
     latestFrame = nil

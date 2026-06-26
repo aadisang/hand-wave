@@ -130,6 +130,27 @@ struct InferSessionTests {
     #expect(Self.finalizedText(from: finalized) == "cat")
   }
 
+  @Test
+  func surfacesDecodeFailureOnNextIngest() async throws {
+    let failure = InferenceFailure.badStatus(URL(string: "https://example.test")!, 503)
+    let client = FailingInferAPI(failure: failure)
+    let controller = InferSession(client: client)
+    try await controller.start()
+
+    for index in 0..<(InferCfg.Stream.min + InferCfg.Stream.stride) {
+      _ = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
+      if await client.recognizeCount > 0 { break }
+    }
+    await Self.waitForFailingRecognition(client)
+
+    do {
+      _ = try await controller.ingest(Self.frame(offset: 0.24))
+      Issue.record("Expected pending inference failure to be surfaced")
+    } catch {
+      #expect(error == failure)
+    }
+  }
+
   private static func frame(offset: Double) -> LandmarkFrame {
     LandmarkFrame(
       landmarks: (0..<54).map { index in
@@ -172,6 +193,13 @@ struct InferSessionTests {
     }
   }
 
+  private static func waitForFailingRecognition(_ client: FailingInferAPI) async {
+    for _ in 0..<100 {
+      if await client.recognizeCount > 0 { return }
+      await Task.yield()
+    }
+  }
+
   private static func text(from event: InferSession.Event?) -> String? {
     guard case .partial(let prediction) = event else { return nil }
     return prediction.text
@@ -196,7 +224,7 @@ private actor MockInferAPI: InferAPI {
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
     finalize: Bool
-  ) async throws -> InferenceRecognizeOut {
+  ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     recognizeCount += 1
     return recognitionResponse(text: responseText, context: context, finalize: finalize)
   }
@@ -216,7 +244,7 @@ private actor BlockingInferAPI: InferAPI {
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
     finalize: Bool
-  ) async throws -> InferenceRecognizeOut {
+  ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     if finalize {
       return recognitionResponse(text: responseText, context: context, finalize: true)
     }
@@ -241,6 +269,25 @@ private actor BlockingInferAPI: InferAPI {
       )
     )
     continuation = nil
+  }
+}
+
+private actor FailingInferAPI: InferAPI {
+  private let failure: InferenceFailure
+  private(set) var recognizeCount = 0
+
+  init(failure: InferenceFailure) {
+    self.failure = failure
+  }
+
+  func recognize(
+    frames: [LandmarkFrame],
+    state: InferenceRecognitionState?,
+    context: InferenceRecognitionContext,
+    finalize: Bool
+  ) async throws(InferenceFailure) -> InferenceRecognizeOut {
+    recognizeCount += 1
+    throw failure
   }
 }
 
