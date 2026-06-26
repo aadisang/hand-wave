@@ -51,6 +51,8 @@ final class StreamModel {
   @ObservationIgnored
   private var streamHasStarted = false
   @ObservationIgnored
+  private var isTearingDown = false
+  @ObservationIgnored
   private var missingRecognitionOutputs = 0
   private static let missingStatusThreshold = 4
 
@@ -287,18 +289,26 @@ final class StreamModel {
   }
 
   private func teardown() async {
+    guard !isTearingDown else { return }
+    isTearingDown = true
+
     let stream = self.stream
     let session = self.session
-    self.stream = nil
-    self.session = nil
     stateToken = nil
     frameToken = nil
     errorToken = nil
     sessionErrorTask?.cancel()
     sessionErrorTask = nil
     startupSessionError = nil
-    streamHasStarted = false
+
+    await recognizer.stop()
+    await stream?.stop()
+    session?.stop()
+
+    self.stream = nil
+    self.session = nil
     await frameGate.reset()
+    streamHasStarted = false
     status = .idle
     latestFrame = nil
     overlayFrame = .empty
@@ -307,8 +317,6 @@ final class StreamModel {
     missingRecognitionOutputs = 0
     transcript.removeAll(keepingCapacity: true)
     speech.reset()
-    await recognizer.stop()
-    await stream?.stop()
-    session?.stop()
+    isTearingDown = false
   }
 }
