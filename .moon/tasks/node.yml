@@ -35,19 +35,21 @@ tasks:
       - '/.oxfmtrc.json'
 
   lint:
-    command: 'pnpm exec eslint --no-error-on-unmatched-pattern .'
+    command: 'pnpm exec oxlint --no-error-on-unmatched-pattern .'
     inputs:
       - '@group(sources)'
       - '@group(configs)'
-      - 'eslint.config.*'
+      - '.oxlintrc.json'
+      - 'oxlint.config.*'
 
   lintFix:
-    command: 'pnpm exec eslint --fix --no-error-on-unmatched-pattern .'
+    command: 'pnpm exec oxlint --fix --no-error-on-unmatched-pattern .'
     preset: 'utility'
     inputs:
       - '@group(sources)'
       - '@group(configs)'
-      - 'eslint.config.*'
+      - '.oxlintrc.json'
+      - 'oxlint.config.*'
 
   typecheck:
     command: 'pnpm exec tsc --noEmit --pretty'
