@@ -1,56 +1,44 @@
 import Foundation
 
 protocol InferAPI: Sendable {
-  func warmConnection() async throws
+  func warmConnection() async throws(InferenceFailure)
 
   func recognize(
     frames: [LandmarkFrame],
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
     finalize: Bool
-  ) async throws -> InferenceRecognizeOut
+  ) async throws(InferenceFailure) -> InferenceRecognizeOut
 }
 
 extension InferAPI {
-  func warmConnection() async throws {}
+  func warmConnection() async throws(InferenceFailure) {}
 }
 
 struct InferClient: Sendable {
-  enum ClientError: Error, LocalizedError {
-    case missingBaseURL
-    case localhostOnDevice(URL)
-    case badStatus(URL, Int)
-    case requestFailed(URL, String)
-
-    var errorDescription: String? {
-      switch self {
-      case .missingBaseURL:
-        "Set HANDWAVE_INFERENCE_URL in HandWave.xcconfig. On a physical iPhone, localhost points to the phone, not your Mac."
-      case .localhostOnDevice(let url):
-        "\(url.absoluteString) points to this iPhone, not your Mac. Use the deployed Modal URL or your Mac's Wi-Fi IP address."
-      case .badStatus(let url, let status):
-        "\(url.absoluteString) returned HTTP \(status)."
-      case .requestFailed(let url, let message):
-        "\(url.absoluteString) failed: \(message). If this is a 192.168.x.x URL, allow Local Network access for Hand Wave in iOS Settings and confirm the phone is on the same network as the Mac."
-      }
-    }
-  }
-
-  private let baseURL: URL?
+  private let baseURLs: [URL]
   private let session: URLSession
   private let encoder = JSONEncoder()
   private let decoder = JSONDecoder()
 
   var endpointDescription: String {
-    baseURL?.absoluteString ?? "not configured"
+    guard !baseURLs.isEmpty else { return "not configured" }
+    return baseURLs.map(\.absoluteString).joined(separator: ", ")
   }
 
   init(
-    baseURL: URL? = InferClient.defaultBaseURL(),
+    baseURLs: [URL] = InferClient.defaultBaseURLs(),
     session: URLSession = InferClient.defaultSession()
   ) {
-    self.baseURL = baseURL
+    self.baseURLs = baseURLs
     self.session = session
+  }
+
+  init(
+    baseURL: URL?,
+    session: URLSession = InferClient.defaultSession()
+  ) {
+    self.init(baseURLs: baseURL.map { [$0] } ?? [], session: session)
   }
 
   func recognize(
@@ -58,7 +46,7 @@ struct InferClient: Sendable {
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
     finalize: Bool = false
-  ) async throws -> InferenceRecognizeOut {
+  ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     return try await post(
       path: "/v1/recognize",
       body: InferenceRecognizeIn(
@@ -70,79 +58,123 @@ struct InferClient: Sendable {
     )
   }
 
-  func warmConnection() async throws {
-    guard let baseURL else {
-      throw ClientError.missingBaseURL
-    }
+  func warmConnection() async throws(InferenceFailure) {
+    try await withFirstAvailableEndpoint { baseURL in
+      var request = URLRequest(url: baseURL)
+      request.httpMethod = "HEAD"
 
-    guard baseURL.isUsableFromCurrentDevice else {
-      throw ClientError.localhostOnDevice(baseURL)
-    }
-
-    var request = URLRequest(url: baseURL)
-    request.httpMethod = "HEAD"
-
-    do {
-      _ = try await session.data(for: request)
-    } catch {
-      throw ClientError.requestFailed(baseURL, error.localizedDescription)
+      do {
+        _ = try await session.data(for: request)
+        return .success(())
+      } catch {
+        return .failure(.requestFailed(baseURL, FailureDescriptions.describe(error)))
+      }
     }
   }
 
-  private func post<Response: Decodable, Body: Encodable>(
+  private func post<Response: Decodable & Sendable, Body: Encodable>(
     path: String,
     body: Body
-  ) async throws -> Response {
-    guard let baseURL else {
-      throw ClientError.missingBaseURL
-    }
+  ) async throws(InferenceFailure) -> Response {
+    try await withFirstAvailableEndpoint { baseURL in
+      let url = baseURL.appending(path: path)
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      do {
+        request.httpBody = try encoder.encode(body)
+      } catch {
+        return .failure(.encodeRequestFailed(url, FailureDescriptions.describe(error)))
+      }
 
-    guard baseURL.isUsableFromCurrentDevice else {
-      throw ClientError.localhostOnDevice(baseURL)
-    }
+      let data: Data
+      let response: URLResponse
+      do {
+        (data, response) = try await session.data(for: request)
+      } catch {
+        return .failure(.requestFailed(url, FailureDescriptions.describe(error)))
+      }
 
-    let url = baseURL.appending(path: path)
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try encoder.encode(body)
-
-    let data: Data
-    let response: URLResponse
-    do {
-      (data, response) = try await session.data(for: request)
-    } catch {
-      throw ClientError.requestFailed(url, error.localizedDescription)
+      let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+      guard (200..<300).contains(status) else {
+        return .failure(.badStatus(url, status))
+      }
+      do {
+        return .success(try decoder.decode(Response.self, from: data))
+      } catch {
+        return .failure(.decodeResponseFailed(url, FailureDescriptions.describe(error)))
+      }
     }
-
-    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-    guard (200..<300).contains(status) else {
-      throw ClientError.badStatus(url, status)
-    }
-    return try decoder.decode(Response.self, from: data)
   }
 
-  private static func defaultBaseURL() -> URL? {
-    guard
-      let value = Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL")
-        as? String
-    else { return nil }
+  private func withFirstAvailableEndpoint<Response: Sendable>(
+    _ operation: (URL) async -> Result<Response, InferenceFailure>
+  ) async throws(InferenceFailure) -> Response {
+    guard !baseURLs.isEmpty else {
+      throw .missingBaseURL
+    }
 
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty, !trimmed.contains("$(") else { return nil }
-    return URL(string: trimmed)
+    var lastFailure: InferenceFailure?
+    for baseURL in baseURLs {
+      guard baseURL.isUsableFromCurrentDevice else {
+        lastFailure = .localhostOnDevice(baseURL)
+        continue
+      }
+
+      switch await operation(baseURL) {
+      case .success(let response):
+        return response
+      case .failure(let failure):
+        lastFailure = failure
+        guard failure.canTryNextEndpoint else { throw failure }
+      }
+    }
+
+    throw lastFailure ?? .missingBaseURL
+  }
+
+  private static func defaultBaseURLs() -> [URL] {
+    let urls = urlsFromInfoDictionaryValue("HandWaveInferenceURLs")
+    if !urls.isEmpty { return urls }
+    return urlsFromInfoDictionaryValue("HandWaveInferenceURL")
+  }
+
+  private static func urlsFromInfoDictionaryValue(_ key: String) -> [URL] {
+    guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+      return []
+    }
+
+    return value.split { ",;\n".contains($0) }
+      .compactMap { rawValue -> URL? in
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("$(") else { return nil }
+        return URL(string: trimmed)
+      }
   }
 
   private static func defaultSession() -> URLSession {
     let configuration = URLSessionConfiguration.default
     configuration.waitsForConnectivity = true
-    configuration.timeoutIntervalForRequest = 10
-    configuration.timeoutIntervalForResource = 15
+    configuration.timeoutIntervalForRequest = 4
+    configuration.timeoutIntervalForResource = 8
     return URLSession(configuration: configuration)
   }
 }
 
 extension InferClient: InferAPI {}
+
+extension InferenceFailure {
+  fileprivate var canTryNextEndpoint: Bool {
+    switch self {
+    case .requestFailed, .localhostOnDevice:
+      true
+    case .badStatus(_, let status):
+      (500..<600).contains(status)
+    case .missingBaseURL, .encodeRequestFailed, .decodeResponseFailed, .unexpected:
+      false
+    }
+  }
+}
 
 extension URL {
   fileprivate var isUsableFromCurrentDevice: Bool {

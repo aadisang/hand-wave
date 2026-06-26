@@ -11,33 +11,33 @@ struct RootView: View {
         EventHaptics(
           registered: appModel.wearables.isRegistered,
           streamActive: appModel.stream.isActive,
-          wearablesError: wearables.errorMessage,
-          streamError: stream.errorMessage
+          wearablesFailure: wearables.failure,
+          streamFailure: stream.failure
         )
       )
       .alert(
         "Connection error",
         isPresented: Binding(
-          get: { wearables.errorMessage != nil },
-          set: { if !$0 { wearables.errorMessage = nil } }
+          get: { wearables.failure != nil },
+          set: { if !$0 { wearables.failure = nil } }
         ),
-        presenting: wearables.errorMessage
+        presenting: wearables.failure
       ) { _ in
         Button("OK", role: .cancel) {}
       } message: {
-        Text($0)
+        Text($0.localizedDescription)
       }
       .alert(
         "Streaming error",
         isPresented: Binding(
-          get: { stream.errorMessage != nil },
-          set: { if !$0 { stream.errorMessage = nil } }
+          get: { stream.failure != nil },
+          set: { if !$0 { stream.failure = nil } }
         ),
-        presenting: stream.errorMessage
+        presenting: stream.failure
       ) { _ in
         Button("OK", role: .cancel) {}
       } message: {
-        Text($0)
+        Text($0.localizedDescription)
       }
   }
 
@@ -66,16 +66,18 @@ struct RootView: View {
 private struct EventHaptics: ViewModifier {
   let registered: Bool
   let streamActive: Bool
-  let wearablesError: String?
-  let streamError: String?
+  let wearablesFailure: WearablesFailure?
+  let streamFailure: StreamFailure?
 
   func body(content: Content) -> some View {
     content
       .sensoryFeedback(trigger: registered) { _, isOn in isOn ? Haptic.connected : nil }
       .sensoryFeedback(trigger: streamActive) { _, isOn in isOn ? Haptic.streamLive : nil }
-      .sensoryFeedback(trigger: wearablesError) { _, message in
-        message != nil ? Haptic.failure : nil
+      .sensoryFeedback(trigger: wearablesFailure) { _, failure in
+        failure != nil ? Haptic.failure : nil
       }
-      .sensoryFeedback(trigger: streamError) { _, message in message != nil ? Haptic.failure : nil }
+      .sensoryFeedback(trigger: streamFailure) { _, failure in
+        failure != nil ? Haptic.failure : nil
+      }
   }
 }

@@ -2,10 +2,12 @@ import Foundation
 
 enum InferCfg {
   private static let config: InferenceConfig = {
-    guard let url = Bundle(for: InferCfgBundleToken.self).url(
-      forResource: "config",
-      withExtension: "json"
-    ) else {
+    guard
+      let url = Bundle(for: InferCfgBundleToken.self).url(
+        forResource: "config",
+        withExtension: "json"
+      )
+    else {
       fatalError("Missing bundled inference config.json")
     }
 

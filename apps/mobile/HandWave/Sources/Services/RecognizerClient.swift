@@ -31,7 +31,7 @@ extension RecognizerClient: DependencyKey {
         event: nil,
         overlayFrame: .empty,
         hasFrame: false,
-        error: nil
+        failure: nil
       )
     }
   )
@@ -49,7 +49,7 @@ extension RecognizerClient: DependencyKey {
         event: nil,
         overlayFrame: .empty,
         hasFrame: false,
-        error: nil
+        failure: nil
       )
     }
   )
