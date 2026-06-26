@@ -39,6 +39,8 @@ tasks:
     outputs:
       - "HandWave.xcworkspace"
       - "HandWave.xcodeproj"
+      - "Derived/InfoPlists"
+      - "Derived/Sources"
 
   pods:
     command: "pod install"
