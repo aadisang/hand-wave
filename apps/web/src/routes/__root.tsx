@@ -4,12 +4,6 @@ import { createRootRoute } from "@tanstack/react-router";
 import { NotFound } from "@/components/app/not-found";
 import { RootComponent, RootDocument } from "@/components/app/root-route";
 import { appJsonLd, homeUrl, site } from "@/config/site";
-import {
-  handModelUrl,
-  poseModelUrl,
-  visionWasmBinaryUrl,
-  visionWasmScriptUrl,
-} from "@/lib/mediapipe/assets";
 import appCss from "./globals.css?url";
 
 export const Route = createRootRoute({
@@ -34,13 +28,6 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "canonical", href: homeUrl },
-      {
-        rel: "preload",
-        href: "/fonts/Satoshi-Variable.woff2",
-        as: "font",
-        type: "font/woff2",
-        crossOrigin: "anonymous",
-      },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "alternate icon", href: "/favicon.ico" },
@@ -54,31 +41,6 @@ export const Route = createRootRoute({
       {
         rel: "preconnect",
         href: "https://cdn.jsdelivr.net",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "preload",
-        as: "fetch",
-        href: visionWasmBinaryUrl,
-        type: "application/wasm",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "preload",
-        as: "script",
-        href: visionWasmScriptUrl,
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "preload",
-        as: "fetch",
-        href: handModelUrl,
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "preload",
-        as: "fetch",
-        href: poseModelUrl,
         crossOrigin: "anonymous",
       },
     ],

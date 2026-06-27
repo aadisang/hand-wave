@@ -17,7 +17,7 @@ export function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           Skip to main content
         </a>
         {children}
-        <Analytics />
+        <Analytics debug={false} />
         <Scripts />
       </body>
     </html>
