@@ -23,6 +23,12 @@ export function filterConsole(): void {
   globalThis.console.info = patch(
     globalThis.console.info.bind(globalThis.console),
   );
+  globalThis.console.log = patch(
+    globalThis.console.log.bind(globalThis.console),
+  );
+  globalThis.console.debug = patch(
+    globalThis.console.debug.bind(globalThis.console),
+  );
   globalThis.console.warn = patch(
     globalThis.console.warn.bind(globalThis.console),
   );
