@@ -100,7 +100,6 @@ let project = Project(
       dependencies: [
         .external(name: "MWDATCore"),
         .external(name: "MWDATCamera"),
-        .external(name: "MWDATMockDevice"),
         .external(name: "Dependencies"),
       ],
       settings: .settings(
