@@ -37,7 +37,7 @@ final class WearablesModel {
       try await wearables.startRegistration()
       refresh()
     } catch {
-      failure = .registrationFailed(error)
+      failure = .connection("Connection failed: \(error.localizedDescription)")
     }
   }
 
@@ -46,13 +46,13 @@ final class WearablesModel {
       try await wearables.startUnregistration()
       refresh()
     } catch {
-      failure = .unregistrationFailed(error)
+      failure = .connection("Disconnect failed: \(error.localizedDescription)")
     }
   }
 
   func ensureCameraPermission() async -> Bool {
     guard isRegistered else {
-      failure = .cameraNeedsRegistration
+      failure = .camera("Connect glasses first.")
       return false
     }
     do {
@@ -62,7 +62,7 @@ final class WearablesModel {
       }
       return status == .granted
     } catch {
-      failure = .cameraPermissionFailed(error)
+      failure = .camera("Camera access failed: \(error.localizedDescription)")
       return false
     }
   }
@@ -72,7 +72,7 @@ final class WearablesModel {
       _ = try await wearables.handleUrl(url)
       refresh()
     } catch {
-      failure = .callbackFailed(error)
+      failure = .callback("Meta AI callback failed: \(error.localizedDescription)")
     }
   }
 

@@ -49,108 +49,43 @@ enum InferenceFailure: Error, Equatable, LocalizedError, Sendable {
   }
 }
 
-enum WearablesFailure: Error, Equatable, LocalizedError, Sendable {
-  case registrationFailed(String)
-  case unregistrationFailed(String)
-  case cameraNeedsRegistration
-  case cameraPermissionFailed(String)
-  case callbackFailed(String)
-
-  static func registrationFailed(_ error: any Error) -> Self {
-    .registrationFailed(FailureDescriptions.describe(error))
-  }
-
-  static func unregistrationFailed(_ error: any Error) -> Self {
-    .unregistrationFailed(FailureDescriptions.describe(error))
-  }
-
-  static func cameraPermissionFailed(_ error: any Error) -> Self {
-    .cameraPermissionFailed(FailureDescriptions.describe(error))
-  }
-
-  static func callbackFailed(_ error: any Error) -> Self {
-    .callbackFailed(FailureDescriptions.describe(error))
-  }
+enum WearablesFailure: Error, LocalizedError, Sendable {
+  case connection(String)
+  case camera(String)
+  case callback(String)
 
   var errorDescription: String? {
     switch self {
-    case .registrationFailed(let message):
-      "Connection failed: \(message)"
-    case .unregistrationFailed(let message):
-      "Disconnect failed: \(message)"
-    case .cameraNeedsRegistration:
-      "Connect glasses first."
-    case .cameraPermissionFailed(let message):
-      "Camera access failed: \(message)"
-    case .callbackFailed(let message):
-      "Meta AI callback failed: \(message)"
+    case .connection(let message), .camera(let message), .callback(let message):
+      message
     }
   }
 }
 
-enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
-  case noActiveDevice
-  case sessionStartFailed(String)
-  case sessionEndedEarly(String?)
-  case sessionRuntimeFailed(String)
-  case streamConfigRejected
-  case streamOpenFailed(String)
-  case streamRuntimeFailed(String)
-  case recognitionStartFailed(String)
-  case recognitionFailed(String)
+enum StreamFailure: Error, LocalizedError, Sendable {
+  case noGlasses
+  case session(String)
+  case camera(String)
+  case recognition(String)
 
-  static func sessionStartFailed(_ error: any Error) -> Self {
-    .sessionStartFailed(FailureDescriptions.describe(error))
+  static func ended(_ error: DeviceSessionError?) -> Self {
+    .session("Glasses stopped before streaming. \(error.map(message) ?? "Try again.")")
   }
 
-  static func sessionEndedEarly(_ error: DeviceSessionError?) -> Self {
-    .sessionEndedEarly(error.map(Self.describeSessionError))
-  }
-
-  static func sessionRuntimeFailed(_ error: DeviceSessionError) -> Self {
-    .sessionRuntimeFailed(describeSessionError(error))
-  }
-
-  static func streamOpenFailed(_ error: any Error) -> Self {
-    .streamOpenFailed(FailureDescriptions.describe(error))
-  }
-
-  static func recognitionStartFailed(_ error: any Error) -> Self {
-    .recognitionStartFailed(FailureDescriptions.describe(error))
-  }
-
-  static func recognitionFailed(_ error: any Error) -> Self {
-    .recognitionFailed(FailureDescriptions.describe(error))
+  static func stopped(_ error: DeviceSessionError) -> Self {
+    .session("Session stopped: \(message(error))")
   }
 
   var errorDescription: String? {
     switch self {
-    case .noActiveDevice:
+    case .noGlasses:
       "No glasses ready."
-    case .sessionStartFailed(let message):
-      "Session failed: \(message)"
-    case .sessionEndedEarly(let message):
-      if let message {
-        "Glasses stopped before streaming. \(message)"
-      } else {
-        "Glasses stopped before streaming. Try again."
-      }
-    case .sessionRuntimeFailed(let message):
-      "Session stopped: \(message)"
-    case .streamConfigRejected:
-      "Stream settings rejected."
-    case .streamOpenFailed(let message):
-      "Stream failed: \(message)"
-    case .streamRuntimeFailed(let message):
-      "Stream failed: \(message)"
-    case .recognitionStartFailed(let message):
-      "Recognition failed: \(message)"
-    case .recognitionFailed(let message):
-      "Recognition failed: \(message)"
+    case .session(let message), .camera(let message), .recognition(let message):
+      message
     }
   }
 
-  private static func describeSessionError(_ error: DeviceSessionError) -> String {
+  private static func message(_ error: DeviceSessionError) -> String {
     switch error {
     case .noEligibleDevice:
       "No glasses ready. Open or wear them nearby."
@@ -165,11 +100,9 @@ enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
     case .capabilityNotFound:
       "Camera unavailable. Try again."
     case .unexpectedError(let description):
-      if description.localizedCaseInsensitiveContains("session ended by device") {
-        "Glasses ended the session. Keep them open and worn."
-      } else {
-        "Unexpected session error: \(description)"
-      }
+      description.localizedCaseInsensitiveContains("session ended by device")
+        ? "Glasses ended the session. Keep them open and worn."
+        : "Unexpected session error: \(description)"
     case .thermalCritical:
       "Glasses too warm."
     case .thermalEmergency:
