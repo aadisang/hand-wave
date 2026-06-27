@@ -7,11 +7,7 @@ enum LandmarkSelection {
   ) -> LandmarkFrame? {
     let right = recentLandmarks.hand(in: frame, side: .right, timestampMs: timestampMs)
     let left = recentLandmarks.hand(in: frame, side: .left, timestampMs: timestampMs)
-    guard let pose = recentLandmarks.pose(in: frame, timestampMs: timestampMs),
-      right != nil || left != nil
-    else {
-      return nil
-    }
+    guard right != nil || left != nil else { return nil }
 
     let side =
       selectedHand.flatMap {
@@ -21,10 +17,12 @@ enum LandmarkSelection {
       ?? (right != nil ? .right : .left)
     guard let sourceHand = recentLandmarks.hand(in: frame, side: side, timestampMs: timestampMs)
     else { return nil }
+    let sourcePose =
+      recentLandmarks.pose(in: frame, timestampMs: timestampMs) ?? syntheticPose(from: sourceHand)
 
     let useLeft = side == .left
     let modelHand = useLeft ? mirror(sourceHand) : sourceHand
-    let alignedPose = useLeft ? mirror(pose) : pose
+    let alignedPose = useLeft ? mirror(sourcePose) : sourcePose
     guard modelHand.count == 21, alignedPose.count == 33 else { return nil }
     guard modelHand.allSatisfy(LandmarkValidation.validPoint),
       LandmarkValidation.validPose(alignedPose)
@@ -62,5 +60,14 @@ enum LandmarkSelection {
 
   private static func mirror(_ points: [LandmarkPoint]) -> [LandmarkPoint] {
     points.map { LandmarkPoint(x: 1 - $0.x, y: $0.y, z: $0.z) }
+  }
+
+  private static func syntheticPose(from hand: [LandmarkPoint]) -> [LandmarkPoint] {
+    precondition(!hand.isEmpty, "Synthetic pose requires a hand")
+    let wrist = hand[0]
+    return Array(
+      repeating: LandmarkPoint(x: wrist.x, y: wrist.y, z: wrist.z ?? 0),
+      count: 33
+    )
   }
 }
