@@ -14,7 +14,7 @@ actor InferSession {
   }
 
   private let client: InferAPI
-  private var recognitionState: InferenceRecognitionState?
+  private var state: InferenceRecognitionState?
   private var frames: [LandmarkFrame] = []
   private var seen = 0
   private var inFlight = false
@@ -23,7 +23,7 @@ actor InferSession {
   private var moved = false
   private var ended = false
   private var lost = 0
-  private var gen = 0
+  private var epoch = 0
   private var requestId = 0
   private var pendingEvent: Event?
   private var pendingError: InferenceFailure?
@@ -37,12 +37,12 @@ actor InferSession {
   }
 
   func stop() async {
-    gen += 1
+    epoch += 1
     requestId += 1
     inFlight = false
     pendingEvent = nil
     pendingError = nil
-    recognitionState = nil
+    state = nil
     resetSegment()
   }
 
@@ -102,8 +102,8 @@ actor InferSession {
   ) {
     requestId += 1
     let id = requestId
-    let generation = gen
-    let state = recognitionState
+    let requestEpoch = epoch
+    let currentState = state
     let context = recognitionContext(idleFrames: idleFrames, motion: motion)
     inFlight = true
 
@@ -111,23 +111,19 @@ actor InferSession {
       do {
         let response = try await client.recognize(
           frames: batch,
-          state: state,
+          state: currentState,
           context: context,
           finalize: false
         )
         self.finishDecode(
           response,
           id: id,
-          generation: generation
+          epoch: requestEpoch
         )
       } catch let error as InferenceFailure {
-        self.failDecode(error, id: id, generation: generation)
+        self.failDecode(error, id: id, epoch: requestEpoch)
       } catch {
-        self.failDecode(
-          .unexpected(FailureDescriptions.describe(error)),
-          id: id,
-          generation: generation
-        )
+        preconditionFailure("Unexpected inference error: \(error)")
       }
     }
   }
@@ -135,13 +131,13 @@ actor InferSession {
   private func finishDecode(
     _ response: InferenceRecognizeOut,
     id: Int,
-    generation: Int
+    epoch requestEpoch: Int
   ) {
     guard id == requestId else { return }
     inFlight = false
-    guard generation == gen else { return }
+    guard requestEpoch == epoch else { return }
 
-    recognitionState = response.state
+    state = response.state
     pendingEvent = response.displayPrediction.map {
       Event.partial(
         Self.prediction(from: $0, processingTimeMs: response.trace.decode?.latencyMs ?? 0)
@@ -149,10 +145,10 @@ actor InferSession {
     }
   }
 
-  private func failDecode(_ error: InferenceFailure, id: Int, generation: Int) {
+  private func failDecode(_ error: InferenceFailure, id: Int, epoch requestEpoch: Int) {
     guard id == requestId else { return }
     inFlight = false
-    guard generation == gen else { return }
+    guard requestEpoch == epoch else { return }
     pendingError = error
   }
 
@@ -165,7 +161,7 @@ actor InferSession {
   private func acceptMissingFrame() async throws(InferenceFailure) -> Event? {
     guard !ended else { return nil }
     guard moved, seen >= InferCfg.Stream.min else {
-      resetLiveState()
+      resetLive()
       return .clear
     }
 
@@ -183,22 +179,22 @@ actor InferSession {
   private func finalizeSegment(
     reason: InferenceEndpointReason
   ) async throws(InferenceFailure) -> Event? {
-    let state = recognitionState
-    let context = recognitionContext(endpointReason: reason)
+    let currentState = state
+    let context = endpointContext(reason)
     ended = true
-    gen += 1
+    epoch += 1
     requestId += 1
     inFlight = false
     pendingEvent = nil
-    recognitionState = nil
+    state = nil
     resetSegment()
 
-    guard let state else {
+    guard let currentState else {
       return .clear
     }
     let response = try await client.recognize(
       frames: [],
-      state: state,
+      state: currentState,
       context: context,
       finalize: true
     )
@@ -209,9 +205,9 @@ actor InferSession {
     return .finalized(Self.prediction(from: prediction, processingTimeMs: 0))
   }
 
-  private func resetLiveState() {
+  private func resetLive() {
     resetSegment()
-    recognitionState = nil
+    state = nil
   }
 
   private func resetSegment() {
@@ -237,17 +233,22 @@ actor InferSession {
     return total / Double(count)
   }
 
-  private func recognitionContext(
-    idleFrames: Int? = nil,
-    motion: Double? = nil,
-    endpointReason: InferenceEndpointReason? = nil
-  ) -> InferenceRecognitionContext {
+  private func recognitionContext(idleFrames: Int, motion: Double) -> InferenceRecognitionContext {
     InferenceRecognitionContext(
-      idleFrames: idleFrames ?? idle,
+      idleFrames: idleFrames,
       missingFrames: lost,
       segmentFrames: seen,
-      motion: motion ?? 0,
-      endpointReason: endpointReason
+      motion: motion
+    )
+  }
+
+  private func endpointContext(_ reason: InferenceEndpointReason) -> InferenceRecognitionContext {
+    InferenceRecognitionContext(
+      idleFrames: idle,
+      missingFrames: lost,
+      segmentFrames: seen,
+      motion: 0,
+      endpointReason: reason
     )
   }
 

@@ -10,6 +10,7 @@ struct StreamView: View {
       latestFrame: appModel.stream.latestFrame,
       overlayFrame: appModel.stream.overlayFrame,
       current: appModel.stream.current,
+      isSpeaking: appModel.stream.isSpeaking,
       showLandmarks: $showLandmarks,
       stop: appModel.stream.stop
     )
@@ -20,6 +21,7 @@ private struct StreamContent: View {
   let latestFrame: UIImage?
   let overlayFrame: HandLandmarksFrame
   let current: InferSession.Pred?
+  let isSpeaking: Bool
   @Binding var showLandmarks: Bool
   let stop: () async -> Void
 
@@ -37,7 +39,7 @@ private struct StreamContent: View {
 
       VStack(spacing: 0) {
         if let current {
-          PredictionOverlay(prediction: current)
+          PredictionOverlay(prediction: current, isSpeaking: isSpeaking)
         }
         Spacer(minLength: 0)
         ControlBar(showLandmarks: $showLandmarks, stop: stop)
@@ -49,6 +51,7 @@ private struct StreamContent: View {
     .toolbar(.hidden, for: .navigationBar)
     .statusBarHidden()
     .animation(Motion.overlay, value: current?.text)
+    .animation(Motion.overlay, value: isSpeaking)
     .animation(Motion.standard, value: showLandmarks)
     .sensoryFeedback(trigger: current?.text) { _, new in
       new != nil ? Haptic.recognized : nil
@@ -58,17 +61,30 @@ private struct StreamContent: View {
 
 private struct PredictionOverlay: View {
   let prediction: InferSession.Pred
+  let isSpeaking: Bool
 
   var body: some View {
-    Text(prediction.text)
-      .font(.satoshi(22, .semibold))
-      .foregroundStyle(.textPrimary)
-      .lineLimit(1)
-      .minimumScaleFactor(0.6)
-      .padding(.horizontal, Spacing.xl)
-      .padding(.vertical, Spacing.md)
-      .glassEffect(.regular, in: .capsule)
-      .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
+    HStack(spacing: Spacing.sm) {
+      if isSpeaking {
+        Image(systemName: "speaker.wave.2.fill")
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundStyle(.textPrimary)
+          .imageScale(.medium)
+          .transition(.scale(scale: 0.86).combined(with: .opacity))
+      }
+
+      Text(prediction.text)
+        .font(.satoshi(22, .semibold))
+        .foregroundStyle(.textPrimary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+    }
+    .padding(.horizontal, Spacing.xl)
+    .padding(.vertical, Spacing.md)
+    .glassEffect(.regular, in: .capsule)
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(isSpeaking ? "\(prediction.text), speaking" : prediction.text)
+    .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
   }
 }
 
@@ -121,7 +137,7 @@ private struct PreviewPane: View {
         ProgressView()
           .controlSize(.large)
           .tint(.textSecondary)
-        Text("Starting camera")
+        Text("Starting")
           .font(.appFootnote)
           .foregroundStyle(.textSecondary)
       }
