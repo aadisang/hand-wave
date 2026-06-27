@@ -1,5 +1,4 @@
-import { useMediaDevices } from "@reactuses/core";
-import { memo, useMemo } from "react";
+import { memo, useSyncExternalStore } from "react";
 import {
   Select,
   SelectContent,
@@ -12,8 +11,13 @@ import { ToolbarSeparator } from "@/components/ui/toolbar";
 
 type Props = {
   cameraId: string | null;
-  reserve?: boolean;
+  reserve: boolean;
   setCameraId: (cameraId: string | null) => void;
+};
+
+type CameraSnapshot = {
+  cameras: MediaDeviceInfo[];
+  ready: boolean;
 };
 
 const cleanLabel = (label: string) =>
@@ -26,22 +30,18 @@ const triggerLabelFor = (label: string) =>
   label.replace(/\s+(?:virtual\s+camera|web\s+camera|webcam|camera)$/i, "") ||
   label;
 
-const mediaDevicesOptions = {
-  constraints: { audio: false, video: true },
-};
-
 const triggerWidth = "clamp(7rem, 24vw, 10rem)";
+const emptySnapshot: CameraSnapshot = { cameras: [], ready: false };
+const listeners = new Set<() => void>();
+
+let snapshot = emptySnapshot;
 
 export const CameraSelect = memo(function CameraSelect({
   cameraId,
-  reserve = false,
+  reserve,
   setCameraId,
 }: Props) {
-  const [{ devices }] = useMediaDevices(mediaDevicesOptions);
-  const cameras = useMemo(
-    () => devices.filter((device) => device.kind === "videoinput"),
-    [devices],
-  );
+  const { cameras, ready } = useCameraDevices();
   const selectedIndex = cameras.findIndex((d) => d.deviceId === cameraId);
   const selectedLabel =
     selectedIndex === -1
@@ -49,16 +49,20 @@ export const CameraSelect = memo(function CameraSelect({
       : labelFor(cameras[selectedIndex], selectedIndex);
 
   if (cameras.length < 2) {
-    if (!reserve) return null;
+    const showPlaceholder =
+      reserve || !ready || cameraId !== null || cameras.length === 1;
+    if (!showPlaceholder) return null;
 
     return (
       <>
         <ToolbarSeparator orientation="vertical" />
         <div
-          aria-hidden="true"
-          className="pointer-events-none shrink-0"
+          aria-disabled="true"
+          className="inline-flex min-h-8 shrink-0 items-center justify-between truncate rounded-lg border border-input bg-overlay px-2.5 text-sm text-muted-foreground shadow-xs/5"
           style={{ width: triggerWidth }}
-        />
+        >
+          {cameras[0] ? triggerLabelFor(labelFor(cameras[0], 0)) : "Camera"}
+        </div>
       </>
     );
   }
@@ -99,3 +103,37 @@ export const CameraSelect = memo(function CameraSelect({
     </>
   );
 });
+
+function useCameraDevices() {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  void refresh();
+
+  const timers = [
+    window.setTimeout(refresh, 250),
+    window.setTimeout(refresh, 1_000),
+  ];
+  navigator.mediaDevices.addEventListener("devicechange", refresh);
+
+  return () => {
+    listeners.delete(onStoreChange);
+    timers.forEach(window.clearTimeout);
+    navigator.mediaDevices.removeEventListener("devicechange", refresh);
+  };
+}
+
+function getSnapshot() {
+  return snapshot;
+}
+
+async function refresh() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  snapshot = {
+    cameras: devices.filter((device) => device.kind === "videoinput"),
+    ready: true,
+  };
+  listeners.forEach((listener) => listener());
+}

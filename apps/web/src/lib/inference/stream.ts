@@ -19,6 +19,7 @@ import type {
   PredictTrace,
   RecognitionContext,
   RecognitionState,
+  RecognizeOut,
   StreamCtrl,
   WireDecodeTrace,
   WireFinalizeTrace,
@@ -35,17 +36,17 @@ export function createStreamCtrl(): StreamCtrl {
   let idle = 0;
   let moved = false;
   let ended = false;
-  let gen = 0;
+  let epoch = 0;
   let lastMotion = 0;
   let lost = 0;
-  let lastAcceptedAt = 0;
+  let lastAt = 0;
   let clearTimer: number | null = null;
   let disposed = false;
-  let recognitionState: RecognitionState | null = null;
+  let state: RecognitionState | null = null;
 
   const setPrediction = useDetectionsStore.getState().setCurrentPrediction;
 
-  const clearDisplayReset = () => {
+  const clearHold = () => {
     if (clearTimer === null) return;
     window.clearTimeout(clearTimer);
     clearTimer = null;
@@ -55,17 +56,17 @@ export function createStreamCtrl(): StreamCtrl {
     frames = [];
     seen = 0;
     last = null;
-    lastAcceptedAt = 0;
+    lastAt = 0;
     idle = 0;
     moved = false;
     lost = 0;
   };
 
-  const resetLiveState = () => {
-    clearDisplayReset();
+  const resetLive = () => {
+    clearHold();
     setPrediction(null);
     resetSegment();
-    recognitionState = null;
+    state = null;
   };
 
   const start = () => {
@@ -74,8 +75,8 @@ export function createStreamCtrl(): StreamCtrl {
 
   const dispose = () => {
     disposed = true;
-    gen += 1;
-    resetLiveState();
+    epoch += 1;
+    resetLive();
   };
 
   const updateMotion = (frame: Frame) => {
@@ -84,7 +85,7 @@ export function createStreamCtrl(): StreamCtrl {
     last = frame;
 
     if (motion >= motionMin) {
-      clearDisplayReset();
+      clearHold();
       if (ended) resetSegment();
       ended = false;
       moved = true;
@@ -94,7 +95,16 @@ export function createStreamCtrl(): StreamCtrl {
     if (moved) idle += 1;
   };
 
-  const context = (endpointReason?: EndpointReason): RecognitionContext => ({
+  const decodeContext = (idleFrames: number): RecognitionContext => ({
+    idle_frames: idleFrames,
+    missing_frames: lost,
+    segment_frames: seen,
+    motion: lastMotion,
+  });
+
+  const endpointContext = (
+    endpointReason: EndpointReason,
+  ): RecognitionContext => ({
     idle_frames: idle,
     missing_frames: lost,
     segment_frames: seen,
@@ -103,68 +113,78 @@ export function createStreamCtrl(): StreamCtrl {
   });
 
   const finalize = (endpointReason: EndpointReason) => {
-    const state = recognitionState;
-    const finalizeContext = context(endpointReason);
+    const activeState = state;
+    const context = endpointContext(endpointReason);
 
-    clearDisplayReset();
+    clearHold();
     ended = true;
-    gen += 1;
-    recognitionState = null;
+    epoch += 1;
+    state = null;
     resetSegment();
-    if (!state) {
+    if (!activeState) {
       setPrediction(null);
       return;
     }
-    const finalGen = gen;
-    void finalizeRemote(state, finalizeContext, finalGen);
+    const finalEpoch = epoch;
+    void finalizeRemote(activeState, context, finalEpoch);
   };
 
-  const decode = async (windowFrames: Frame[], batchIdle: number) => {
-    const batchGen = gen;
+  const decode = async (batch: Frame[], idleFrames: number) => {
+    const batchEpoch = epoch;
     inFlight = true;
-    const result = await run(
-      recognizeFrames({
-        frames: windowFrames,
-        state: recognitionState,
-        context: { ...context(), idle_frames: batchIdle },
-      }),
-    ).finally(() => {
+    try {
+      const result = await run(
+        recognizeFrames({
+          frames: batch,
+          state,
+          context: decodeContext(idleFrames),
+        }),
+      );
+      if (batchEpoch !== epoch) return;
+
+      state = result.state;
+      if (result.trace.prediction) {
+        pushPredictTrace(result.trace.prediction, {
+          latencyMs: result.trace.decode?.latency_ms ?? 0,
+          idleFrames,
+          frames: batch.length,
+          motion: lastMotion,
+        });
+      }
+
+      const displayPrediction = toDetectionPrediction(
+        result.display_prediction,
+        result.trace.decode?.latency_ms ?? 0,
+      );
+      if (displayPrediction) setPrediction(displayPrediction);
+      if (result.trace.decode) pushDecodeTrace(result.trace.decode);
+    } catch {
+      if (batchEpoch === epoch) resetLive();
+    } finally {
       inFlight = false;
-    });
-    if (batchGen !== gen) return;
-
-    recognitionState = result.state;
-    if (result.trace.prediction) {
-      pushPredictTrace(result.trace.prediction, {
-        latencyMs: result.trace.decode?.latency_ms ?? 0,
-        idleFrames: batchIdle,
-        frames: windowFrames.length,
-        motion: lastMotion,
-      });
     }
-
-    const displayPrediction = toDetectionPrediction(
-      result.display_prediction,
-      result.trace.decode?.latency_ms ?? 0,
-    );
-    if (displayPrediction) setPrediction(displayPrediction);
-    if (result.trace.decode) pushDecodeTrace(result.trace.decode);
   };
 
   const finalizeRemote = async (
     state: RecognitionState,
-    finalizeContext: RecognitionContext,
-    finalGen: number,
+    context: RecognitionContext,
+    finalEpoch: number,
   ) => {
-    const result = await run(
-      recognizeFrames({
-        state,
-        context: finalizeContext,
-        finalize: true,
-      }),
-    );
+    let result: RecognizeOut;
+    try {
+      result = await run(
+        recognizeFrames({
+          state,
+          context,
+          finalize: true,
+        }),
+      );
+    } catch {
+      if (!disposed && finalEpoch === epoch) resetLive();
+      return;
+    }
 
-    if (disposed || finalGen !== gen) return;
+    if (disposed || finalEpoch !== epoch) return;
     const prediction = toDetectionPrediction(result.display_prediction);
     setPrediction(prediction);
     if (prediction) {
@@ -179,7 +199,7 @@ export function createStreamCtrl(): StreamCtrl {
   const acceptMissingFrame = () => {
     if (ended) return;
     if (!moved || seen < minSeen) {
-      resetLiveState();
+      resetLive();
       return;
     }
 
@@ -199,9 +219,9 @@ export function createStreamCtrl(): StreamCtrl {
     }
 
     lost = 0;
-    const acceptedAt = acceptedFrameTime(lastAcceptedAt);
+    const acceptedAt = acceptedFrameTime(lastAt);
     if (acceptedAt === null) return;
-    lastAcceptedAt = acceptedAt;
+    lastAt = acceptedAt;
 
     updateMotion(frame);
     if (ended) return;
