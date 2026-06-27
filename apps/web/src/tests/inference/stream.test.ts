@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
 import { lost, minFrames, stride } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
@@ -28,6 +29,16 @@ describe("stream controller", () => {
       now += 1_000;
       return now;
     });
+  });
+
+  test("keeps stream timing in human-scale signing windows", () => {
+    const { stream } = cfg;
+
+    expect(stream.min / stream.fps).toBeGreaterThanOrEqual(0.75);
+    expect(stream.idle / stream.fps).toBeGreaterThanOrEqual(0.6);
+    expect(stream.lost / stream.fps).toBeGreaterThanOrEqual(0.35);
+    expect(stream.holdMs).toBeGreaterThanOrEqual(1_000);
+    expect(stream.motion).toBeLessThanOrEqual(0.003);
   });
 
   test("preserves a decode response after landmarks disappear", async () => {
@@ -67,6 +78,57 @@ describe("stream controller", () => {
       expect.objectContaining({ finalize: true }),
     );
     expect(useDetectionsStore.getState().currentPrediction?.text).toBe("cat");
+  });
+
+  test("does not finalize during a normal short hold", async () => {
+    inference.recognize.mockImplementation((payload) =>
+      Promise.resolve(response("cat", Boolean(payload.finalize))),
+    );
+
+    const controller = createStreamCtrl();
+    for (
+      let index = 0;
+      inference.recognize.mock.calls.length === 0;
+      index += 1
+    ) {
+      controller.accept(frame(index * 0.01));
+      expect(index).toBeLessThan(minFrames + stride + 4);
+    }
+    await flushPromises();
+
+    const heldFrame = frame(0.24);
+    const holdFrames = Math.ceil(cfg.stream.fps * 0.6);
+    for (let index = 0; index < holdFrames; index += 1) {
+      controller.accept(heldFrame);
+    }
+    await flushPromises();
+
+    expect(inference.recognize).not.toHaveBeenCalledWith(
+      expect.objectContaining({ finalize: true }),
+    );
+    expect(useDetectionsStore.getState().currentPrediction?.text).toBe("cat");
+  });
+
+  test("clears live state when recognition fails", async () => {
+    inference.recognize.mockRejectedValue(new Error("offline"));
+    useDetectionsStore.getState().setCurrentPrediction({
+      text: "cat",
+      confidence: 0.92,
+      processingTimeMs: 1,
+    });
+
+    const controller = createStreamCtrl();
+    for (
+      let index = 0;
+      inference.recognize.mock.calls.length === 0;
+      index += 1
+    ) {
+      controller.accept(frame(index * 0.01));
+      expect(index).toBeLessThan(minFrames + stride + 4);
+    }
+    await flushPromises();
+
+    expect(useDetectionsStore.getState().currentPrediction).toBeNull();
   });
 });
 
