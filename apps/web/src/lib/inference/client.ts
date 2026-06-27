@@ -96,6 +96,7 @@ export function run<A, E>(effect: Effect.Effect<A, E>) {
 export function warmInference() {
   warmup ??= run(predictFrames([warmupFrame], warmupTimeoutMs))
     .then(() => undefined)
+    .catch(() => undefined)
     .finally(() => {
       warmup = null;
     });
