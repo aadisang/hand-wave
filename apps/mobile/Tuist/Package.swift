@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/facebook/meta-wearables-dat-ios",
-      from: "0.7.0"
+      exact: "0.8.0"
     ),
     .package(
       url: "https://github.com/pointfreeco/swift-dependencies",
