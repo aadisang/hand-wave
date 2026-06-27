@@ -6,29 +6,13 @@ struct LandmarkOverlay: View {
   private enum Style {
     static let handPoint = Color(hex: 0x10B981).opacity(0.95)
     static let handLine = Color.white.opacity(0.85)
-    static let posePoint = Color(hex: 0x60A5FA).opacity(0.85)
-    static let poseLine = Color(hex: 0x93C5FD).opacity(0.55)
     static let handLineWidth: CGFloat = 3
-    static let poseLineWidth: CGFloat = 2
     static let handRadius: CGFloat = 3
-    static let poseRadius: CGFloat = 2.5
   }
 
   var body: some View {
     Canvas { context, size in
       guard !frame.isEmpty else { return }
-
-      for pose in frame.poseLandmarks {
-        drawConnections(
-          Self.poseConnections,
-          in: pose,
-          on: &context,
-          size: size,
-          color: Style.poseLine,
-          lineWidth: Style.poseLineWidth
-        )
-        drawPoints(pose, on: &context, size: size, color: Style.posePoint, radius: Style.poseRadius)
-      }
 
       for hand in frame.rightHandLandmarks + frame.leftHandLandmarks {
         drawConnections(
@@ -98,19 +82,5 @@ struct LandmarkOverlay: View {
     (9, 13), (13, 14), (14, 15), (15, 16),
     (13, 17), (17, 18), (18, 19), (19, 20),
     (0, 17),
-  ]
-
-  private static let poseConnections: [(Int, Int)] = [
-    (0, 1), (1, 2), (2, 3), (3, 7),
-    (0, 4), (4, 5), (5, 6), (6, 8),
-    (9, 10),
-    (11, 12), (11, 13), (13, 15),
-    (15, 17), (15, 19), (15, 21), (17, 19),
-    (12, 14), (14, 16), (16, 18),
-    (16, 20), (16, 22), (18, 20),
-    (11, 23), (12, 24), (23, 24),
-    (23, 25), (24, 26), (25, 27), (26, 28),
-    (27, 29), (28, 30), (29, 31), (30, 32),
-    (27, 31), (28, 32),
   ]
 }
