@@ -34,14 +34,13 @@ private struct Hero: View {
           .font(.appLargeTitle)
           .tracking(-0.4)
           .foregroundStyle(.textPrimary)
-        Text("Sign language, from your wearable.")
+        Text("Signs from your glasses.")
           .font(.appCallout)
           .foregroundStyle(.textSecondary)
           .multilineTextAlignment(.center)
       }
     }
   }
-
 }
 
 private struct PrimaryAction: View {
@@ -50,8 +49,8 @@ private struct PrimaryAction: View {
 
   var body: some View {
     VStack(spacing: Spacing.md) {
-      if state.showsReadinessLine {
-        ReadinessLine(state: state)
+      if state.showsStatus {
+        StatusLine(state: state)
       }
 
       Button {
@@ -74,7 +73,17 @@ private struct PrimaryAction: View {
       .buttonStyle(.glass)
       .controlSize(.large)
       .buttonBorderShape(.capsule)
-      .disabled(!state.isActionable)
+      .disabled(!state.canTap)
+
+      if state.showsReset {
+        Button("Reset") {
+          taps &+= 1
+          reconnect()
+        }
+        .font(.appFootnote)
+        .foregroundStyle(.textSecondary)
+        .buttonStyle(.plain)
+      }
     }
     .sensoryFeedback(Haptic.primaryTap, trigger: taps)
     .animation(Motion.standard, value: state)
@@ -92,7 +101,14 @@ private struct PrimaryAction: View {
     }
   }
 
-  private var state: PairingActionState {
+  private func reconnect() {
+    Task {
+      await appModel.stream.stop()
+      await appModel.wearables.disconnect()
+    }
+  }
+
+  private var state: PairingState {
     if appModel.wearables.isRegistering {
       return .registering
     }
@@ -112,8 +128,8 @@ private struct PrimaryAction: View {
   }
 }
 
-private struct ReadinessLine: View {
-  let state: PairingActionState
+private struct StatusLine: View {
+  let state: PairingState
   @ScaledMetric private var iconBoxSize = 34
   @ScaledMetric private var iconSize = 15
 
@@ -158,7 +174,7 @@ private struct ReadinessLine: View {
   }
 }
 
-private enum PairingActionState: Equatable {
+private enum PairingState: Equatable {
   case needsRegistration
   case registering
   case waitingForDevice
@@ -168,37 +184,37 @@ private enum PairingActionState: Equatable {
 
   var headline: String {
     switch self {
-    case .needsRegistration: "Connect your glasses"
-    case .registering: "Finish setup in Meta AI"
-    case .waitingForDevice: "Glasses are paired"
-    case .waitingForActiveDevice: "Glasses are paired"
-    case .ready: "Glasses are ready"
-    case .startingStream: "Opening camera stream"
+    case .needsRegistration: "Connect glasses"
+    case .registering: "Finish in Meta AI"
+    case .waitingForDevice: "Reconnect glasses"
+    case .waitingForActiveDevice: "Open glasses"
+    case .ready: "Ready"
+    case .startingStream: "Starting camera"
     }
   }
 
   var detail: String {
     switch self {
     case .needsRegistration:
-      "Approve Hand Wave in Meta AI to pair this app."
+      "Approve Hand Wave in Meta AI."
     case .registering:
-      "Return here after approving access in Meta AI."
+      "Approve, then return here."
     case .waitingForDevice:
-      "Open the glasses and keep them near this phone."
+      "Meta AI cannot see them."
     case .waitingForActiveDevice:
-      "Open the glasses or put them on before streaming."
+      "Open or wear them nearby."
     case .ready:
-      "Camera access is available for this session."
+      "Ready to stream."
     case .startingStream:
-      "Keep the glasses open while the stream starts."
+      "Keep glasses open."
     }
   }
 
   var buttonTitle: String {
     switch self {
-    case .needsRegistration: "Connect Glasses"
+    case .needsRegistration: "Connect"
     case .registering: "Connecting"
-    case .waitingForDevice, .waitingForActiveDevice: "Waiting for Glasses"
+    case .waitingForDevice, .waitingForActiveDevice: "Waiting"
     case .ready: "Start Streaming"
     case .startingStream: "Starting"
     }
@@ -221,7 +237,7 @@ private enum PairingActionState: Equatable {
     }
   }
 
-  var isActionable: Bool {
+  var canTap: Bool {
     switch self {
     case .needsRegistration, .ready: true
     case .registering, .waitingForDevice, .waitingForActiveDevice, .startingStream: false
@@ -235,8 +251,16 @@ private enum PairingActionState: Equatable {
     }
   }
 
-  var showsReadinessLine: Bool {
-    self != .ready
+  var showsReset: Bool {
+    switch self {
+    case .waitingForDevice, .waitingForActiveDevice:
+      true
+    default:
+      false
+    }
   }
 
+  var showsStatus: Bool {
+    self != .ready
+  }
 }
