@@ -80,7 +80,7 @@ final class StreamModel {
   func start() async {
     guard status == .idle else { return }
     guard hasActiveDevice else {
-      failure = .noActiveDevice
+      failure = .noGlasses
       return
     }
     status = .connecting
@@ -99,7 +99,7 @@ final class StreamModel {
           await openStream(on: session)
           return
         case .stopped:
-          failure = .sessionEndedEarly(self.startError)
+          failure = .ended(self.startError)
           await teardown()
           return
         case .idle, .starting, .paused, .stopping:
@@ -107,7 +107,7 @@ final class StreamModel {
         }
       }
     } catch {
-      failure = .sessionStartFailed(error)
+      failure = .session("Session failed: \(error.localizedDescription)")
       await teardown()
     }
   }
@@ -127,13 +127,13 @@ final class StreamModel {
     let stream: MWDATCamera.Stream
     do {
       guard let opened = try session.addStream(config: config) else {
-        failure = .streamConfigRejected
+        failure = .camera("Stream settings rejected.")
         await teardown()
         return
       }
       stream = opened
     } catch {
-      failure = .streamOpenFailed(error)
+      failure = .camera("Stream failed: \(error.localizedDescription)")
       await teardown()
       return
     }
@@ -142,7 +142,7 @@ final class StreamModel {
     do {
       try await recognizer.start()
     } catch {
-      failure = .recognitionStartFailed(error)
+      failure = .recognition("Recognition failed: \(error.localizedDescription)")
       await teardown()
       return
     }
@@ -166,7 +166,7 @@ final class StreamModel {
 
     errorToken = stream.errorPublisher.listen { [weak self] (error: MWDATCamera.StreamError) in
       Task { @MainActor [weak self] in
-        self?.failure = .streamRuntimeFailed(String(describing: error))
+        self?.failure = .camera("Stream failed: \(error)")
         await self?.teardown()
       }
     }
@@ -200,7 +200,7 @@ final class StreamModel {
             } catch {
               await MainActor.run {
                 guard self?.status != .idle else { return }
-                self?.failure = .recognitionFailed(error)
+                self?.failure = .recognition("Recognition failed: \(error.localizedDescription)")
               }
             }
             await frameGate.finishRecognition()
@@ -220,7 +220,7 @@ final class StreamModel {
           guard let self, self.status != .idle else { return }
           self.startError = error
           if error.stopsSession {
-            self.failure = .sessionRuntimeFailed(error)
+            self.failure = .stopped(error)
           }
         }
       }

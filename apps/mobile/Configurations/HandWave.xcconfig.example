@@ -5,12 +5,6 @@ META_APP_ID = REPLACE_WITH_META_APP_ID
 CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
 HANDWAVE_DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
-// Use the deployed inference service by default. For local device testing,
-// replace this with your Mac's LAN address, for example:
-// HANDWAVE_INFERENCE_URL = http:/$()/192.168.1.10:8000
-// For a stable physical-device setup, install Tailscale on the Mac and iPhone,
-// then use the Mac's MagicDNS name first and Modal second:
-// HANDWAVE_INFERENCE_URLS = https:/$()/your-mac.your-tailnet.ts.net, https:/$()/sinarck--hand-wave-inference.modal.run
 HANDWAVE_INFERENCE_URL = https:/$()/sinarck--hand-wave-inference.modal.run
 HANDWAVE_INFERENCE_URLS = $(HANDWAVE_INFERENCE_URL)
 
