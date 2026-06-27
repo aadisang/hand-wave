@@ -18,7 +18,7 @@ struct RootView: View {
         )
       )
       .alert(
-        "Connection error",
+        "Connection",
         isPresented: Binding(
           get: { wearables.failure != nil },
           set: { if !$0 { wearables.failure = nil } }
@@ -30,7 +30,7 @@ struct RootView: View {
         Text($0.localizedDescription)
       }
       .alert(
-        "Streaming error",
+        "Streaming",
         isPresented: Binding(
           get: { stream.failure != nil },
           set: { if !$0 { stream.failure = nil } }
@@ -62,14 +62,21 @@ struct RootView: View {
     .preferredColorScheme(.dark)
     .task { await appModel.wearables.observe() }
     .task { await appModel.stream.observe() }
-    .task { await stopStreamBeforeTermination() }
+    .task { await stopOnQuit() }
     .onChange(of: scenePhase) { _, phase in
-      guard phase == .background else { return }
-      Task { await appModel.stream.stop() }
+      switch phase {
+      case .active:
+        appModel.wearables.refresh()
+        appModel.stream.refresh()
+      case .background:
+        Task { await appModel.stream.stop() }
+      default:
+        break
+      }
     }
   }
 
-  private func stopStreamBeforeTermination() async {
+  private func stopOnQuit() async {
     for await _ in NotificationCenter.default.notifications(
       named: UIApplication.willTerminateNotification
     ) {

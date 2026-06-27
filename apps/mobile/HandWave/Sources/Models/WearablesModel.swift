@@ -24,9 +24,8 @@ final class WearablesModel {
     wearables.deviceForIdentifier(identifier)?.nameOrId() ?? "Wearable"
   }
 
-  /// Drives the registration + devices streams for the lifetime of the caller.
-  /// Cancelled automatically when the SwiftUI `.task` that owns it disappears.
   func observe() async {
+    refresh()
     await withTaskGroup(of: Void.self) { group in
       group.addTask { [self] in await observeRegistration() }
       group.addTask { [self] in await observeDevices() }
@@ -36,6 +35,7 @@ final class WearablesModel {
   func connect() async {
     do {
       try await wearables.startRegistration()
+      refresh()
     } catch {
       failure = .registrationFailed(error)
     }
@@ -44,6 +44,7 @@ final class WearablesModel {
   func disconnect() async {
     do {
       try await wearables.startUnregistration()
+      refresh()
     } catch {
       failure = .unregistrationFailed(error)
     }
@@ -51,7 +52,7 @@ final class WearablesModel {
 
   func ensureCameraPermission() async -> Bool {
     guard isRegistered else {
-      failure = .cameraPermissionRequiresRegistration
+      failure = .cameraNeedsRegistration
       return false
     }
     do {
@@ -69,20 +70,36 @@ final class WearablesModel {
   func handleCallback(_ url: URL) async {
     do {
       _ = try await wearables.handleUrl(url)
+      refresh()
     } catch {
       failure = .callbackFailed(error)
     }
   }
 
+  func refresh() {
+    let state = wearables.registrationState
+    let devices = wearables.devices
+    if registrationState != state {
+      registrationState = state
+    }
+    if self.devices != devices {
+      self.devices = devices
+    }
+  }
+
   private func observeRegistration() async {
     for await state in wearables.registrationStateStream() {
-      registrationState = state
+      if registrationState != state {
+        registrationState = state
+      }
     }
   }
 
   private func observeDevices() async {
     for await devices in wearables.devicesStream() {
-      self.devices = devices
+      if self.devices != devices {
+        self.devices = devices
+      }
     }
   }
 }

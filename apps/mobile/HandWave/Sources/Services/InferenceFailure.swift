@@ -13,38 +13,38 @@ enum InferenceFailure: Error, Equatable, LocalizedError, Sendable {
   var errorDescription: String? {
     switch self {
     case .missingBaseURL:
-      "Set HANDWAVE_INFERENCE_URL or HANDWAVE_INFERENCE_URLS in HandWave.xcconfig. On a physical iPhone, localhost points to the phone, not your Mac."
+      "Set the inference URL in HandWave.xcconfig."
     case .localhostOnDevice(let url):
-      "\(url.absoluteString) points to this iPhone, not your Mac. Use the deployed Modal URL, your Mac's Wi-Fi IP address, or the Mac's Tailscale MagicDNS URL."
+      "\(url.absoluteString) points to this iPhone. Use your Mac's LAN or Tailscale URL."
     case .encodeRequestFailed(let url, let message):
-      "Couldn't encode the request for \(url.absoluteString): \(message)."
+      "Request setup failed for \(url.absoluteString): \(message)."
     case .requestFailed(let url, let message):
-      "\(url.absoluteString) failed: \(message). If this is a local or Tailscale URL, confirm the inference server is running and the phone can reach that network."
+      "\(url.absoluteString) unreachable: \(message)."
     case .badStatus(let url, let status):
-      "\(url.absoluteString) returned HTTP \(status)."
+      "\(url.absoluteString): HTTP \(status)."
     case .decodeResponseFailed(let url, let message):
-      "Couldn't read the response from \(url.absoluteString): \(message)."
+      "Bad response from \(url.absoluteString): \(message)."
     case .unexpected(let message):
-      "Inference failed unexpectedly: \(message)."
+      "Inference failed: \(message)."
     }
   }
 
   var statusDescription: String {
     switch self {
     case .missingBaseURL:
-      "Inference URL not configured"
+      "No inference URL"
     case .localhostOnDevice:
-      "Inference URL points to this iPhone"
+      "URL points here"
     case .encodeRequestFailed:
-      "Inference request could not be encoded"
+      "Request failed"
     case .requestFailed:
-      "Inference backend unavailable"
+      "Backend unreachable"
     case .badStatus(_, let status):
-      "Inference backend returned HTTP \(status)"
+      "Backend HTTP \(status)"
     case .decodeResponseFailed:
-      "Inference response could not be read"
+      "Bad backend response"
     case .unexpected:
-      "Inference failed unexpectedly"
+      "Inference failed"
     }
   }
 }
@@ -52,7 +52,7 @@ enum InferenceFailure: Error, Equatable, LocalizedError, Sendable {
 enum WearablesFailure: Error, Equatable, LocalizedError, Sendable {
   case registrationFailed(String)
   case unregistrationFailed(String)
-  case cameraPermissionRequiresRegistration
+  case cameraNeedsRegistration
   case cameraPermissionFailed(String)
   case callbackFailed(String)
 
@@ -75,15 +75,15 @@ enum WearablesFailure: Error, Equatable, LocalizedError, Sendable {
   var errorDescription: String? {
     switch self {
     case .registrationFailed(let message):
-      "Couldn't connect your glasses: \(message)"
+      "Connection failed: \(message)"
     case .unregistrationFailed(let message):
-      "Couldn't disconnect your glasses: \(message)"
-    case .cameraPermissionRequiresRegistration:
-      "Connect your glasses before starting a stream."
+      "Disconnect failed: \(message)"
+    case .cameraNeedsRegistration:
+      "Connect glasses first."
     case .cameraPermissionFailed(let message):
-      "Couldn't get camera permission: \(message)"
+      "Camera access failed: \(message)"
     case .callbackFailed(let message):
-      "Couldn't finish the Meta AI callback: \(message)"
+      "Meta AI callback failed: \(message)"
     }
   }
 }
@@ -91,20 +91,20 @@ enum WearablesFailure: Error, Equatable, LocalizedError, Sendable {
 enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
   case noActiveDevice
   case sessionStartFailed(String)
-  case sessionStoppedBeforeStart(String?)
+  case sessionEndedEarly(String?)
   case sessionRuntimeFailed(String)
-  case streamRejectedConfiguration
+  case streamConfigRejected
   case streamOpenFailed(String)
   case streamRuntimeFailed(String)
   case recognitionStartFailed(String)
-  case recognitionProcessingFailed(String)
+  case recognitionFailed(String)
 
   static func sessionStartFailed(_ error: any Error) -> Self {
     .sessionStartFailed(FailureDescriptions.describe(error))
   }
 
-  static func sessionStoppedBeforeStart(_ error: DeviceSessionError?) -> Self {
-    .sessionStoppedBeforeStart(error.map(Self.describeSessionError))
+  static func sessionEndedEarly(_ error: DeviceSessionError?) -> Self {
+    .sessionEndedEarly(error.map(Self.describeSessionError))
   }
 
   static func sessionRuntimeFailed(_ error: DeviceSessionError) -> Self {
@@ -119,33 +119,33 @@ enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
     .recognitionStartFailed(FailureDescriptions.describe(error))
   }
 
-  static func recognitionProcessingFailed(_ error: any Error) -> Self {
-    .recognitionProcessingFailed(FailureDescriptions.describe(error))
+  static func recognitionFailed(_ error: any Error) -> Self {
+    .recognitionFailed(FailureDescriptions.describe(error))
   }
 
   var errorDescription: String? {
     switch self {
     case .noActiveDevice:
-      "Put on your glasses to start streaming."
+      "No glasses ready."
     case .sessionStartFailed(let message):
-      "Couldn't start session: \(message)"
-    case .sessionStoppedBeforeStart(let message):
+      "Session failed: \(message)"
+    case .sessionEndedEarly(let message):
       if let message {
-        "The glasses session stopped before camera streaming could begin. \(message)"
+        "Glasses stopped before streaming. \(message)"
       } else {
-        "The glasses session stopped before camera streaming could begin. Keep the glasses open and near this phone, then try again."
+        "Glasses stopped before streaming. Try again."
       }
     case .sessionRuntimeFailed(let message):
-      "The glasses session stopped: \(message)"
-    case .streamRejectedConfiguration:
-      "Couldn't open stream because the device rejected the configuration."
+      "Session stopped: \(message)"
+    case .streamConfigRejected:
+      "Stream settings rejected."
     case .streamOpenFailed(let message):
-      "Couldn't open stream: \(message)"
+      "Stream failed: \(message)"
     case .streamRuntimeFailed(let message):
       "Stream failed: \(message)"
     case .recognitionStartFailed(let message):
       "Recognition failed: \(message)"
-    case .recognitionProcessingFailed(let message):
+    case .recognitionFailed(let message):
       "Recognition failed: \(message)"
     }
   }
@@ -153,43 +153,41 @@ enum StreamFailure: Error, Equatable, LocalizedError, Sendable {
   private static func describeSessionError(_ error: DeviceSessionError) -> String {
     switch error {
     case .noEligibleDevice:
-      "No eligible glasses are available. Open the glasses, keep them near this phone, confirm they are connected in Meta AI, and confirm this app appears in Meta AI App Connections."
+      "No glasses ready. Open or wear them nearby."
     case .sessionAlreadyStopped:
-      "The DAT session was already stopped. Wait a moment, then start streaming again."
+      "Session already stopped. Try again."
     case .sessionAlreadyExists:
-      "Another DAT session is already active. Stop the current stream or restart Hand Wave and try again."
+      "Another session is active."
     case .sessionIdle:
-      "The DAT session never left idle. Reopen the glasses and try again."
+      "Session stayed idle. Reopen glasses."
     case .capabilityAlreadyActive:
-      "Camera streaming is already active in this or another DAT session. Stop the existing stream before starting a new one."
+      "Camera already in use."
     case .capabilityNotFound:
-      "The camera capability was removed before streaming could begin. Try starting the stream again."
+      "Camera unavailable. Try again."
     case .unexpectedError(let description):
       if description.localizedCaseInsensitiveContains("session ended by device") {
-        "The glasses ended the session before streaming could start. Keep them open and worn, close any other DAT app, then try again. If this repeats, close the glasses in the case for 30 seconds to clear the retained camera slot."
+        "Glasses ended the session. Keep them open and worn."
       } else {
-        "The SDK reported an unexpected session error: \(description)"
+        "Unexpected session error: \(description)"
       }
     case .thermalCritical:
-      "The glasses are too warm for streaming. Let them cool down before trying again."
+      "Glasses too warm."
     case .thermalEmergency:
-      "The glasses stopped streaming because of a thermal emergency. Let them cool down before trying again."
+      "Glasses overheated."
     case .peakPowerShutdown:
-      "The glasses stopped the session because of a peak-power shutdown. Charge them and try again."
+      "Glasses need charging."
     case .batteryCritical:
-      "The glasses battery is critically low. Charge them before streaming."
+      "Glasses battery low."
     case .datAppOnTheGlassesUpdateRequired:
-      "The Device Access Toolkit app on the glasses needs an update. Open Meta AI and update the DAT wearables app."
+      "Update DAT in Meta AI."
     case .dwaUnavailable:
-      "The Device Access Toolkit wearables app is unavailable on the glasses. Open Meta AI, reconnect the glasses, and make sure Developer Mode/App Connections are set up."
-    @unknown default:
-      "The SDK reported \(FailureDescriptions.describe(error))."
+      "DAT unavailable. Reconnect in Meta AI."
     }
   }
 }
 
 extension DeviceSessionError {
-  var requiresImmediateSessionStop: Bool {
+  var stopsSession: Bool {
     switch self {
     case .thermalCritical,
       .thermalEmergency,
@@ -197,7 +195,14 @@ extension DeviceSessionError {
       .batteryCritical,
       .datAppOnTheGlassesUpdateRequired:
       true
-    default:
+    case .noEligibleDevice,
+      .sessionAlreadyStopped,
+      .sessionAlreadyExists,
+      .sessionIdle,
+      .capabilityAlreadyActive,
+      .capabilityNotFound,
+      .unexpectedError,
+      .dwaUnavailable:
       false
     }
   }

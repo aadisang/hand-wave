@@ -21,24 +21,12 @@ struct InferClient: Sendable {
   private let encoder = JSONEncoder()
   private let decoder = JSONDecoder()
 
-  var endpointDescription: String {
-    guard !baseURLs.isEmpty else { return "not configured" }
-    return baseURLs.map(\.absoluteString).joined(separator: ", ")
-  }
-
   init(
     baseURLs: [URL] = InferClient.defaultBaseURLs(),
     session: URLSession = InferClient.defaultSession()
   ) {
     self.baseURLs = baseURLs
     self.session = session
-  }
-
-  init(
-    baseURL: URL?,
-    session: URLSession = InferClient.defaultSession()
-  ) {
-    self.init(baseURLs: baseURL.map { [$0] } ?? [], session: session)
   }
 
   func recognize(
@@ -59,7 +47,7 @@ struct InferClient: Sendable {
   }
 
   func warmConnection() async throws(InferenceFailure) {
-    try await withFirstAvailableEndpoint { baseURL in
+    try await withEndpoint { baseURL in
       var request = URLRequest(url: baseURL)
       request.httpMethod = "HEAD"
 
@@ -76,7 +64,7 @@ struct InferClient: Sendable {
     path: String,
     body: Body
   ) async throws(InferenceFailure) -> Response {
-    try await withFirstAvailableEndpoint { baseURL in
+    try await withEndpoint { baseURL in
       let url = baseURL.appending(path: path)
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
@@ -107,7 +95,7 @@ struct InferClient: Sendable {
     }
   }
 
-  private func withFirstAvailableEndpoint<Response: Sendable>(
+  private func withEndpoint<Response: Sendable>(
     _ operation: (URL) async -> Result<Response, InferenceFailure>
   ) async throws(InferenceFailure) -> Response {
     guard !baseURLs.isEmpty else {
@@ -116,7 +104,7 @@ struct InferClient: Sendable {
 
     var lastFailure: InferenceFailure?
     for baseURL in baseURLs {
-      guard baseURL.isUsableFromCurrentDevice else {
+      guard baseURL.usableHere else {
         lastFailure = .localhostOnDevice(baseURL)
         continue
       }
@@ -126,7 +114,7 @@ struct InferClient: Sendable {
         return response
       case .failure(let failure):
         lastFailure = failure
-        guard failure.canTryNextEndpoint else { throw failure }
+        guard failure.canRetry else { throw failure }
       }
     }
 
@@ -134,12 +122,12 @@ struct InferClient: Sendable {
   }
 
   private static func defaultBaseURLs() -> [URL] {
-    let urls = urlsFromInfoDictionaryValue("HandWaveInferenceURLs")
+    let urls = infoURLs("HandWaveInferenceURLs")
     if !urls.isEmpty { return urls }
-    return urlsFromInfoDictionaryValue("HandWaveInferenceURL")
+    return infoURLs("HandWaveInferenceURL")
   }
 
-  private static func urlsFromInfoDictionaryValue(_ key: String) -> [URL] {
+  private static func infoURLs(_ key: String) -> [URL] {
     guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
       return []
     }
@@ -164,7 +152,7 @@ struct InferClient: Sendable {
 extension InferClient: InferAPI {}
 
 extension InferenceFailure {
-  fileprivate var canTryNextEndpoint: Bool {
+  fileprivate var canRetry: Bool {
     switch self {
     case .requestFailed, .localhostOnDevice:
       true
@@ -177,7 +165,7 @@ extension InferenceFailure {
 }
 
 extension URL {
-  fileprivate var isUsableFromCurrentDevice: Bool {
+  fileprivate var usableHere: Bool {
     !isLoopbackHost || Self.allowsLoopbackBackend
   }
 
