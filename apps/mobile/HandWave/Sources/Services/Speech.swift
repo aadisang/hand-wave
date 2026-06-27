@@ -4,7 +4,12 @@ import Foundation
 @MainActor
 final class Speech: NSObject, AVSpeechSynthesizerDelegate {
   private let synth = AVSpeechSynthesizer()
-  private lazy var voice = Self.preferredVoice()
+  private lazy var voice: AVSpeechSynthesisVoice? = {
+    let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
+    return voices.first { $0.quality == .premium }
+      ?? voices.first { $0.quality == .enhanced }
+      ?? AVSpeechSynthesisVoice(language: "en-US")
+  }()
   private var speaking = false
 
   var onSpeakingChanged: ((Bool) -> Void)?
@@ -50,25 +55,6 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
     onSpeakingChanged?(speaking)
   }
 
-  private static func preferredVoice() -> AVSpeechSynthesisVoice? {
-    AVSpeechSynthesisVoice.speechVoices()
-      .filter { $0.language == "en-US" }
-      .max { voiceScore($0) < voiceScore($1) }
-      ?? AVSpeechSynthesisVoice(language: "en-US")
-  }
-
-  private static func voiceScore(_ voice: AVSpeechSynthesisVoice) -> Int {
-    switch voice.quality {
-    case .premium:
-      3
-    case .enhanced:
-      2
-    case .default:
-      1
-    @unknown default:
-      preconditionFailure("Unhandled speech voice quality: \(voice.quality)")
-    }
-  }
 }
 
 extension Speech {

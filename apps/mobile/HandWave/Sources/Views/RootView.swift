@@ -13,8 +13,8 @@ struct RootView: View {
         EventHaptics(
           registered: appModel.wearables.isRegistered,
           streamActive: appModel.stream.isActive,
-          wearablesFailure: wearables.failure,
-          streamFailure: stream.failure
+          wearablesFailure: wearables.failure?.localizedDescription,
+          streamFailure: stream.failure?.localizedDescription
         )
       )
       .alert(
@@ -88,8 +88,8 @@ struct RootView: View {
 private struct EventHaptics: ViewModifier {
   let registered: Bool
   let streamActive: Bool
-  let wearablesFailure: WearablesFailure?
-  let streamFailure: StreamFailure?
+  let wearablesFailure: String?
+  let streamFailure: String?
 
   func body(content: Content) -> some View {
     content

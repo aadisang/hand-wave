@@ -35,7 +35,7 @@ struct InferClient: Sendable {
     context: InferenceRecognitionContext,
     finalize: Bool = false
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
-    return try await post(
+    try await post(
       path: "/v1/recognize",
       body: InferenceRecognizeIn(
         frames: frames.map(\.inferenceFeatures),
@@ -47,60 +47,7 @@ struct InferClient: Sendable {
   }
 
   func warmConnection() async throws(InferenceFailure) {
-    try await withEndpoint { baseURL in
-      var request = URLRequest(url: baseURL)
-      request.httpMethod = "HEAD"
-
-      do {
-        _ = try await session.data(for: request)
-        return .success(())
-      } catch {
-        return .failure(.requestFailed(baseURL, FailureDescriptions.describe(error)))
-      }
-    }
-  }
-
-  private func post<Response: Decodable & Sendable, Body: Encodable>(
-    path: String,
-    body: Body
-  ) async throws(InferenceFailure) -> Response {
-    try await withEndpoint { baseURL in
-      let url = baseURL.appending(path: path)
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      do {
-        request.httpBody = try encoder.encode(body)
-      } catch {
-        return .failure(.encodeRequestFailed(url, FailureDescriptions.describe(error)))
-      }
-
-      let data: Data
-      let response: URLResponse
-      do {
-        (data, response) = try await session.data(for: request)
-      } catch {
-        return .failure(.requestFailed(url, FailureDescriptions.describe(error)))
-      }
-
-      let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-      guard (200..<300).contains(status) else {
-        return .failure(.badStatus(url, status))
-      }
-      do {
-        return .success(try decoder.decode(Response.self, from: data))
-      } catch {
-        return .failure(.decodeResponseFailed(url, FailureDescriptions.describe(error)))
-      }
-    }
-  }
-
-  private func withEndpoint<Response: Sendable>(
-    _ operation: (URL) async -> Result<Response, InferenceFailure>
-  ) async throws(InferenceFailure) -> Response {
-    guard !baseURLs.isEmpty else {
-      throw .missingBaseURL
-    }
+    guard !baseURLs.isEmpty else { throw .missingBaseURL }
 
     var lastFailure: InferenceFailure?
     for baseURL in baseURLs {
@@ -109,12 +56,65 @@ struct InferClient: Sendable {
         continue
       }
 
-      switch await operation(baseURL) {
-      case .success(let response):
-        return response
-      case .failure(let failure):
+      var request = URLRequest(url: baseURL)
+      request.httpMethod = "HEAD"
+
+      do {
+        _ = try await session.data(for: request)
+        return
+      } catch {
+        lastFailure = .requestFailed(baseURL, error.localizedDescription)
+      }
+    }
+
+    throw lastFailure ?? .missingBaseURL
+  }
+
+  private func post<Response: Decodable & Sendable, Body: Encodable>(
+    path: String,
+    body: Body
+  ) async throws(InferenceFailure) -> Response {
+    guard !baseURLs.isEmpty else { throw .missingBaseURL }
+
+    var lastFailure: InferenceFailure?
+    for baseURL in baseURLs {
+      guard baseURL.usableHere else {
+        lastFailure = .localhostOnDevice(baseURL)
+        continue
+      }
+
+      let url = baseURL.appending(path: path)
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      do {
+        request.httpBody = try encoder.encode(body)
+      } catch {
+        throw .encodeRequestFailed(url, error.localizedDescription)
+      }
+
+      let data: Data
+      let response: URLResponse
+      do {
+        (data, response) = try await session.data(for: request)
+      } catch {
+        let failure = InferenceFailure.requestFailed(url, error.localizedDescription)
         lastFailure = failure
         guard failure.canRetry else { throw failure }
+        continue
+      }
+
+      let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+      guard (200..<300).contains(status) else {
+        let failure = InferenceFailure.badStatus(url, status)
+        lastFailure = failure
+        guard failure.canRetry else { throw failure }
+        continue
+      }
+      do {
+        return try decoder.decode(Response.self, from: data)
+      } catch {
+        throw .decodeResponseFailed(url, error.localizedDescription)
       }
     }
 
