@@ -4,6 +4,22 @@
  */
 
 export interface paths {
+    "/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["Routes_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/predict": {
         parameters: {
             query?: never;
@@ -71,6 +87,9 @@ export interface components {
             endpoint_reason: components["schemas"]["EndpointReason"];
             /** Format: int32 */
             segment_frames: number;
+        };
+        HealthOut: {
+            ok: boolean;
         };
         LandmarkFrame: number[];
         MpCfg: {
@@ -200,6 +219,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    Routes_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
     Routes_predict: {
         parameters: {
             query?: never;

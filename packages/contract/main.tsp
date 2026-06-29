@@ -59,6 +59,10 @@ model PredictOut {
   stable_text: string;
 }
 
+model HealthOut {
+  ok: boolean;
+}
+
 model RecognitionScored {
   prediction: Prediction;
   score: float64;
@@ -206,6 +210,10 @@ namespace Routes {
   @post
   @route("/predict")
   op predict(@body body: PredictIn): PredictOut;
+
+  @get
+  @route("/health")
+  op health(): HealthOut;
 
   @post
   @route("/recognize")

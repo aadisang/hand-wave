@@ -35,6 +35,10 @@ class FinalizeTrace(BaseModel):
     segment_frames: int
 
 
+class HealthOut(BaseModel):
+    ok: bool
+
+
 class LandmarkFrame(RootModel[list[float]]):
     root: Annotated[list[float], Field(max_length=162, min_length=162)]
 
