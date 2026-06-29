@@ -22,6 +22,8 @@ jobs:
     env:
       MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
       MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      HAND_WAVE_MODAL_LM: ${{ vars.HAND_WAVE_MODAL_LM }}
+      HAND_WAVE_MODAL_LM_VOLUME: ${{ vars.HAND_WAVE_MODAL_LM_VOLUME }}
 
     steps:
       - name: Validate Modal credentials
