@@ -7,17 +7,16 @@ MODEL_DIR = "/models"
 
 DEPS = (
     "fastapi>=0.128.0",
+    "kenlm @ https://github.com/kpu/kenlm/archive/refs/heads/master.zip",
     "numpy>=1.26,<3",
     "pyctcdecode>=0.5.0",
-    "rapidfuzz>=3.14.5",
     "torch>=2.2,<2.6",
     "torchaudio>=2.2,<2.6",
-    "wordfreq>=3.1.1",
-    "wordsegment>=1.3.1",
 )
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
+    .apt_install("build-essential", "cmake")
     .uv_pip_install(*DEPS)
     .add_local_python_source("inference", copy=True)
     .add_local_dir("models", remote_path=MODEL_DIR, copy=True)

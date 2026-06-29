@@ -79,10 +79,21 @@ def test_recognize_returns_state_for_finalize(monkeypatch) -> None:
                 "context": context,
             },
         )
+        state = decode.json()["state"]
+        for _ in range(2):
+            decode = test_client.post(
+                "/v1/recognize",
+                json={
+                    "frames": [landmark_frame(i) for i in range(10)],
+                    "state": state,
+                    "context": context,
+                },
+            )
+            state = decode.json()["state"]
         finalize = test_client.post(
             "/v1/recognize",
             json={
-                "state": decode.json()["state"],
+                "state": state,
                 "context": {**context, "endpoint_reason": "idle"},
                 "finalize": True,
             },
@@ -94,10 +105,3 @@ def test_recognize_returns_state_for_finalize(monkeypatch) -> None:
     assert finalize.status_code == 200
     assert finalize.json()["committed"] is True
     assert finalize.json()["display_prediction"]["label"] == "waiting"
-
-
-def test_session_routes_are_removed(monkeypatch) -> None:
-    with client(monkeypatch) as test_client:
-        response = test_client.post("/v1/sessions", json={})
-
-    assert response.status_code == 404

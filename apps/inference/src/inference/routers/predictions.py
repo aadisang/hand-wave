@@ -5,7 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from inference.dependencies import get_backend
 from inference.model import ModelBackend
 from inference.recognition import recognize as recognize_payload
-from inference.schemas import PredictIn, PredictOut, RecognizeIn, RecognizeOut
+from inference.schemas import (
+    HealthOut,
+    PredictIn,
+    PredictOut,
+    RecognizeIn,
+    RecognizeOut,
+)
 
 router = APIRouter(prefix="/v1", tags=["predictions"])
 
@@ -19,6 +25,11 @@ async def predict(
         return await backend.predict_frames(payload.frames)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/health", response_model=HealthOut)
+async def health() -> HealthOut:
+    return HealthOut(ok=True)
 
 
 @router.post("/recognize", response_model=RecognizeOut)

@@ -3,18 +3,40 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from os import getenv
+from pathlib import Path
 from typing import Protocol, cast
 
 import numpy as np
-
-from inference.language import english_prior
 
 logging.getLogger("pyctcdecode").setLevel(logging.ERROR)
 from pyctcdecode import build_ctcdecoder  # noqa: E402
 
 FSBOARD_CHARS = tuple(" !#$%&'()*+,-./0123456789:;=?@[_abcdefghijklmnopqrstuvwxyz~")
 VOCAB = ("<blank>", *FSBOARD_CHARS)
-LANGUAGE_SCORE_WEIGHT = 0.12
+LM_DIR = Path(__file__).resolve().parents[2] / "models" / "lm"
+DEFAULT_KENLM_MODEL_PATH = LM_DIR / "neutral_english_4gram.kenlm"
+DEFAULT_UNIGRAMS_PATH = LM_DIR / "neutral_english_unigrams.txt"
+
+
+@dataclass(frozen=True)
+class CtcDecoderConfig:
+    kenlm_model_path: Path | None
+    unigram_path: Path | None
+    alpha: float
+    beta: float
+    unk_score_offset: float
+
+    @classmethod
+    def from_env(cls) -> CtcDecoderConfig:
+        model_path = _env_path("KENLM_MODEL_PATH", DEFAULT_KENLM_MODEL_PATH)
+        return cls(
+            kenlm_model_path=model_path,
+            unigram_path=_env_path("KENLM_UNIGRAMS_PATH", DEFAULT_UNIGRAMS_PATH),
+            alpha=_env_float("CTC_ALPHA", 0.65),
+            beta=_env_float("CTC_BETA", 2.0),
+            unk_score_offset=_env_float("CTC_UNK_SCORE_OFFSET", -10.0),
+        )
 
 
 @dataclass(frozen=True)
@@ -56,9 +78,34 @@ class BlankStats:
 class CtcDecoder(Protocol):
     def decode_beams(self, *args: object, **kwargs: object) -> list[object]: ...
 
+    def reset_params(self, *args: object, **kwargs: object) -> None: ...
 
-def build_decoder() -> CtcDecoder:
-    return cast(CtcDecoder, build_ctcdecoder(["", *FSBOARD_CHARS]))
+
+def build_decoder(config: CtcDecoderConfig | None = None) -> CtcDecoder:
+    config = config or CtcDecoderConfig.from_env()
+    if config.kenlm_model_path is None:
+        return cast(CtcDecoder, build_ctcdecoder(["", *FSBOARD_CHARS]))
+
+    if not config.kenlm_model_path.exists():
+        raise FileNotFoundError(f"missing KenLM model: {config.kenlm_model_path}")
+    if config.unigram_path is None or not config.unigram_path.exists():
+        raise FileNotFoundError(f"missing KenLM unigrams: {config.unigram_path}")
+
+    return cast(
+        CtcDecoder,
+        build_ctcdecoder(
+            ["", *FSBOARD_CHARS],
+            kenlm_model_path=str(config.kenlm_model_path),
+            unigrams=load_unigrams(config.unigram_path),
+            alpha=config.alpha,
+            beta=config.beta,
+            unk_score_offset=config.unk_score_offset,
+        ),
+    )
+
+
+def load_unigrams(path: Path) -> tuple[str, ...]:
+    return tuple(token for token in path.read_text().split() if token not in {"<s>", "</s>"})
 
 
 def allowed_token_ids(chars: str) -> set[int]:
@@ -114,29 +161,19 @@ def decode_alternatives(
         beam_prune_logp=-10.0,
         token_min_logp=-5.0,
     )
-    scored: list[tuple[str, float, float, float, str, tuple[DecodedSpan, ...]]] = []
+    scored: list[tuple[str, float, float, float, tuple[DecodedSpan, ...]]] = []
     for beam in beams:
-        raw = beam_text(beam).strip()
-        if not raw:
+        text = beam_text(beam).strip()
+        if not text:
             continue
         logit_score = beam_logit_score(beam)
-        spans = beam_spans(beam)
-        for variant in english_prior().variants(raw):
-            scored.append(
-                (
-                    variant.text,
-                    logit_score + LANGUAGE_SCORE_WEIGHT * variant.score,
-                    logit_score,
-                    variant.score,
-                    raw,
-                    spans,
-                )
-            )
+        lm_score = beam_lm_score(beam)
+        scored.append((text, logit_score + lm_score, logit_score, lm_score, beam_spans(beam)))
 
     weights = softmax(np.asarray([score for _, score, *_ in scored], dtype=np.float64))
     alternatives: list[DecodedAlternative] = []
     seen: set[str] = set()
-    for (text, _score, logit_score, lm_score, raw_text, spans), confidence in sorted(
+    for (text, _score, logit_score, lm_score, spans), confidence in sorted(
         zip(scored, weights, strict=False),
         key=lambda item: item[0][1],
         reverse=True,
@@ -145,7 +182,7 @@ def decode_alternatives(
             continue
         seen.add(text)
         alternatives.append(
-            DecodedAlternative(text, float(confidence), logit_score, lm_score, raw_text, spans)
+            DecodedAlternative(text, float(confidence), logit_score, lm_score, text, spans)
         )
         if len(alternatives) == 5:
             break
@@ -184,6 +221,13 @@ def beam_logit_score(beam: object) -> float:
     return float(cast(tuple[object, object, object, float], beam)[3])
 
 
+def beam_lm_score(beam: object) -> float:
+    score = getattr(beam, "lm_score", None)
+    if score is not None:
+        return float(score)
+    return float(cast(tuple[object, object, object, float, float], beam)[4])
+
+
 def softmax(scores: np.ndarray) -> np.ndarray:
     if scores.size == 0:
         return scores
@@ -193,3 +237,15 @@ def softmax(scores: np.ndarray) -> np.ndarray:
     if total <= 0:
         return np.zeros_like(scores)
     return weights / total
+
+
+def _env_path(name: str, default: Path) -> Path | None:
+    value = getenv(name)
+    if value == "":
+        return None
+    return Path(value) if value else default
+
+
+def _env_float(name: str, default: float) -> float:
+    value = getenv(name)
+    return float(value) if value else default
