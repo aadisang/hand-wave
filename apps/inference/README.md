@@ -28,6 +28,31 @@ moon run inference:modalDeploy
 
 After deploy, set the web app's `VITE_INFERENCE_URL` to the Modal endpoint printed by the CLI.
 
+### Optional Wikipedia LM
+
+The default Modal app bundles `best.ckpt` and `neutral_english_4gram.kenlm` in the image. The
+14 GB `wiki_en_token.arpa.bin` file is intentionally not committed. To test it on Modal, seed a
+Volume once, then deploy with the wiki profile:
+
+```sh
+cd apps/inference
+uv run --group deploy modal volume create hand-wave-lm
+uv run --group deploy modal volume put hand-wave-lm models/lm/wiki_en_token.arpa.bin wiki_en_token.arpa.bin
+uv run --group deploy modal volume put hand-wave-lm models/lm/wiki_en_token.unigrams.txt wiki_en_token.unigrams.txt
+HAND_WAVE_MODAL_LM=wiki uv run --group deploy modal deploy modal_app.py
+```
+
+Set `HAND_WAVE_MODAL_LM_VOLUME` if you want a different Volume name. The serving function mounts
+the Volume read-only at `/lm` and uses:
+
+```sh
+KENLM_MODEL_PATH=/lm/wiki_en_token.arpa.bin
+KENLM_UNIGRAMS_PATH=/lm/wiki_en_token.unigrams.txt
+```
+
+For GitHub Actions deploys, set repository variable `HAND_WAVE_MODAL_LM=wiki` after the Volume is
+seeded. Leave it unset to deploy the default bundled language model.
+
 GitHub Actions deploys the Modal app on pushes to `main` when inference or contract files change.
 The workflow expects these repository secrets:
 
