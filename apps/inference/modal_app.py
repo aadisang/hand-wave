@@ -19,7 +19,7 @@ image = (
     .apt_install("build-essential", "cmake")
     .uv_pip_install(*DEPS)
     .add_local_python_source("inference", copy=True)
-    .add_local_dir("models", remote_path=MODEL_DIR, copy=True)
+    .add_local_dir("models", remote_path=MODEL_DIR, copy=True, ignore=["**/*.arpa.bin"])
     .env(
         {
             "CORS_ORIGINS": "https://handwave.sh",
