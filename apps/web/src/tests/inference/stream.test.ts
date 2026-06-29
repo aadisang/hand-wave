@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
-import { lost, minFrames, stride } from "@/lib/inference/stream-gate";
+import {
+  effectiveFrameRate,
+  lost,
+  minFrames,
+  streamTiming,
+  stride,
+} from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
@@ -9,6 +15,8 @@ const inference = vi.hoisted(() => ({
   recognize: vi.fn<(payload: RecognizeIn) => Promise<RecognizeOut>>(),
   warm: vi.fn(),
 }));
+
+let clockStepMs = 40;
 
 vi.mock("@/lib/inference/client", () => ({
   recognizeFrames: vi.fn((payload: RecognizeIn) => payload),
@@ -18,6 +26,7 @@ vi.mock("@/lib/inference/client", () => ({
 
 describe("stream controller", () => {
   beforeEach(() => {
+    clockStepMs = 40;
     vi.restoreAllMocks();
     vi.stubGlobal("window", globalThis);
     useDetectionsStore.setState({ currentPrediction: null });
@@ -26,7 +35,7 @@ describe("stream controller", () => {
 
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => {
-      now += 1_000;
+      now += clockStepMs;
       return now;
     });
   });
@@ -39,6 +48,46 @@ describe("stream controller", () => {
     expect(stream.lost / stream.fps).toBeGreaterThanOrEqual(0.35);
     expect(stream.holdMs).toBeGreaterThanOrEqual(1_000);
     expect(stream.motion).toBeLessThanOrEqual(0.003);
+  });
+
+  test("scales stream timing to the source frame rate", () => {
+    const timing = streamTiming(cfg.stream.fps * 2);
+
+    expect(timing.minFrames).toBe(cfg.stream.min * 2);
+    expect(timing.idle).toBe(cfg.stream.idle * 2);
+    expect(timing.lost).toBe(cfg.stream.lost * 2);
+    expect(timing.stride).toBe(cfg.stream.stride * 2);
+    expect(timing.maxFrames).toBe(cfg.decode.window * 2);
+  });
+
+  test("caps absurd reported frame rates", () => {
+    expect(effectiveFrameRate(240)).toBe(60);
+
+    const timing = streamTiming(240);
+    const scale = 60 / cfg.stream.fps;
+    expect(timing.minFrames).toBe(Math.ceil(cfg.stream.min * scale));
+    expect(timing.stride).toBe(Math.ceil(cfg.stream.stride * scale));
+  });
+
+  test("decodes low fps input on human time", () => {
+    clockStepMs = 100;
+    inference.recognize.mockResolvedValue(response("cat", false));
+
+    const controller = createStreamCtrl(60);
+    for (
+      let index = 0;
+      inference.recognize.mock.calls.length === 0;
+      index += 1
+    ) {
+      controller.accept(frame(index * 0.01));
+      expect(index).toBeLessThan(12);
+    }
+
+    expect(inference.recognize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frames: expect.arrayContaining([expect.any(Array)]),
+      }),
+    );
   });
 
   test("preserves a decode response after landmarks disappear", async () => {

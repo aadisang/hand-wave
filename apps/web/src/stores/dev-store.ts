@@ -28,6 +28,7 @@ function clearPendingPanelUpdate() {
 
 export const useDevStore = create<DevState>((set) => ({
   enabled: false,
+  boundary: 0,
   frame: null,
   fps: 0,
   inferenceMs: 0,
@@ -89,6 +90,7 @@ export const useDevStore = create<DevState>((set) => ({
       };
     }),
   resetTraceCapture: () => set({ traces: [], recording: null, recordings: [] }),
+  markBoundary: () => set((s) => ({ boundary: s.boundary + 1 })),
   pushFrameTrace: (trace) =>
     set((s) => {
       if (!s.recording) return s;
