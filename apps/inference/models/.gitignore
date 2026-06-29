@@ -1,3 +1,7 @@
 *
 !.gitignore
 !*.ckpt
+!lm/
+!lm/*.kenlm
+!lm/*.txt
+!lm/README.md

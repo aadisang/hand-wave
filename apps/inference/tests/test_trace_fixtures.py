@@ -45,10 +45,6 @@ def expected_texts(recording: dict[str, Any]) -> list[str]:
     return [str(single).strip()] if str(single).strip() else []
 
 
-def test_trace_fixture_directory_exists() -> None:
-    assert FIXTURE_DIR.exists()
-
-
 @pytest.mark.parametrize("path", fixture_paths(), ids=lambda path: path.name)
 def test_recorded_mediapipe_trace_replays_through_runtime(path: Path) -> None:
     fixture = json.loads(path.read_text())

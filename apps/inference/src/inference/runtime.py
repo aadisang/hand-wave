@@ -9,6 +9,7 @@ import torch
 
 from inference.ctc import (
     VOCAB,
+    CtcDecoderConfig,
     DecodedAlternative,
     DecodedText,
     allowed_token_ids,
@@ -26,10 +27,15 @@ if TYPE_CHECKING:
 
 
 class HandwaveRuntime:
-    def __init__(self, checkpoint_path: str | Path, device: str = "auto") -> None:
+    def __init__(
+        self,
+        checkpoint_path: str | Path,
+        device: str = "auto",
+        decoder_config: CtcDecoderConfig | None = None,
+    ) -> None:
         self.device = resolve_device(device)
         self.model = load_model(Path(checkpoint_path), self.device, vocab_size=len(VOCAB))
-        self.decoder = build_decoder()
+        self.decoder = build_decoder(decoder_config)
         self.beam_width = 50
         self.allowed_token_ids = allowed_token_ids("abcdefghijklmnopqrstuvwxyz ")
 
