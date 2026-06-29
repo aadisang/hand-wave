@@ -47,13 +47,18 @@ jobs:
         with:
           lfs: true
 
-      - name: Verify checkpoint
+      - name: Verify model assets
         run: |
-          test -s apps/inference/models/best.ckpt
-          if grep -q "git-lfs.github.com/spec" apps/inference/models/best.ckpt; then
-            echo "::error::apps/inference/models/best.ckpt is still a Git LFS pointer"
-            exit 1
-          fi
+          for path in \
+            apps/inference/models/best.ckpt \
+            apps/inference/models/lm/neutral_english_4gram.kenlm
+          do
+            test -s "$path"
+            if grep -q "git-lfs.github.com/spec" "$path"; then
+              echo "::error::$path is still a Git LFS pointer"
+              exit 1
+            fi
+          done
 
       - name: Set up Python
         uses: actions/setup-python@v5
