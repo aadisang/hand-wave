@@ -8,8 +8,7 @@ struct ActiveHandSelectorTests {
     var selector = ActiveHandSelector()
     let frame = HandLandmarksFrame(
       rightHandLandmarks: [],
-      leftHandLandmarks: [Self.hand(offset: 0)],
-      poseLandmarks: []
+      leftHandLandmarks: [Self.hand(offset: 0)]
     )
 
     #expect(selector.select(frame) == .left)
@@ -21,16 +20,14 @@ struct ActiveHandSelectorTests {
     _ = selector.select(
       HandLandmarksFrame(
         rightHandLandmarks: [Self.hand(offset: 0)],
-        leftHandLandmarks: [Self.hand(offset: 0)],
-        poseLandmarks: []
+        leftHandLandmarks: [Self.hand(offset: 0)]
       )
     )
 
     let selected = selector.select(
       HandLandmarksFrame(
         rightHandLandmarks: [Self.hand(offset: 0.001)],
-        leftHandLandmarks: [Self.hand(offset: 0.05)],
-        poseLandmarks: []
+        leftHandLandmarks: [Self.hand(offset: 0.05)]
       )
     )
 

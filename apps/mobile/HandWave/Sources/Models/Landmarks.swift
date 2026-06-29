@@ -46,10 +46,19 @@ struct HandLandmarksFrame: Equatable, Sendable {
   let leftHandLandmarks: [[LandmarkPoint]]
   let poseLandmarks: [[LandmarkPoint]]
 
+  init(
+    rightHandLandmarks: [[LandmarkPoint]],
+    leftHandLandmarks: [[LandmarkPoint]],
+    poseLandmarks: [[LandmarkPoint]] = []
+  ) {
+    self.rightHandLandmarks = rightHandLandmarks
+    self.leftHandLandmarks = leftHandLandmarks
+    self.poseLandmarks = poseLandmarks
+  }
+
   static let empty = Self(
     rightHandLandmarks: [],
-    leftHandLandmarks: [],
-    poseLandmarks: []
+    leftHandLandmarks: []
   )
 
   var isEmpty: Bool {

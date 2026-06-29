@@ -10,16 +10,25 @@ actor FrameGate {
     }
   }
 
-  private let previewInterval: TimeInterval
-  private let recognitionInterval: TimeInterval
+  private var previewInterval: TimeInterval
+  private var recognitionInterval: TimeInterval
   private var previewBusy = false
   private var recognitionBusy = false
   private var lastPreviewAt = 0.0
   private var lastRecognitionAt = 0.0
 
   init(previewFPS: Double, recognitionFPS: Double) {
+    precondition(previewFPS > 0)
+    precondition(recognitionFPS > 0)
     self.previewInterval = 1.0 / previewFPS
     self.recognitionInterval = 1.0 / recognitionFPS
+  }
+
+  func setFrameRate(_ fps: Double) {
+    precondition(fps > 0)
+    previewInterval = 1.0 / fps
+    recognitionInterval = 1.0 / fps
+    reset()
   }
 
   func accept(now: TimeInterval = Date().timeIntervalSinceReferenceDate) -> Decision {

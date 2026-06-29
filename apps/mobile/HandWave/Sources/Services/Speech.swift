@@ -4,12 +4,6 @@ import Foundation
 @MainActor
 final class Speech: NSObject, AVSpeechSynthesizerDelegate {
   private let synth = AVSpeechSynthesizer()
-  private lazy var voice: AVSpeechSynthesisVoice? = {
-    let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
-    return voices.first { $0.quality == .premium }
-      ?? voices.first { $0.quality == .enhanced }
-      ?? AVSpeechSynthesisVoice(language: "en-US")
-  }()
   private var speaking = false
 
   var onSpeakingChanged: ((Bool) -> Void)?
@@ -17,13 +11,6 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
   override init() {
     super.init()
     synth.delegate = self
-    synth.usesApplicationAudioSession = true
-  }
-
-  func prepare() {
-    let session = AVAudioSession.sharedInstance()
-    try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-    try? session.setActive(true)
   }
 
   func speak(_ text: String) {
@@ -34,19 +21,13 @@ final class Speech: NSObject, AVSpeechSynthesizerDelegate {
       synth.stopSpeaking(at: .immediate)
     }
 
-    let utterance = AVSpeechUtterance(string: clean)
-    utterance.voice = voice
-    utterance.rate = 0.48
-    utterance.pitchMultiplier = 0.98
-    utterance.volume = 1
-    synth.speak(utterance)
+    synth.speak(AVSpeechUtterance(string: clean))
     setSpeaking(true)
   }
 
   func reset() {
     synth.stopSpeaking(at: .immediate)
     setSpeaking(false)
-    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
   }
 
   private func setSpeaking(_ speaking: Bool) {

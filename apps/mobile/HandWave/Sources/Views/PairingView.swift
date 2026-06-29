@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum ActionButtonMetrics {
+  static let switchSize: CGFloat = 30
+  static let iconSize: CGFloat = 22
+}
+
 struct PairingView: View {
   @Environment(AppModel.self) private var appModel
 
@@ -16,6 +21,7 @@ struct PairingView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.canvas)
     .animation(Motion.standard, value: appModel.wearables.isRegistered)
+    .animation(Motion.standard, value: appModel.stream.source)
   }
 }
 
@@ -48,41 +54,39 @@ private struct PrimaryAction: View {
   @State private var taps = 0
 
   var body: some View {
+    @Bindable var stream = appModel.stream
+
     VStack(spacing: Spacing.md) {
       if state.showsStatus {
         StatusLine(state: state)
       }
 
-      Button {
-        taps &+= 1
-        tap()
-      } label: {
-        HStack(spacing: Spacing.sm) {
-          if state.isBusy {
-            ProgressView()
-              .controlSize(.small)
-              .tint(.textPrimary)
-          }
-          Text(state.buttonTitle)
-            .font(.satoshi(15, .semibold))
-        }
-        .foregroundStyle(.textPrimary)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Spacing.xs)
-      }
-      .buttonStyle(.glass)
-      .controlSize(.large)
-      .buttonBorderShape(.capsule)
-      .disabled(!state.canTap)
-
-      if state.showsReset {
-        Button("Reset") {
+      HStack(spacing: Spacing.sm) {
+        Button {
           taps &+= 1
-          reconnect()
+          tap()
+        } label: {
+          HStack(spacing: Spacing.sm) {
+            if state.isBusy {
+              ProgressView()
+                .controlSize(.small)
+                .tint(.textPrimary)
+            }
+            Text(state.buttonTitle)
+              .font(.satoshi(15, .semibold))
+              .lineLimit(1)
+              .minimumScaleFactor(0.82)
+          }
+          .foregroundStyle(.textPrimary)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, Spacing.xs)
         }
-        .font(.appFootnote)
-        .foregroundStyle(.textSecondary)
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
+        .disabled(!state.canTap)
+
+        SourceButton(source: $stream.source, isDisabled: appModel.stream.status != .idle)
       }
     }
     .sensoryFeedback(Haptic.primaryTap, trigger: taps)
@@ -91,24 +95,26 @@ private struct PrimaryAction: View {
 
   private func tap() {
     Task {
-      if appModel.wearables.isRegistered {
-        if await appModel.wearables.ensureCameraPermission() {
-          await appModel.stream.start()
-        }
-      } else {
+      appModel.refresh()
+      if appModel.stream.source == .phone {
+        await appModel.stream.start()
+        return
+      }
+      guard appModel.wearables.isRegistered else {
         await appModel.wearables.connect()
+        return
+      }
+      guard appModel.stream.hasActiveDevice else { return }
+      if await appModel.wearables.ensureCameraPermission() {
+        await appModel.stream.start()
       }
     }
   }
 
-  private func reconnect() {
-    Task {
-      await appModel.stream.stop()
-      await appModel.wearables.disconnect()
-    }
-  }
-
   private var state: PairingState {
+    if appModel.stream.source == .phone {
+      return appModel.stream.status == .connecting ? .startingCamera : .phoneReady
+    }
     if appModel.wearables.isRegistering {
       return .registering
     }
@@ -125,6 +131,43 @@ private struct PrimaryAction: View {
       return .waitingForDevice
     }
     return .waitingForActiveDevice
+  }
+}
+
+private struct SourceButton: View {
+  @Binding var source: StreamModel.Source
+  let isDisabled: Bool
+
+  var body: some View {
+    Button {
+      source = source == .glasses ? .phone : .glasses
+    } label: {
+      Label(title, systemImage: systemImage)
+        .font(.system(size: 16, weight: .semibold))
+        .labelStyle(.iconOnly)
+        .frame(width: ActionButtonMetrics.iconSize, height: ActionButtonMetrics.iconSize)
+        .frame(width: ActionButtonMetrics.switchSize, height: ActionButtonMetrics.switchSize)
+    }
+    .buttonStyle(.glass)
+    .controlSize(.large)
+    .buttonBorderShape(.circle)
+    .disabled(isDisabled)
+    .accessibilityLabel(title)
+    .sensoryFeedback(Haptic.toggle, trigger: source)
+  }
+
+  private var title: String {
+    switch source {
+    case .glasses: "Use phone camera"
+    case .phone: "Use glasses"
+    }
+  }
+
+  private var systemImage: String {
+    switch source {
+    case .glasses: "camera.fill"
+    case .phone: "eyeglasses"
+    }
   }
 }
 
@@ -177,18 +220,22 @@ private struct StatusLine: View {
 private enum PairingState: Equatable {
   case needsRegistration
   case registering
+  case phoneReady
   case waitingForDevice
   case waitingForActiveDevice
   case ready
+  case startingCamera
   case startingStream
 
   var headline: String {
     switch self {
     case .needsRegistration: "Connect glasses"
     case .registering: "Finish in Meta AI"
+    case .phoneReady: "Use phone camera"
     case .waitingForDevice: "Reconnect glasses"
     case .waitingForActiveDevice: "Open glasses"
     case .ready: "Ready"
+    case .startingCamera: "Starting camera"
     case .startingStream: "Starting camera"
     }
   }
@@ -199,12 +246,16 @@ private enum PairingState: Equatable {
       "Approve Hand Wave in Meta AI."
     case .registering:
       "Approve, then return here."
+    case .phoneReady:
+      "Use the front or back camera."
     case .waitingForDevice:
       "Meta AI cannot see them."
     case .waitingForActiveDevice:
       "Open or wear them nearby."
     case .ready:
       "Ready to stream."
+    case .startingCamera:
+      "Opening device camera."
     case .startingStream:
       "Keep glasses open."
     }
@@ -214,16 +265,18 @@ private enum PairingState: Equatable {
     switch self {
     case .needsRegistration: "Connect"
     case .registering: "Connecting"
-    case .waitingForDevice, .waitingForActiveDevice: "Waiting"
+    case .phoneReady: "Start Camera"
+    case .waitingForDevice, .waitingForActiveDevice: "Waiting for Glasses"
     case .ready: "Start Streaming"
-    case .startingStream: "Starting"
+    case .startingCamera, .startingStream: "Starting"
     }
   }
 
   var systemImage: String {
     switch self {
     case .needsRegistration: "link"
-    case .registering, .startingStream: "hourglass"
+    case .registering, .startingCamera, .startingStream: "hourglass"
+    case .phoneReady: "camera.fill"
     case .waitingForDevice, .waitingForActiveDevice: "eyeglasses"
     case .ready: "checkmark.circle.fill"
     }
@@ -232,6 +285,7 @@ private enum PairingState: Equatable {
   var iconStyle: Color {
     switch self {
     case .ready: Color(hex: 0x9EE7C8)
+    case .phoneReady: Color(hex: 0x9CCBFF)
     case .waitingForDevice, .waitingForActiveDevice: Color(hex: 0xF2C96D)
     default: Color(hex: 0xF5F5F5)
     }
@@ -239,28 +293,20 @@ private enum PairingState: Equatable {
 
   var canTap: Bool {
     switch self {
-    case .needsRegistration, .ready: true
-    case .registering, .waitingForDevice, .waitingForActiveDevice, .startingStream: false
+    case .needsRegistration, .phoneReady, .ready: true
+    case .registering, .waitingForDevice, .waitingForActiveDevice, .startingCamera, .startingStream:
+      false
     }
   }
 
   var isBusy: Bool {
     switch self {
-    case .registering, .startingStream: true
+    case .registering, .startingCamera, .startingStream: true
     default: false
     }
   }
 
-  var showsReset: Bool {
-    switch self {
-    case .waitingForDevice, .waitingForActiveDevice:
-      true
-    default:
-      false
-    }
-  }
-
   var showsStatus: Bool {
-    self != .ready
+    self != .ready && self != .phoneReady
   }
 }
