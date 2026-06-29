@@ -6,6 +6,24 @@
   },
   "tags": [],
   "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "Routes_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/predict": {
       "post": {
         "operationId": "Routes_predict",
@@ -166,6 +184,17 @@
           "segment_frames": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "HealthOut": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
           }
         }
       },

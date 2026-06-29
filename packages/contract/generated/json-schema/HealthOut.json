@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/HealthOut.json",
+    "type": "object",
+    "properties": {
+        "ok": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "ok"
+    ]
+}

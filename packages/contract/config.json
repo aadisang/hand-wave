@@ -3,11 +3,11 @@
     "window": 192
   },
   "stream": {
-    "fps": 15,
-    "min": 12,
+    "fps": 24,
+    "min": 18,
     "stride": 3,
-    "idle": 10,
-    "lost": 6,
+    "idle": 15,
+    "lost": 9,
     "holdMs": 1200,
     "motion": 0.003
   },

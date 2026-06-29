@@ -181,14 +181,13 @@ tasks:
         --additional-properties generateAliasAsModel=true
         -c swift6-models.yaml
         >/dev/null
-        && sh scripts/postprocess-swift.sh ../../apps/mobile/HandWave/Sources/Generated/OpenAPI
+        && perl -0777 -i -pe 's/\A/\/\/ swift-format-ignore-file\n/' ../../apps/mobile/HandWave/Sources/Generated/OpenAPI/*.swift
     deps:
       - "compile"
     inputs:
       - "generated/openapi/openapi.json"
       - "openapitools.json"
       - "swift6-models.yaml"
-      - "scripts/postprocess-swift.sh"
       - "package.json"
       - "/pnpm-lock.yaml"
     outputs:
