@@ -29,6 +29,7 @@ export type DevRecording = {
 
 export type DevState = {
   enabled: boolean;
+  boundary: number;
   frame: HandFrame | null;
   fps: number;
   inferenceMs: number;
@@ -41,5 +42,6 @@ export type DevState = {
   startRecording: (label: string) => void;
   stopRecording: () => void;
   resetTraceCapture: () => void;
+  markBoundary: () => void;
   pushFrameTrace: (trace: Omit<DevFrameTrace, "atMs" | "index">) => void;
 };
