@@ -10,10 +10,6 @@ enum LandmarkValidation {
     }
   }
 
-  static func validFullPose(_ points: [LandmarkPoint]) -> Bool {
-    points.count == 33 && validPose(points)
-  }
-
   static func validHand(_ points: [LandmarkPoint]) -> Bool {
     points.count == 21 && points.allSatisfy(validPoint)
   }

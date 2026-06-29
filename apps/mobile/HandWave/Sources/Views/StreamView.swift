@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -7,31 +8,39 @@ struct StreamView: View {
 
   var body: some View {
     StreamContent(
+      source: appModel.stream.activeSource ?? appModel.stream.source,
+      phoneSession: appModel.stream.phoneSession,
       latestFrame: appModel.stream.latestFrame,
       overlayFrame: appModel.stream.overlayFrame,
       current: appModel.stream.current,
       isSpeaking: appModel.stream.isSpeaking,
+      showsPoseLandmarks: appModel.showsPoseLandmarks,
       showLandmarks: $showLandmarks,
+      rotateCamera: appModel.stream.rotateCamera,
       stop: appModel.stream.stop
     )
   }
 }
 
 private struct StreamContent: View {
+  let source: StreamModel.Source
+  let phoneSession: AVCaptureSession
   let latestFrame: UIImage?
   let overlayFrame: HandLandmarksFrame
   let current: InferSession.Pred?
   let isSpeaking: Bool
+  let showsPoseLandmarks: Bool
   @Binding var showLandmarks: Bool
+  let rotateCamera: () async -> Void
   let stop: () async -> Void
 
   var body: some View {
     ZStack {
       ZStack {
         Color.stage
-        PreviewPane(frame: latestFrame)
+        PreviewPane(source: source, phoneSession: phoneSession, frame: latestFrame)
         if showLandmarks {
-          LandmarkOverlay(frame: overlayFrame)
+          LandmarkOverlay(frame: overlayFrame, showsPose: showsPoseLandmarks)
             .transition(.opacity)
         }
       }
@@ -42,7 +51,12 @@ private struct StreamContent: View {
           PredictionOverlay(prediction: current, isSpeaking: isSpeaking)
         }
         Spacer(minLength: 0)
-        ControlBar(showLandmarks: $showLandmarks, stop: stop)
+        ControlBar(
+          showLandmarks: $showLandmarks,
+          canRotateCamera: source == .phone,
+          rotateCamera: rotateCamera,
+          stop: stop
+        )
       }
       .padding(.horizontal, Spacing.lg)
       .padding(.vertical, Spacing.sm)
@@ -53,8 +67,8 @@ private struct StreamContent: View {
     .animation(Motion.overlay, value: current?.text)
     .animation(Motion.overlay, value: isSpeaking)
     .animation(Motion.standard, value: showLandmarks)
-    .sensoryFeedback(trigger: current?.text) { _, new in
-      new != nil ? Haptic.recognized : nil
+    .sensoryFeedback(trigger: isSpeaking) { _, speaking in
+      speaking ? Haptic.recognized : nil
     }
   }
 }
@@ -90,7 +104,10 @@ private struct PredictionOverlay: View {
 
 private struct ControlBar: View {
   @Binding var showLandmarks: Bool
+  let canRotateCamera: Bool
+  let rotateCamera: () async -> Void
   let stop: () async -> Void
+  @State private var rotateTaps = 0
   @State private var stopTaps = 0
 
   var body: some View {
@@ -106,6 +123,18 @@ private struct ControlBar: View {
         .buttonStyle(.glassProminent)
         .tint(.red)
 
+        if canRotateCamera {
+          Button {
+            rotateTaps &+= 1
+            Task { await rotateCamera() }
+          } label: {
+            Image(systemName: "arrow.triangle.2.circlepath.camera")
+              .font(.body)
+          }
+          .buttonStyle(.glass)
+          .accessibilityLabel("Switch camera")
+        }
+
         Button {
           showLandmarks.toggle()
         } label: {
@@ -119,15 +148,21 @@ private struct ControlBar: View {
       .buttonBorderShape(.capsule)
     }
     .sensoryFeedback(Haptic.stop, trigger: stopTaps)
+    .sensoryFeedback(Haptic.toggle, trigger: rotateTaps)
     .sensoryFeedback(Haptic.toggle, trigger: showLandmarks)
   }
 }
 
 private struct PreviewPane: View {
+  let source: StreamModel.Source
+  let phoneSession: AVCaptureSession
   let frame: UIImage?
 
   var body: some View {
-    if let frame {
+    if source == .phone {
+      PhoneCameraPreview(session: phoneSession)
+        .ignoresSafeArea()
+    } else if let frame {
       Image(uiImage: frame)
         .resizable()
         .aspectRatio(contentMode: .fit)
@@ -142,6 +177,31 @@ private struct PreviewPane: View {
           .foregroundStyle(.textSecondary)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+  }
+}
+
+private struct PhoneCameraPreview: UIViewRepresentable {
+  let session: AVCaptureSession
+
+  func makeUIView(context: Context) -> PreviewView {
+    let view = PreviewView()
+    view.previewLayer.videoGravity = .resizeAspectFill
+    view.previewLayer.session = session
+    return view
+  }
+
+  func updateUIView(_ view: PreviewView, context: Context) {
+    view.previewLayer.session = session
+  }
+
+  final class PreviewView: UIView {
+    override class var layerClass: AnyClass {
+      AVCaptureVideoPreviewLayer.self
+    }
+
+    var previewLayer: AVCaptureVideoPreviewLayer {
+      layer as! AVCaptureVideoPreviewLayer
     }
   }
 }

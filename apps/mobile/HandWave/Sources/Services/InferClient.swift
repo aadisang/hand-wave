@@ -56,14 +56,20 @@ struct InferClient: Sendable {
         continue
       }
 
-      var request = URLRequest(url: baseURL)
-      request.httpMethod = "HEAD"
+      let url = baseURL.appending(path: "/v1/health")
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
 
       do {
-        _ = try await session.data(for: request)
+        let (_, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+          lastFailure = .badStatus(url, status)
+          continue
+        }
         return
       } catch {
-        lastFailure = .requestFailed(baseURL, error.localizedDescription)
+        lastFailure = .requestFailed(url, error.localizedDescription)
       }
     }
 
