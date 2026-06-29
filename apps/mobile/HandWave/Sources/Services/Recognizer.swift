@@ -32,6 +32,10 @@ actor Recognizer {
     Task { await warmInference() }
   }
 
+  func setFrameRate(_ frameRate: Double) async {
+    await inference.setFrameRate(frameRate)
+  }
+
   func stop() async {
     detStarted = false
     inferStarted = false
@@ -42,12 +46,24 @@ actor Recognizer {
   }
 
   func process(_ frame: VideoFrame) async throws -> Output {
+    try await process(CameraFrame(sampleBuffer: frame.sampleBuffer), poseMode: .fallback)
+  }
+
+  func process(_ frame: CameraFrame) async throws -> Output {
+    try await process(frame, poseMode: .required)
+  }
+
+  private func process(
+    _ frame: CameraFrame,
+    poseMode: LandmarkDetector.PoseMode
+  ) async throws -> Output {
     try await start()
     let sampleBuffer = frame.sampleBuffer
     let timestampMs = Self.timestampMs(for: sampleBuffer)
     let detection = try await detector.detect(
       sampleBuffer: sampleBuffer,
-      timestampMs: timestampMs
+      timestampMs: timestampMs,
+      poseMode: poseMode
     )
     let infer = await ingest(detection.inferenceFrame)
     return Output(

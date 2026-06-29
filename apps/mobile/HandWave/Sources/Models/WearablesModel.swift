@@ -37,7 +37,7 @@ final class WearablesModel {
       try await wearables.startRegistration()
       refresh()
     } catch {
-      failure = .connection("Connection failed: \(error.localizedDescription)")
+      failure = .connection(error.localizedDescription)
     }
   }
 
@@ -46,7 +46,7 @@ final class WearablesModel {
       try await wearables.startUnregistration()
       refresh()
     } catch {
-      failure = .connection("Disconnect failed: \(error.localizedDescription)")
+      failure = .connection(error.localizedDescription)
     }
   }
 
@@ -62,7 +62,7 @@ final class WearablesModel {
       }
       return status == .granted
     } catch {
-      failure = .camera("Camera access failed: \(error.localizedDescription)")
+      failure = .camera(error.localizedDescription)
       return false
     }
   }
@@ -72,7 +72,7 @@ final class WearablesModel {
       _ = try await wearables.handleUrl(url)
       refresh()
     } catch {
-      failure = .callback("Meta AI callback failed: \(error.localizedDescription)")
+      failure = .callback(error.localizedDescription)
     }
   }
 

@@ -6,7 +6,6 @@ struct RecentLandmarks {
 
   private var rightHand: Entry?
   private var leftHand: Entry?
-  private var pose: Entry?
 
   mutating func remember(_ frame: HandLandmarksFrame, timestampMs: Int) {
     if let right = frame.rightHandLandmarks.first, LandmarkValidation.validHand(right) {
@@ -14,9 +13,6 @@ struct RecentLandmarks {
     }
     if let left = frame.leftHandLandmarks.first, LandmarkValidation.validHand(left) {
       leftHand = Entry(points: left, timestampMs: timestampMs)
-    }
-    if let pose = frame.poseLandmarks.first, LandmarkValidation.validFullPose(pose) {
-      self.pose = Entry(points: pose, timestampMs: timestampMs)
     }
   }
 
@@ -34,17 +30,9 @@ struct RecentLandmarks {
     return recent(entry, timestampMs: timestampMs)
   }
 
-  func pose(in frame: HandLandmarksFrame, timestampMs: Int) -> [LandmarkPoint]? {
-    if let pose = frame.poseLandmarks.first, LandmarkValidation.validFullPose(pose) {
-      return pose
-    }
-    return recent(pose, timestampMs: timestampMs)
-  }
-
   mutating func reset() {
     rightHand = nil
     leftHand = nil
-    pose = nil
   }
 
   private func recent(_ entry: Entry?, timestampMs: Int) -> [LandmarkPoint]? {

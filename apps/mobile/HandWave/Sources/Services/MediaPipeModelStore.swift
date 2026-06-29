@@ -17,7 +17,11 @@ enum MediaPipeModelStore {
     fileName: String,
     remoteURL: URL
   ) async throws -> String {
-    if let bundled = Bundle.main.path(forResource: resource, ofType: "task") {
+    if let bundled = Bundle.main.path(
+      forResource: resource,
+      ofType: "task",
+      inDirectory: "Models"
+    ) ?? Bundle.main.path(forResource: resource, ofType: "task") {
       return bundled
     }
 

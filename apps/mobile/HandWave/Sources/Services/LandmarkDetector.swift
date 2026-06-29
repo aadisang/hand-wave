@@ -3,6 +3,11 @@ import Foundation
 import MediaPipeTasksVision
 
 actor LandmarkDetector {
+  enum PoseMode: Sendable {
+    case fallback
+    case required
+  }
+
   enum DetectorError: Error, LocalizedError {
     case modelUnavailable(String)
     case invalidImage
@@ -23,10 +28,13 @@ actor LandmarkDetector {
   private var activeHandSelector = ActiveHandSelector()
   private var recentLandmarks = RecentLandmarks()
   private var lastSelectedHand: HandSide?
+  private var recentPose: [LandmarkPoint]?
+  private var recentPoseAt = 0
   private let imageBufferConverter = PixelBufferConverter()
+  private static let poseReuseMs = 500
 
   func prepare() async throws {
-    if handLandmarker != nil, poseLandmarker != nil { return }
+    if handLandmarker != nil { return }
 
     let handPath = try await MediaPipeModelStore.path(
       resource: "hand_landmarker",
@@ -34,14 +42,6 @@ actor LandmarkDetector {
       remoteURL: URL(
         string:
           "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-      )!
-    )
-    let posePath = try await MediaPipeModelStore.path(
-      resource: "pose_landmarker_lite",
-      fileName: "pose_landmarker_lite.task",
-      remoteURL: URL(
-        string:
-          "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
       )!
     )
 
@@ -53,23 +53,37 @@ actor LandmarkDetector {
     handOptions.minHandPresenceConfidence = 0.2
     handOptions.minTrackingConfidence = 0.2
     handLandmarker = try HandLandmarker(options: handOptions)
+  }
 
-    let poseOptions = PoseLandmarkerOptions()
-    poseOptions.baseOptions.modelAssetPath = posePath
-    poseOptions.runningMode = .video
-    poseOptions.numPoses = 1
-    poseOptions.minPoseDetectionConfidence = 0.2
-    poseOptions.minPosePresenceConfidence = 0.2
-    poseOptions.minTrackingConfidence = 0.2
-    poseLandmarker = try PoseLandmarker(options: poseOptions)
+  private func preparePose() async throws {
+    if poseLandmarker == nil {
+      let posePath = try await MediaPipeModelStore.path(
+        resource: "pose_landmarker_lite",
+        fileName: "pose_landmarker_lite.task",
+        remoteURL: URL(
+          string:
+            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+        )!
+      )
+
+      let poseOptions = PoseLandmarkerOptions()
+      poseOptions.baseOptions.modelAssetPath = posePath
+      poseOptions.runningMode = .video
+      poseOptions.numPoses = 1
+      poseOptions.minPoseDetectionConfidence = 0.5
+      poseOptions.minPosePresenceConfidence = 0.5
+      poseOptions.minTrackingConfidence = 0.5
+      poseLandmarker = try PoseLandmarker(options: poseOptions)
+    }
   }
 
   func detect(
     sampleBuffer: CMSampleBuffer,
-    timestampMs rawTimestampMs: Int
+    timestampMs rawTimestampMs: Int,
+    poseMode: PoseMode
   ) async throws -> DetectResult {
     try await prepare()
-    guard let handLandmarker, let poseLandmarker else {
+    guard let handLandmarker else {
       throw DetectorError.modelUnavailable("landmarker")
     }
     let mediaPipeBuffer = try imageBufferConverter.bgraSampleBuffer(from: sampleBuffer)
@@ -84,15 +98,16 @@ actor LandmarkDetector {
       videoFrame: image,
       timestampInMilliseconds: timestampMs
     )
-    let poseResult = try poseLandmarker.detect(
-      videoFrame: image,
-      timestampInMilliseconds: timestampMs
+    let pose = try await detectPose(
+      in: image,
+      timestampMs: timestampMs,
+      mode: poseMode
     )
 
     let frame = HandLandmarksFrame(
       rightHandLandmarks: rightHands(from: handResult),
       leftHandLandmarks: leftHands(from: handResult),
-      poseLandmarks: poseResult.landmarks.map { $0.map(LandmarkPoint.init) }
+      poseLandmarks: pose.map { [$0] } ?? []
     )
     let selectedHand = activeHandSelector.select(frame)
     if let selectedHand {
@@ -102,6 +117,8 @@ actor LandmarkDetector {
     return DetectResult(
       inferenceFrame: LandmarkSelection.toInferenceFrame(
         frame,
+        pose: pose,
+        poseMode: poseMode,
         selectedHand: selectedHand ?? lastSelectedHand,
         timestampMs: timestampMs,
         recentLandmarks: recentLandmarks
@@ -114,6 +131,8 @@ actor LandmarkDetector {
     activeHandSelector.reset()
     recentLandmarks.reset()
     lastSelectedHand = nil
+    recentPose = nil
+    recentPoseAt = 0
   }
 
   private func rightHands(from result: HandLandmarkerResult) -> [[LandmarkPoint]] {
@@ -122,6 +141,44 @@ actor LandmarkDetector {
 
   private func leftHands(from result: HandLandmarkerResult) -> [[LandmarkPoint]] {
     hands(from: result, matching: "Left")
+  }
+
+  private func detectPose(
+    in image: MPImage,
+    timestampMs: Int,
+    mode: PoseMode
+  ) async throws -> [LandmarkPoint]? {
+    guard mode == .required else { return nil }
+    try await preparePose()
+    guard let poseLandmarker else {
+      throw DetectorError.modelUnavailable("pose landmarker")
+    }
+
+    return poseLandmarks(
+      from: try poseLandmarker.detect(
+        videoFrame: image,
+        timestampInMilliseconds: timestampMs
+      ),
+      timestampMs: timestampMs
+    )
+  }
+
+  private func poseLandmarks(
+    from result: PoseLandmarkerResult?,
+    timestampMs: Int
+  ) -> [LandmarkPoint]? {
+    if let pose = result?.landmarks.first?.map(LandmarkPoint.init),
+      LandmarkValidation.validPose(pose)
+    {
+      recentPose = pose
+      recentPoseAt = timestampMs
+      return pose
+    }
+
+    guard let recentPose, timestampMs - recentPoseAt <= Self.poseReuseMs else {
+      return nil
+    }
+    return recentPose
   }
 
   private func hands(

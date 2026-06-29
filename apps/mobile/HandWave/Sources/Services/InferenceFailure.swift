@@ -69,11 +69,11 @@ enum StreamFailure: Error, LocalizedError, Sendable {
   case recognition(String)
 
   static func ended(_ error: DeviceSessionError?) -> Self {
-    .session("Glasses stopped before streaming. \(error.map(message) ?? "Try again.")")
+    .session(error.map(message) ?? "Glasses stopped before streaming. Keep them open nearby.")
   }
 
   static func stopped(_ error: DeviceSessionError) -> Self {
-    .session("Session stopped: \(message(error))")
+    .session(message(error))
   }
 
   var errorDescription: String? {
@@ -100,9 +100,13 @@ enum StreamFailure: Error, LocalizedError, Sendable {
     case .capabilityNotFound:
       "Camera unavailable. Try again."
     case .unexpectedError(let description):
-      description.localizedCaseInsensitiveContains("session ended by device")
-        ? "Glasses ended the session. Keep them open and worn."
-        : "Unexpected session error: \(description)"
+      if description.localizedCaseInsensitiveContains("session ended by device") {
+        "Glasses ended the session. Keep them open and worn."
+      } else if description.localizedCaseInsensitiveContains("device unavailable") {
+        "Device unavailable. Open or wear your glasses nearby."
+      } else {
+        description
+      }
     case .thermalCritical:
       "Glasses too warm."
     case .thermalEmergency:

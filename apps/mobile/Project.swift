@@ -44,7 +44,7 @@ let infoPlist: [String: Plist.Value] = [
   "NSBonjourServices": ["_http._tcp"],
   "UISupportedExternalAccessoryProtocols": ["com.meta.ar.wearable"],
   "NSCameraUsageDescription":
-    "Hand Wave bridges the camera on your Meta wearable to interpret signs.",
+    "Hand Wave uses your phone or Meta wearable camera to interpret signs.",
   "NSMicrophoneUsageDescription":
     "Hand Wave streams audio from your Meta wearable to the recognizer.",
   "NSPhotoLibraryAddUsageDescription":

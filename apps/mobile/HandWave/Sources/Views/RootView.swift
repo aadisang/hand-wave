@@ -6,19 +6,20 @@ struct RootView: View {
   @Environment(AppModel.self) private var appModel
 
   var body: some View {
+    @Bindable var app = appModel
     @Bindable var wearables = appModel.wearables
     @Bindable var stream = appModel.stream
     navigation
       .modifier(
         EventHaptics(
           registered: appModel.wearables.isRegistered,
-          streamActive: appModel.stream.isActive,
+          streaming: appModel.stream.isStreaming,
           wearablesFailure: wearables.failure?.localizedDescription,
           streamFailure: stream.failure?.localizedDescription
         )
       )
       .alert(
-        "Connection",
+        "Something went wrong",
         isPresented: Binding(
           get: { wearables.failure != nil },
           set: { if !$0 { wearables.failure = nil } }
@@ -30,7 +31,7 @@ struct RootView: View {
         Text($0.localizedDescription)
       }
       .alert(
-        "Streaming",
+        "Something went wrong",
         isPresented: Binding(
           get: { stream.failure != nil },
           set: { if !$0 { stream.failure = nil } }
@@ -40,6 +41,15 @@ struct RootView: View {
         Button("OK", role: .cancel) {}
       } message: {
         Text($0.localizedDescription)
+      }
+      .sheet(isPresented: $app.isDevMenuPresented) {
+        DevMenuView()
+      }
+      .background {
+        ShakeDetector {
+          appModel.isDevMenuPresented = true
+        }
+        .frame(width: 0, height: 0)
       }
   }
 
@@ -62,12 +72,12 @@ struct RootView: View {
     .preferredColorScheme(.dark)
     .task { await appModel.wearables.observe() }
     .task { await appModel.stream.observe() }
+    .task { await appModel.stream.prewarmRecognition() }
     .task { await stopOnQuit() }
     .onChange(of: scenePhase) { _, phase in
       switch phase {
       case .active:
-        appModel.wearables.refresh()
-        appModel.stream.refresh()
+        appModel.refresh()
       case .background:
         Task { await appModel.stream.stop() }
       default:
@@ -87,14 +97,14 @@ struct RootView: View {
 
 private struct EventHaptics: ViewModifier {
   let registered: Bool
-  let streamActive: Bool
+  let streaming: Bool
   let wearablesFailure: String?
   let streamFailure: String?
 
   func body(content: Content) -> some View {
     content
       .sensoryFeedback(trigger: registered) { _, isOn in isOn ? Haptic.connected : nil }
-      .sensoryFeedback(trigger: streamActive) { _, isOn in isOn ? Haptic.streamLive : nil }
+      .sensoryFeedback(trigger: streaming) { _, isOn in isOn ? Haptic.streamLive : nil }
       .sensoryFeedback(trigger: wearablesFailure) { _, failure in
         failure != nil ? Haptic.failure : nil
       }

@@ -25,4 +25,25 @@ struct FrameGateTests {
     #expect(!recognitionReady.preview)
     #expect(recognitionReady.recognition)
   }
+
+  @Test
+  func updatesFrameRate() async {
+    let gate = FrameGate(previewFPS: 10, recognitionFPS: 10)
+
+    await gate.setFrameRate(20)
+
+    let first = await gate.accept(now: 1)
+    #expect(first.preview)
+    #expect(first.recognition)
+    await gate.finishPreview()
+    await gate.finishRecognition()
+
+    let tooSoon = await gate.accept(now: 1.04)
+    #expect(!tooSoon.preview)
+    #expect(!tooSoon.recognition)
+
+    let ready = await gate.accept(now: 1.05)
+    #expect(ready.preview)
+    #expect(ready.recognition)
+  }
 }

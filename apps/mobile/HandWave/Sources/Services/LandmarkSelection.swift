@@ -1,6 +1,10 @@
 enum LandmarkSelection {
+  typealias PoseMode = LandmarkDetector.PoseMode
+
   static func toInferenceFrame(
     _ frame: HandLandmarksFrame,
+    pose: [LandmarkPoint]?,
+    poseMode: PoseMode,
     selectedHand: HandSide?,
     timestampMs: Int,
     recentLandmarks: RecentLandmarks
@@ -17,8 +21,9 @@ enum LandmarkSelection {
       ?? (right != nil ? .right : .left)
     guard let sourceHand = recentLandmarks.hand(in: frame, side: side, timestampMs: timestampMs)
     else { return nil }
-    let sourcePose =
-      recentLandmarks.pose(in: frame, timestampMs: timestampMs) ?? syntheticPose(from: sourceHand)
+    guard let sourcePose = pose ?? fallbackPose(from: sourceHand, mode: poseMode) else {
+      return nil
+    }
 
     let useLeft = side == .left
     let modelHand = useLeft ? mirror(sourceHand) : sourceHand
@@ -62,7 +67,11 @@ enum LandmarkSelection {
     points.map { LandmarkPoint(x: 1 - $0.x, y: $0.y, z: $0.z) }
   }
 
-  private static func syntheticPose(from hand: [LandmarkPoint]) -> [LandmarkPoint] {
+  private static func fallbackPose(
+    from hand: [LandmarkPoint],
+    mode: PoseMode
+  ) -> [LandmarkPoint]? {
+    guard mode == .fallback else { return nil }
     precondition(!hand.isEmpty, "Synthetic pose requires a hand")
     let wrist = hand[0]
     return Array(

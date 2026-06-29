@@ -1,5 +1,29 @@
 import Foundation
 
+private struct StreamTiming {
+  private static let maxWireFrames = 512
+
+  let maxFrames: Int
+  let minFrames: Int
+  let stride: Int
+  let idleFrames: Int
+  let lostFrames: Int
+
+  init(frameRate: Double) {
+    precondition(frameRate > 0)
+    let scale = frameRate / Double(InferCfg.Stream.fps)
+    maxFrames = min(Self.maxWireFrames, Self.scaled(InferCfg.Decode.window, by: scale))
+    minFrames = Self.scaled(InferCfg.Stream.min, by: scale)
+    stride = Self.scaled(InferCfg.Stream.stride, by: scale)
+    idleFrames = Self.scaled(InferCfg.Stream.idle, by: scale)
+    lostFrames = Self.scaled(InferCfg.Stream.lost, by: scale)
+  }
+
+  private static func scaled(_ value: Int, by scale: Double) -> Int {
+    max(1, Int((Double(value) * scale).rounded(.up)))
+  }
+}
+
 actor InferSession {
   enum Event: Equatable, Sendable {
     case clear
@@ -27,6 +51,7 @@ actor InferSession {
   private var requestId = 0
   private var pendingEvent: Event?
   private var pendingError: InferenceFailure?
+  private var timing = StreamTiming(frameRate: Double(InferCfg.Stream.fps))
 
   init(client: InferAPI = InferClient()) {
     self.client = client
@@ -34,6 +59,11 @@ actor InferSession {
 
   func start() async throws(InferenceFailure) {
     try await client.warmConnection()
+  }
+
+  func setFrameRate(_ frameRate: Double) {
+    timing = StreamTiming(frameRate: frameRate)
+    resetLive()
   }
 
   func stop() async {
@@ -79,17 +109,17 @@ actor InferSession {
     if ended { return nil }
 
     frames.append(frame)
-    if frames.count > InferCfg.Decode.window {
-      frames.removeFirst(frames.count - InferCfg.Decode.window)
+    if frames.count > timing.maxFrames {
+      frames.removeFirst(frames.count - timing.maxFrames)
     }
     seen += 1
 
-    if idle >= InferCfg.Stream.idle {
+    if idle >= timing.idleFrames {
       return try await finalizeSegment(reason: .idle)
     }
 
-    if seen < InferCfg.Stream.min { return nil }
-    if seen % InferCfg.Stream.stride != 0 || inFlight { return nil }
+    if seen < timing.minFrames { return nil }
+    if seen % timing.stride != 0 || inFlight { return nil }
 
     startDecode(batch: frames, idleFrames: idle, motion: motion)
     return nil
@@ -160,15 +190,15 @@ actor InferSession {
 
   private func acceptMissingFrame() async throws(InferenceFailure) -> Event? {
     guard !ended else { return nil }
-    guard moved, seen >= InferCfg.Stream.min else {
+    guard moved, seen >= timing.minFrames else {
       resetLive()
       return .clear
     }
 
     lost += 1
     idle += 1
-    if lost >= InferCfg.Stream.lost
-      || idle >= InferCfg.Stream.idle
+    if lost >= timing.lostFrames
+      || idle >= timing.idleFrames
     {
       if inFlight { return nil }
       return try await finalizeSegment(reason: .landmarkLost)
