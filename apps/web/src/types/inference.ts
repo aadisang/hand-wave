@@ -13,6 +13,7 @@ export type WireFinalizeTrace = components["schemas"]["FinalizeTrace"];
 
 export type StreamCtrl = {
   start: () => void;
+  reset: () => void;
   dispose: () => void;
   accept: (frame: Frame | null) => void;
 };

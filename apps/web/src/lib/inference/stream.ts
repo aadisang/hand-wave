@@ -2,13 +2,7 @@ import { recognizeFrames, run, warmInference } from "@/lib/inference/client";
 import {
   acceptedFrameTime,
   frameMotion,
-  holdMs,
-  idle as idleMax,
-  lost as lostMax,
-  maxFrames,
-  minFrames as minSeen,
-  motionMin,
-  stride,
+  streamTiming,
 } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
 import { useDevStore } from "@/stores/dev-store";
@@ -26,13 +20,27 @@ import type {
 } from "@/types/inference";
 import { toDetectionPrediction } from "@/types/inference";
 
-const finalHoldMs = holdMs * 2;
-
-export function createStreamCtrl(): StreamCtrl {
+export function createStreamCtrl(frameRate?: number): StreamCtrl {
+  const {
+    holdMs,
+    idleMs,
+    lostMs,
+    maxFrames,
+    minMs,
+    motionMin,
+    stallMs,
+    strideMs,
+  } = streamTiming(frameRate);
+  const finalHoldMs = holdMs * 2;
+  const staleDecodeMs = holdMs * 2;
   let frames: Frame[] = [];
   let seen = 0;
   let inFlight = false;
   let last: Frame | null = null;
+  let segmentStartedAt = 0;
+  let idleStartedAt = 0;
+  let missingStartedAt = 0;
+  let lastDecodeAt = 0;
   let idle = 0;
   let moved = false;
   let ended = false;
@@ -57,6 +65,10 @@ export function createStreamCtrl(): StreamCtrl {
     seen = 0;
     last = null;
     lastAt = 0;
+    segmentStartedAt = 0;
+    idleStartedAt = 0;
+    missingStartedAt = 0;
+    lastDecodeAt = 0;
     idle = 0;
     moved = false;
     lost = 0;
@@ -69,6 +81,13 @@ export function createStreamCtrl(): StreamCtrl {
     state = null;
   };
 
+  const reset = () => {
+    epoch += 1;
+    inFlight = false;
+    ended = false;
+    resetLive();
+  };
+
   const start = () => {
     void warmInference();
   };
@@ -79,20 +98,26 @@ export function createStreamCtrl(): StreamCtrl {
     resetLive();
   };
 
-  const updateMotion = (frame: Frame) => {
+  const updateMotion = (frame: Frame, acceptedAt: number) => {
     const motion = frameMotion(last, frame);
     lastMotion = motion;
-    last = frame;
 
     if (motion >= motionMin) {
       clearHold();
       if (ended) resetSegment();
+      last = frame;
+      segmentStartedAt ||= acceptedAt;
       ended = false;
       moved = true;
       idle = 0;
+      idleStartedAt = 0;
       return;
     }
-    if (moved) idle += 1;
+    last = frame;
+    if (moved) {
+      idle += 1;
+      idleStartedAt ||= acceptedAt;
+    }
   };
 
   const decodeContext = (idleFrames: number): RecognitionContext => ({
@@ -131,6 +156,7 @@ export function createStreamCtrl(): StreamCtrl {
 
   const decode = async (batch: Frame[], idleFrames: number) => {
     const batchEpoch = epoch;
+    const startedAt = performance.now();
     inFlight = true;
     try {
       const result = await run(
@@ -141,6 +167,7 @@ export function createStreamCtrl(): StreamCtrl {
         }),
       );
       if (batchEpoch !== epoch) return;
+      if (performance.now() - startedAt > staleDecodeMs) return;
 
       state = result.state;
       if (result.trace.prediction) {
@@ -198,14 +225,18 @@ export function createStreamCtrl(): StreamCtrl {
 
   const acceptMissingFrame = () => {
     if (ended) return;
-    if (!moved || seen < minSeen) {
+    const now = performance.now();
+    const tooShort = !segmentStartedAt || now - segmentStartedAt < minMs;
+    if (!moved || (tooShort && !state && !inFlight)) {
       resetLive();
       return;
     }
 
     lost += 1;
     idle += 1;
-    if (lost >= lostMax || idle >= idleMax) {
+    missingStartedAt ||= now;
+    idleStartedAt ||= now;
+    if (now - missingStartedAt >= lostMs || now - idleStartedAt >= idleMs) {
       if (inFlight) return;
       finalize("landmark-lost");
     }
@@ -219,28 +250,32 @@ export function createStreamCtrl(): StreamCtrl {
     }
 
     lost = 0;
-    const acceptedAt = acceptedFrameTime(lastAt);
+    missingStartedAt = 0;
+    const acceptedAt = acceptedFrameTime(lastAt, frameRate);
     if (acceptedAt === null) return;
+    if (lastAt && acceptedAt - lastAt > stallMs) reset();
     lastAt = acceptedAt;
 
-    updateMotion(frame);
+    updateMotion(frame, acceptedAt);
+    segmentStartedAt ||= acceptedAt;
     if (ended) return;
 
     frames.push(frame);
     if (frames.length > maxFrames) frames.splice(0, frames.length - maxFrames);
     seen += 1;
 
-    if (idle >= idleMax) {
+    if (idleStartedAt && acceptedAt - idleStartedAt >= idleMs) {
       finalize("idle");
       return;
     }
-    if (seen < minSeen) return;
-    if (seen % stride !== 0 || inFlight) return;
+    if (acceptedAt - segmentStartedAt < minMs) return;
+    if (acceptedAt - lastDecodeAt < strideMs || inFlight) return;
 
+    lastDecodeAt = acceptedAt;
     void decode(frames.slice(), idle);
   };
 
-  return { accept, dispose, start };
+  return { accept, dispose, reset, start };
 }
 
 function pushPredictTrace(

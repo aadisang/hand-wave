@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef } from "react";
 import { createStreamCtrl } from "@/lib/inference/stream";
 import type { Frame, StreamCtrl } from "@/types/inference";
 
-export function useInfer(active: boolean) {
+export function useInfer(frameRate: number | null, boundary: number) {
   const ctrlRef = useRef<StreamCtrl | null>(null);
 
   useEffect(() => {
-    if (!active) return;
+    if (frameRate === null) return;
 
-    const ctrl = createStreamCtrl();
+    const ctrl = createStreamCtrl(frameRate);
     ctrlRef.current = ctrl;
     ctrl.start();
 
@@ -16,7 +16,11 @@ export function useInfer(active: boolean) {
       ctrlRef.current = null;
       ctrl.dispose();
     };
-  }, [active]);
+  }, [frameRate]);
+
+  useEffect(() => {
+    ctrlRef.current?.reset();
+  }, [boundary]);
 
   return useCallback((frame: Frame | null) => {
     ctrlRef.current?.accept(frame);

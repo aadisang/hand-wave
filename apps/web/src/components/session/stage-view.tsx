@@ -4,6 +4,7 @@ import { useCaptureSession } from "@/hooks/use-capture-session";
 import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
 import { useLandmarksStore } from "@/stores/landmarks-store";
+import { useDevStore } from "@/stores/dev-store";
 import { DevPanel } from "./dev-panel";
 import { LandmarksOverlay } from "./landmarks-overlay";
 import { IdleStage } from "./idle-stage";
@@ -16,10 +17,14 @@ export function Stage() {
   const capture = useCaptureSession();
   const [full, fullCtrl] = useFullscreen(stageRef);
   const drawLandmarks = useLandmarksStore((s) => s.draw);
+  const inferenceBoundary = useDevStore((s) => s.boundary);
 
   const { state } = capture;
   const isLive = state.status === "live";
-  const onLandmarksFrame = useInfer(isLive);
+  const onLandmarksFrame = useInfer(
+    isLive ? state.frameRate : null,
+    inferenceBoundary,
+  );
 
   useEffect(() => {
     if (videoRef.current) {

@@ -24,6 +24,7 @@ function DevPanelContent() {
   const startRecording = useDevStore((s) => s.startRecording);
   const stopRecording = useDevStore((s) => s.stopRecording);
   const resetTraceCapture = useDevStore((s) => s.resetTraceCapture);
+  const markBoundary = useDevStore((s) => s.markBoundary);
   const [batchText, setBatchText] = useState("");
   const [batchIndex, setBatchIndex] = useState<number | null>(null);
   const batchLabels = useMemo(() => parseBatchLabels(batchText), [batchText]);
@@ -51,12 +52,14 @@ function DevPanelContent() {
   const startBatch = () => {
     if (!canStartBatch) return;
     resetTraceCapture();
+    markBoundary();
     setBatchIndex(0);
     startRecording(batchLabels[0]);
   };
   const nextBatchLabel = () => {
     if (batchIndex === null) return;
     stopRecording();
+    markBoundary();
     const nextIndex = batchIndex + 1;
     if (nextIndex >= batchLabels.length) {
       setBatchIndex(null);
@@ -67,6 +70,7 @@ function DevPanelContent() {
   };
   const finishBatch = () => {
     if (recording) stopRecording();
+    markBoundary();
     setBatchIndex(null);
   };
 
@@ -83,9 +87,11 @@ function DevPanelContent() {
               onClick={() => {
                 if (recording) {
                   stopRecording();
+                  markBoundary();
                   setBatchIndex(null);
                   return;
                 }
+                markBoundary();
                 startRecording(prompt("Trace label")?.trim() || "unlabeled");
               }}
               size="xs"
