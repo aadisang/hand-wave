@@ -5,6 +5,7 @@ struct RecognizerClient: Sendable {
   var start: @Sendable () async throws -> Void
   var stop: @Sendable () async -> Void
   var setFrameRate: @Sendable (Double) async -> Void
+  var resetAfterSpokenPartial: @Sendable () async -> Void
   var process: @Sendable (VideoFrame) async throws -> Recognizer.Output
   var processCamera: @Sendable (CameraFrame) async throws -> Recognizer.Output
 }
@@ -22,6 +23,9 @@ extension RecognizerClient: DependencyKey {
       setFrameRate: { frameRate in
         await recognizer.setFrameRate(frameRate)
       },
+      resetAfterSpokenPartial: {
+        await recognizer.resetAfterSpokenPartial()
+      },
       process: { frame in
         try await recognizer.process(frame)
       },
@@ -35,6 +39,7 @@ extension RecognizerClient: DependencyKey {
     start: {},
     stop: {},
     setFrameRate: { _ in },
+    resetAfterSpokenPartial: {},
     process: { _ in
       Recognizer.Output(
         event: nil,
@@ -62,6 +67,9 @@ extension RecognizerClient: DependencyKey {
     },
     setFrameRate: { _ in
       reportIssue("RecognizerClient.setFrameRate is unimplemented")
+    },
+    resetAfterSpokenPartial: {
+      reportIssue("RecognizerClient.resetAfterSpokenPartial is unimplemented")
     },
     process: { _ in
       reportIssue("RecognizerClient.process is unimplemented")
