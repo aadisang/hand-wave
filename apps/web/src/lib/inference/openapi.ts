@@ -149,12 +149,15 @@ export interface components {
         RecognitionState: {
             display?: components["schemas"]["RecognitionScored"] | null;
             final_candidate?: components["schemas"]["RecognitionScored"] | null;
+            alternative_candidate?: components["schemas"]["RecognitionScored"] | null;
             selected_text: string;
             /** Format: int32 */
             selected_streak: number;
             /** Format: int32 */
             display_misses: number;
             counts: components["schemas"]["RecognitionCount"][];
+            alternative_counts?: components["schemas"]["RecognitionCount"][] | null;
+            alternative_misses?: number | null;
         };
         RecognitionTrace: {
             prediction?: components["schemas"]["PredictOut"] | null;
