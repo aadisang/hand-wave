@@ -4,9 +4,11 @@ from pathlib import Path
 
 from inference.ctc import DecodedText
 from inference.schemas import LandmarkFrame, Prediction, PredictOut, Span
+from inference.text_normalizer import normalize_prediction_text
 
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 MODELS_DIR = Path(getenv("MODEL_DIR", str(DEFAULT_MODELS_DIR)))
+MODEL_CHECKPOINT_PATH_ENV = "MODEL_CHECKPOINT_PATH"
 
 
 class ModelBackend:
@@ -26,9 +28,15 @@ class CheckpointBackend(ModelBackend):
 
 def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
     best = decoded.alternatives[0] if decoded.alternatives else None
+    frame_confidence = (
+        decoded.confidence / best.confidence
+        if best is not None and best.confidence > 0
+        else 1.0
+    )
+    label = normalize_prediction_text(decoded.text)
     return PredictOut(
         prediction=Prediction(
-            label=decoded.text,
+            label=label,
             confidence=decoded.confidence,
             logit_score=best.logit_score if best else None,
             lm_score=best.lm_score if best else None,
@@ -37,7 +45,7 @@ def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
         alternatives=[
             Prediction(
                 label=item.text,
-                confidence=item.confidence,
+                confidence=item.confidence * frame_confidence,
                 logit_score=item.logit_score,
                 lm_score=item.lm_score,
                 raw_label=item.raw_text,
@@ -56,7 +64,7 @@ def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
         blank_ratio=decoded.blank_ratio,
         tail_blank_ratio=decoded.tail_blank_ratio,
         tail_blank_frames=decoded.tail_blank_frames,
-        partial_text=decoded.text,
+        partial_text=label,
         stable_text="",
     )
 
@@ -66,6 +74,13 @@ def load_backend() -> ModelBackend:
 
 
 def resolve_checkpoint_path(models_dir: Path = MODELS_DIR) -> Path:
+    explicit = getenv(MODEL_CHECKPOINT_PATH_ENV)
+    if explicit:
+        checkpoint = Path(explicit)
+        if not checkpoint.exists():
+            raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
+        return checkpoint
+
     checkpoints = sorted(models_dir.glob("*.ckpt"))
     if not checkpoints:
         raise FileNotFoundError(f"expected one .ckpt model under {models_dir}")
