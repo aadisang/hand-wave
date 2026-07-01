@@ -80,10 +80,13 @@ model RecognitionCount {
 model RecognitionState {
   display?: RecognitionScored | null;
   final_candidate?: RecognitionScored | null;
+  alternative_candidate?: RecognitionScored | null;
   selected_text: string;
   selected_streak: int32;
   display_misses: int32;
   counts: RecognitionCount[];
+  alternative_counts?: RecognitionCount[] | null;
+  alternative_misses?: int32 | null;
 }
 
 enum EndpointReason {

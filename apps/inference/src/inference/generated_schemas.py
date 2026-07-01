@@ -80,10 +80,13 @@ class RecognitionScored(BaseModel):
 class RecognitionState(BaseModel):
     display: RecognitionScored | None = None
     final_candidate: RecognitionScored | None = None
+    alternative_candidate: RecognitionScored | None = None
     selected_text: str
     selected_streak: int
     display_misses: int
     counts: list[RecognitionCount]
+    alternative_counts: list[RecognitionCount] | None = None
+    alternative_misses: int | None = None
 
 
 class RecognizeIn(BaseModel):
