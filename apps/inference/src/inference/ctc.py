@@ -26,6 +26,10 @@ class CtcDecoderConfig:
     alpha: float
     beta: float
     unk_score_offset: float
+    beam_width: int = 50
+    beam_prune_logp: float = -10.0
+    token_min_logp: float = -5.0
+    confidence_temperature: float = 1.2
 
     @classmethod
     def from_env(cls) -> CtcDecoderConfig:
@@ -33,9 +37,13 @@ class CtcDecoderConfig:
         return cls(
             kenlm_model_path=model_path,
             unigram_path=_env_path("KENLM_UNIGRAMS_PATH", DEFAULT_UNIGRAMS_PATH),
-            alpha=_env_float("CTC_ALPHA", 0.65),
+            alpha=_env_float("CTC_ALPHA", 1.2),
             beta=_env_float("CTC_BETA", 2.0),
             unk_score_offset=_env_float("CTC_UNK_SCORE_OFFSET", -10.0),
+            beam_width=_env_int("CTC_BEAM_WIDTH", 50),
+            beam_prune_logp=_env_float("CTC_BEAM_PRUNE_LOGP", -10.0),
+            token_min_logp=_env_float("CTC_TOKEN_MIN_LOGP", -5.0),
+            confidence_temperature=_env_float("CTC_CONFIDENCE_TEMPERATURE", 1.2),
         )
 
 
@@ -154,12 +162,17 @@ def decode_alternatives(
     decoder: CtcDecoder,
     emissions: np.ndarray,
     beam_width: int,
+    beam_prune_logp: float = -10.0,
+    token_min_logp: float = -5.0,
+    confidence_temperature: float = 1.0,
 ) -> tuple[DecodedAlternative, ...]:
+    if confidence_temperature <= 0:
+        raise ValueError("confidence_temperature must be positive")
     beams = decoder.decode_beams(
         emissions,
         beam_width=beam_width,
-        beam_prune_logp=-10.0,
-        token_min_logp=-5.0,
+        beam_prune_logp=beam_prune_logp,
+        token_min_logp=token_min_logp,
     )
     scored: list[tuple[str, float, float, float, tuple[DecodedSpan, ...]]] = []
     for beam in beams:
@@ -170,7 +183,12 @@ def decode_alternatives(
         lm_score = beam_lm_score(beam)
         scored.append((text, logit_score + lm_score, logit_score, lm_score, beam_spans(beam)))
 
-    weights = softmax(np.asarray([score for _, score, *_ in scored], dtype=np.float64))
+    weights = softmax(
+        np.asarray(
+            [score / confidence_temperature for _, score, *_ in scored],
+            dtype=np.float64,
+        )
+    )
     alternatives: list[DecodedAlternative] = []
     seen: set[str] = set()
     for (text, _score, logit_score, lm_score, spans), confidence in sorted(
@@ -249,3 +267,8 @@ def _env_path(name: str, default: Path) -> Path | None:
 def _env_float(name: str, default: float) -> float:
     value = getenv(name)
     return float(value) if value else default
+
+
+def _env_int(name: str, default: int) -> int:
+    value = getenv(name)
+    return int(value) if value else default
