@@ -140,6 +140,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
   const finalize = (endpointReason: EndpointReason) => {
     const activeState = state;
     const context = endpointContext(endpointReason);
+    const finalFrames = frames.slice();
 
     clearHold();
     ended = true;
@@ -151,7 +152,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
       return;
     }
     const finalEpoch = epoch;
-    void finalizeRemote(activeState, context, finalEpoch);
+    void finalizeRemote(activeState, context, finalFrames, finalEpoch);
   };
 
   const decode = async (batch: Frame[], idleFrames: number) => {
@@ -195,12 +196,14 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
   const finalizeRemote = async (
     state: RecognitionState,
     context: RecognitionContext,
+    frames: Frame[],
     finalEpoch: number,
   ) => {
     let result: RecognizeOut;
     try {
       result = await run(
         recognizeFrames({
+          frames,
           state,
           context,
           finalize: true,

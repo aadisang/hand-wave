@@ -23,6 +23,16 @@
                 }
             ]
         },
+        "alternative_candidate": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/RecognitionScored.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
         "selected_text": {
             "type": "string"
         },
@@ -41,6 +51,31 @@
             "items": {
                 "$ref": "https://hand-wave.local/schemas/RecognitionCount.json"
             }
+        },
+        "alternative_counts": {
+            "anyOf": [
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "https://hand-wave.local/schemas/RecognitionCount.json"
+                    }
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
+        "alternative_misses": {
+            "anyOf": [
+                {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                },
+                {
+                    "type": "null"
+                }
+            ]
         }
     },
     "required": [

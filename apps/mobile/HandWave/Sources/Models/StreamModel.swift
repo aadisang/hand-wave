@@ -524,6 +524,13 @@ final class StreamModel {
     logSpeech(.pendingFired, prediction: prediction)
     resetPendingSpeech()
     speak(prediction)
+    if current?.text == prediction.text {
+      current = nil
+      logSpeech(.clear)
+    }
+    Task { [recognizer] in
+      await recognizer.resetAfterSpokenPartial()
+    }
   }
 
   private func cancelPendingSpeech(reason: String) {

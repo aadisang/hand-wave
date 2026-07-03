@@ -36,6 +36,10 @@ actor Recognizer {
     await inference.setFrameRate(frameRate)
   }
 
+  func resetAfterSpokenPartial() async {
+    await inference.resetAfterSpokenPartial()
+  }
+
   func stop() async {
     detStarted = false
     inferStarted = false

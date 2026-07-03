@@ -12,27 +12,36 @@ public struct InferenceRecognitionState: Sendable, Codable, Hashable {
 
     public var display: InferenceRecognitionScored?
     public var finalCandidate: InferenceRecognitionScored?
+    public var alternativeCandidate: InferenceRecognitionScored?
     public var selectedText: String
     public var selectedStreak: Int
     public var displayMisses: Int
     public var counts: [InferenceRecognitionCount]
+    public var alternativeCounts: [InferenceRecognitionCount]?
+    public var alternativeMisses: Int?
 
-    public init(display: InferenceRecognitionScored? = nil, finalCandidate: InferenceRecognitionScored? = nil, selectedText: String, selectedStreak: Int, displayMisses: Int, counts: [InferenceRecognitionCount]) {
+    public init(display: InferenceRecognitionScored? = nil, finalCandidate: InferenceRecognitionScored? = nil, alternativeCandidate: InferenceRecognitionScored? = nil, selectedText: String, selectedStreak: Int, displayMisses: Int, counts: [InferenceRecognitionCount], alternativeCounts: [InferenceRecognitionCount]? = nil, alternativeMisses: Int? = nil) {
         self.display = display
         self.finalCandidate = finalCandidate
+        self.alternativeCandidate = alternativeCandidate
         self.selectedText = selectedText
         self.selectedStreak = selectedStreak
         self.displayMisses = displayMisses
         self.counts = counts
+        self.alternativeCounts = alternativeCounts
+        self.alternativeMisses = alternativeMisses
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case display
         case finalCandidate = "final_candidate"
+        case alternativeCandidate = "alternative_candidate"
         case selectedText = "selected_text"
         case selectedStreak = "selected_streak"
         case displayMisses = "display_misses"
         case counts
+        case alternativeCounts = "alternative_counts"
+        case alternativeMisses = "alternative_misses"
     }
 
     // Encodable protocol methods
@@ -41,10 +50,13 @@ public struct InferenceRecognitionState: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(display, forKey: .display)
         try container.encodeIfPresent(finalCandidate, forKey: .finalCandidate)
+        try container.encodeIfPresent(alternativeCandidate, forKey: .alternativeCandidate)
         try container.encode(selectedText, forKey: .selectedText)
         try container.encode(selectedStreak, forKey: .selectedStreak)
         try container.encode(displayMisses, forKey: .displayMisses)
         try container.encode(counts, forKey: .counts)
+        try container.encodeIfPresent(alternativeCounts, forKey: .alternativeCounts)
+        try container.encodeIfPresent(alternativeMisses, forKey: .alternativeMisses)
     }
 }
 

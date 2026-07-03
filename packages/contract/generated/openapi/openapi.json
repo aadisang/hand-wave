@@ -466,6 +466,16 @@
               }
             ]
           },
+          "alternative_candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecognitionScored"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "selected_text": {
             "type": "string"
           },
@@ -482,6 +492,30 @@
             "items": {
               "$ref": "#/components/schemas/RecognitionCount"
             }
+          },
+          "alternative_counts": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecognitionCount"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "alternative_misses": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "format": "int32"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
