@@ -128,9 +128,12 @@ struct InferClient: Sendable {
   }
 
   private static func defaultBaseURLs() -> [URL] {
-    let urls = infoURLs("HandWaveInferenceURLs")
-    if !urls.isEmpty { return urls }
-    return infoURLs("HandWaveInferenceURL")
+    #if DEBUG
+    let urls = infoURLs("HandWaveInferenceURLs") + infoURLs("HandWaveInferenceURL")
+    return urls.isEmpty ? [URL(string: "http://localhost:8000")!] : urls
+    #else
+    return [URL(string: "https://handwave.sh")!]
+    #endif
   }
 
   private static func infoURLs(_ key: String) -> [URL] {
