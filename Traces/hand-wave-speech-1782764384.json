@@ -1,0 +1,3556 @@
+{
+  "createdAt" : "2026-06-29T20:19:44Z",
+  "entries" : [
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:41Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:42Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:43Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:44Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:45Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:47Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:47Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:47Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:47Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:49Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:50Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:51Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:17:52Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.98174999997673,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:17:59Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "pendingScheduled",
+      "pendingText" : "in",
+      "processingTimeMs" : 44.98174999997673,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:17:59Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "pendingText" : "in",
+      "processingTimeMs" : 54.916499999990265,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:00Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "pendingText" : "in",
+      "processingTimeMs" : 54.916499999990265,
+      "reason" : "already_pending",
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:00Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "pendingFired",
+      "pendingText" : "in",
+      "processingTimeMs" : 44.98174999997673,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:00Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "speechRequested",
+      "processingTimeMs" : 44.98174999997673,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:00Z"
+    },
+    {
+      "currentText" : "in",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:00Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 55.29054199996608,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:01Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 55.29054199996608,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:01Z"
+    },
+    {
+      "currentText" : "in",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:02Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.95454200000404,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:02Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.95454200000404,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:02Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 49.63608299999578,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:03Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 49.63608299999578,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:03Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 52.985333000037826,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:04Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 52.985333000037826,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:04Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 40.64379200002577,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:04Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 40.64379200002577,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:04Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 49.13545800002339,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:05Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 49.13545800002339,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:05Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.55770900000289,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:06Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.55770900000289,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:06Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.971541999994315,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:07Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.971541999994315,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:07Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 56.68612499999881,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:08Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 56.68612499999881,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:08Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 53.33612499998708,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:09Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 53.33612499998708,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:09Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 39.22866600004227,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:09Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 39.22866600004227,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:09Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 42.846042000007856,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:10Z"
+    },
+    {
+      "confidence" : 0.7383805542487833,
+      "currentText" : "in",
+      "event" : "partialRejected",
+      "processingTimeMs" : 42.846042000007856,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "in",
+      "timestamp" : "2026-06-29T20:18:10Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "in",
+      "event" : "partialSeen",
+      "processingTimeMs" : 41.574332999971375,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:11Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "pendingScheduled",
+      "pendingText" : "linkedin",
+      "processingTimeMs" : 41.574332999971375,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:11Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "pendingText" : "linkedin",
+      "processingTimeMs" : 39.67070799996009,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:12Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "pendingText" : "linkedin",
+      "processingTimeMs" : 39.67070799996009,
+      "reason" : "already_pending",
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:12Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "pendingFired",
+      "pendingText" : "linkedin",
+      "processingTimeMs" : 41.574332999971375,
+      "source" : "Phone",
+      "spokenText" : "in",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:12Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "speechRequested",
+      "processingTimeMs" : 41.574332999971375,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:12Z"
+    },
+    {
+      "currentText" : "linkedin",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:12Z"
+    },
+    {
+      "currentText" : "linkedin",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:13Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.658291000028385,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:13Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.658291000028385,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:13Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.62724999998136,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:14Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.62724999998136,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:14Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 60.199207999971804,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:14Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 60.199207999971804,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:14Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 74.6748750000279,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:15Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 74.6748750000279,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:15Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 50.925500000005286,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:16Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 50.925500000005286,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:16Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 51.67766599998913,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:17Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 51.67766599998913,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:17Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 49.6473329999958,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:18Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 49.6473329999958,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:18Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.93491699999686,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:19Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.93491699999686,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:19Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 56.63487500004294,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:20Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 56.63487500004294,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:20Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 50.769041999956244,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:20Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 50.769041999956244,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:20Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 52.96954199997117,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:21Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 52.96954199997117,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:21Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 58.45004200000403,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:22Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 58.45004200000403,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:22Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 52.64204200000222,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:23Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 52.64204200000222,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:23Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 49.48008299999174,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:24Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 49.48008299999174,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:24Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 47.257749999971566,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:25Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 47.257749999971566,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:25Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 53.436583000006976,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:26Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 53.436583000006976,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:26Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 50.12166599999546,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:26Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 50.12166599999546,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:26Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.98008300000356,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:27Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.98008300000356,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:27Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 53.024332999996204,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:28Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 53.024332999996204,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:28Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 52.08700000002864,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:29Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 52.08700000002864,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:29Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialSeen",
+      "processingTimeMs" : 51.89708300002849,
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:30Z"
+    },
+    {
+      "confidence" : 0.9879963452926573,
+      "currentText" : "linkedin",
+      "event" : "partialRejected",
+      "processingTimeMs" : 51.89708300002849,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "linkedin",
+      "status" : "streaming",
+      "text" : "linkedin",
+      "timestamp" : "2026-06-29T20:18:30Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:36Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:37Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:38Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "event" : "clear",
+      "source" : "Phone",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:39Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "event" : "partialSeen",
+      "processingTimeMs" : 36.48679100001573,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "pendingScheduled",
+      "pendingText" : "alecia",
+      "processingTimeMs" : 36.48679100001573,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "partialSeen",
+      "pendingText" : "alecia",
+      "processingTimeMs" : 44.41149999996696,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "partialRejected",
+      "pendingText" : "alecia",
+      "processingTimeMs" : 44.41149999996696,
+      "reason" : "already_pending",
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "pendingFired",
+      "pendingText" : "alecia",
+      "processingTimeMs" : 36.48679100001573,
+      "source" : "Phone",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "speechRequested",
+      "processingTimeMs" : 36.48679100001573,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "currentText" : "alecia",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:46Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.02608399999508,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:47Z"
+    },
+    {
+      "confidence" : 0.7143725893510563,
+      "currentText" : "alecia",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.02608399999508,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "alecia",
+      "timestamp" : "2026-06-29T20:18:47Z"
+    },
+    {
+      "currentText" : "alecia",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:47Z"
+    },
+    {
+      "confidence" : 0.9441325306898735,
+      "currentText" : "alecia",
+      "event" : "partialSeen",
+      "processingTimeMs" : 42.87729199995738,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:48Z"
+    },
+    {
+      "confidence" : 0.9441325306898735,
+      "currentText" : "aqlecider",
+      "event" : "pendingScheduled",
+      "pendingText" : "aqlecider",
+      "processingTimeMs" : 42.87729199995738,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:48Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "pendingText" : "aqlecider",
+      "processingTimeMs" : 42.624167000042235,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:49Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "pendingText" : "aqlecider",
+      "processingTimeMs" : 42.624167000042235,
+      "reason" : "already_pending",
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:49Z"
+    },
+    {
+      "confidence" : 0.9441325306898735,
+      "currentText" : "aqlecider",
+      "event" : "pendingFired",
+      "pendingText" : "aqlecider",
+      "processingTimeMs" : 42.87729199995738,
+      "source" : "Phone",
+      "spokenText" : "alecia",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:49Z"
+    },
+    {
+      "confidence" : 0.9441325306898735,
+      "currentText" : "aqlecider",
+      "event" : "speechRequested",
+      "processingTimeMs" : 42.87729199995738,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:49Z"
+    },
+    {
+      "currentText" : "aqlecider",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:49Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 38.99612499998284,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:50Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 38.99612499998284,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:50Z"
+    },
+    {
+      "currentText" : "aqlecider",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:18:50Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.92862500001138,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:51Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.92862500001138,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:51Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 40.17908299999817,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:52Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 40.17908299999817,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:52Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.41533400001663,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:53Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.41533400001663,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:53Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 41.03437499998108,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:54Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 41.03437499998108,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:54Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.415875000003325,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:54Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.415875000003325,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:54Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 38.418707999994695,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:55Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 38.418707999994695,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:55Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.10829099996272,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:56Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.10829099996272,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:56Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.881457999996655,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:57Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.881457999996655,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:57Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 42.4392919999832,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:58Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 42.4392919999832,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:58Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.015333000004375,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:59Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.015333000004375,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:18:59Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.37125000004016,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:00Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.37125000004016,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:00Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 47.62937499998543,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:01Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 47.62937499998543,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:01Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.97620799999913,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:02Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.97620799999913,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:02Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 50.44129100002692,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:03Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 50.44129100002692,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:03Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.07941700004403,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:04Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.07941700004403,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:04Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.823707999976705,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:05Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.823707999976705,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:05Z"
+    },
+    {
+      "confidence" : 0.9641181813083667,
+      "currentText" : "aqlecider",
+      "event" : "finalizedSeen",
+      "processingTimeMs" : 0,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "aqlecider",
+      "timestamp" : "2026-06-29T20:19:08Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "aqlecider",
+      "event" : "partialSeen",
+      "processingTimeMs" : 42.819333000011284,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:15Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "or",
+      "event" : "partialRejected",
+      "processingTimeMs" : 42.819333000011284,
+      "reason" : "low_confidence",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:15Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "or",
+      "event" : "partialSeen",
+      "processingTimeMs" : 38.0177920000051,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:16Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "or",
+      "event" : "partialRejected",
+      "processingTimeMs" : 38.0177920000051,
+      "reason" : "low_confidence",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:16Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "or",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.79937499996822,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:17Z"
+    },
+    {
+      "confidence" : 0.5342280038327208,
+      "currentText" : "or",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.79937499996822,
+      "reason" : "low_confidence",
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "or",
+      "timestamp" : "2026-06-29T20:19:17Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "or",
+      "event" : "partialSeen",
+      "processingTimeMs" : 43.923416000041016,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:17Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "pendingScheduled",
+      "pendingText" : "hairstyles",
+      "processingTimeMs" : 43.923416000041016,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:17Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "pendingFired",
+      "pendingText" : "hairstyles",
+      "processingTimeMs" : 43.923416000041016,
+      "source" : "Phone",
+      "spokenText" : "aqlecider",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:18Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "speechRequested",
+      "processingTimeMs" : 43.923416000041016,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:18Z"
+    },
+    {
+      "currentText" : "hairstyles",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:19:18Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 36.07974999999897,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:19Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 36.07974999999897,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:19Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 36.668249999991076,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:19Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 36.668249999991076,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:19Z"
+    },
+    {
+      "currentText" : "hairstyles",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:19:20Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 31.55424999999923,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:20Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 31.55424999999923,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:20Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 32.76549999998224,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:21Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 32.76549999998224,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:21Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.87858400003597,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:22Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.87858400003597,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:22Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 41.39166700002761,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:23Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 41.39166700002761,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:23Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 38.781624999955966,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:24Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 38.781624999955966,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:24Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 47.305957999981274,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:25Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 47.305957999981274,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:25Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.018249999965064,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:26Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.018249999965064,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:26Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.69733299998779,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:27Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.69733299998779,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:27Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 42.861249999987194,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:28Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 42.861249999987194,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:28Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 46.56541700001071,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:29Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 46.56541700001071,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:29Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.23729200001026,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:30Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.23729200001026,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:30Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 48.68229200002361,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:31Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 48.68229200002361,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:31Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 44.27445900000748,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:32Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 44.27445900000748,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:32Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 40.87520799998856,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:33Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 40.87520799998856,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:33Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.87795899999492,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:34Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.87795899999492,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:34Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialSeen",
+      "processingTimeMs" : 45.019666000030156,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:35Z"
+    },
+    {
+      "confidence" : 0.8911930752490039,
+      "currentText" : "hairstyles",
+      "event" : "partialRejected",
+      "processingTimeMs" : 45.019666000030156,
+      "reason" : "already_spoken",
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyles",
+      "timestamp" : "2026-06-29T20:19:35Z"
+    },
+    {
+      "confidence" : 0.965972281511151,
+      "currentText" : "hairstyles",
+      "event" : "finalizedSeen",
+      "processingTimeMs" : 0,
+      "source" : "Phone",
+      "spokenText" : "hairstyles",
+      "status" : "streaming",
+      "text" : "hairstyle",
+      "timestamp" : "2026-06-29T20:19:37Z"
+    },
+    {
+      "confidence" : 0.965972281511151,
+      "currentText" : "hairstyle",
+      "event" : "speechRequested",
+      "processingTimeMs" : 0,
+      "source" : "Phone",
+      "spokenText" : "hairstyle",
+      "status" : "streaming",
+      "text" : "hairstyle",
+      "timestamp" : "2026-06-29T20:19:37Z"
+    },
+    {
+      "currentText" : "hairstyle",
+      "event" : "speechStarted",
+      "source" : "Phone",
+      "spokenText" : "hairstyle",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:19:37Z"
+    },
+    {
+      "currentText" : "hairstyle",
+      "event" : "speechEnded",
+      "source" : "Phone",
+      "spokenText" : "hairstyle",
+      "status" : "streaming",
+      "timestamp" : "2026-06-29T20:19:38Z"
+    }
+  ],
+  "partialSpeechConfidence" : 0.6,
+  "speechDelayMs" : 950
+}
