@@ -51,6 +51,7 @@ actor InferSession {
   private var requestId = 0
   private var pendingEvent: Event?
   private var pendingError: InferenceFailure?
+  private var hasDisplayedPrediction = false
   private var timing = StreamTiming(frameRate: Double(InferCfg.Stream.fps))
 
   init(client: InferAPI = InferClient()) {
@@ -72,8 +73,24 @@ actor InferSession {
     inFlight = false
     pendingEvent = nil
     pendingError = nil
+    hasDisplayedPrediction = false
     state = nil
     resetSegment()
+  }
+
+  func resetAfterSpokenPartial() {
+    epoch += 1
+    requestId += 1
+    inFlight = false
+    pendingError = nil
+    state = nil
+    resetSegment()
+    if hasDisplayedPrediction {
+      hasDisplayedPrediction = false
+      pendingEvent = .clear
+    } else {
+      pendingEvent = nil
+    }
   }
 
   func ingest(_ frame: LandmarkFrame?) async throws(InferenceFailure) -> Event? {
@@ -96,9 +113,17 @@ actor InferSession {
     last = frame
     lost = 0
     let moving = motion >= InferCfg.Stream.motion
+    var clearVisiblePrediction = false
 
     if moving {
-      if ended { resetSegment() }
+      if ended {
+        resetSegment()
+        last = frame
+        if hasDisplayedPrediction {
+          hasDisplayedPrediction = false
+          clearVisiblePrediction = true
+        }
+      }
       ended = false
       moved = true
       idle = 0
@@ -118,11 +143,11 @@ actor InferSession {
       return try await finalizeSegment(reason: .idle)
     }
 
-    if seen < timing.minFrames { return nil }
-    if seen % timing.stride != 0 || inFlight { return nil }
+    if seen < timing.minFrames { return clearVisiblePrediction ? .clear : nil }
+    if seen % timing.stride != 0 || inFlight { return clearVisiblePrediction ? .clear : nil }
 
     startDecode(batch: frames, idleFrames: idle, motion: motion)
-    return nil
+    return clearVisiblePrediction ? .clear : nil
   }
 
   private func startDecode(
@@ -168,10 +193,16 @@ actor InferSession {
     guard requestEpoch == epoch else { return }
 
     state = response.state
-    pendingEvent = response.displayPrediction.map {
-      Event.partial(
-        Self.prediction(from: $0, processingTimeMs: response.trace.decode?.latencyMs ?? 0)
+    if let prediction = response.displayPrediction {
+      hasDisplayedPrediction = true
+      pendingEvent = .partial(
+        Self.prediction(from: prediction, processingTimeMs: response.trace.decode?.latencyMs ?? 0)
       )
+    } else if hasDisplayedPrediction {
+      hasDisplayedPrediction = false
+      pendingEvent = .clear
+    } else {
+      pendingEvent = nil
     }
   }
 
@@ -211,6 +242,7 @@ actor InferSession {
   ) async throws(InferenceFailure) -> Event? {
     let currentState = state
     let context = endpointContext(reason)
+    let finalFrames = frames
     ended = true
     epoch += 1
     requestId += 1
@@ -220,23 +252,27 @@ actor InferSession {
     resetSegment()
 
     guard let currentState else {
+      hasDisplayedPrediction = false
       return .clear
     }
     let response = try await client.recognize(
-      frames: [],
+      frames: finalFrames,
       state: currentState,
       context: context,
       finalize: true
     )
 
     guard let prediction = response.displayPrediction, !prediction.label.isEmpty else {
+      hasDisplayedPrediction = false
       return .clear
     }
+    hasDisplayedPrediction = true
     return .finalized(Self.prediction(from: prediction, processingTimeMs: 0))
   }
 
   private func resetLive() {
     resetSegment()
+    hasDisplayedPrediction = false
     state = nil
   }
 
