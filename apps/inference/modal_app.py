@@ -24,13 +24,14 @@ if LM_PROFILE not in {"default", "wiki"}:
 
 env = {
     "CORS_ORIGINS": "https://handwave.sh",
+    "HAND_WAVE_MODAL_LM": LM_PROFILE,
     "MODEL_DIR": MODEL_DIR,
 }
-volumes: dict[str, modal.Volume] = {}
+
+lm_volume = modal.Volume.from_name(LM_VOLUME_NAME, create_if_missing=True)
+volumes = {LM_VOLUME_DIR: lm_volume.with_mount_options(read_only=True)}
 
 if LM_PROFILE == "wiki":
-    lm_volume = modal.Volume.from_name(LM_VOLUME_NAME)
-    volumes[LM_VOLUME_DIR] = lm_volume.with_mount_options(read_only=True)
     env |= {
         "KENLM_MODEL_PATH": f"{LM_VOLUME_DIR}/wiki_en_token.arpa.bin",
         "KENLM_UNIGRAMS_PATH": f"{LM_VOLUME_DIR}/wiki_en_token.unigrams.txt",

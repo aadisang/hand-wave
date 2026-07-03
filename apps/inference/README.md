@@ -30,9 +30,11 @@ After deploy, set the web app's `VITE_INFERENCE_URL` to the Modal endpoint print
 
 ### Optional Wikipedia LM
 
-The default Modal app bundles `best.ckpt` and `neutral_english_4gram.kenlm` in the image. The
-14 GB `wiki_en_token.arpa.bin` file is intentionally not committed. To test it on Modal, seed a
-Volume once, then deploy with the wiki profile:
+The Modal app always mounts the LM Volume so Modal sees the same object graph at deploy time and
+container startup. The default profile still uses the bundled `best.ckpt` and
+`neutral_english_4gram.kenlm` files in the image. The 14 GB `wiki_en_token.arpa.bin` file is
+intentionally not committed. To test it on Modal, seed the Volume once, then deploy with the wiki
+profile:
 
 ```sh
 cd apps/inference
