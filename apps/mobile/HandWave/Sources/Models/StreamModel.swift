@@ -356,7 +356,7 @@ final class StreamModel {
       }
     }
 
-    stream.start()
+    await stream.start()
   }
 
   private func processCamera(_ frame: CameraFrame) async {
@@ -581,7 +581,7 @@ final class StreamModel {
     startError = nil
 
     await recognizer.stop()
-    stream?.stop()
+    await stream?.stop()
     session?.stop()
     await phoneCamera.stop()
 
