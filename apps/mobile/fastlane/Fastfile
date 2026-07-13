@@ -61,7 +61,6 @@ platform :ios do
       app_identifier: app_identifier,
       ipa: "Derived/TestFlight/HandWave.ipa",
       distribute_external: false,
-      groups: ["Internal Testers"],
       notify_external_testers: false,
       skip_waiting_for_build_processing: false
     }
