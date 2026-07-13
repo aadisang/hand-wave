@@ -15,18 +15,11 @@ DerivedData/
 *.xcscmblueprint
 *.xccheckout
 Pods/
-Podfile.lock
 
 # Swift Package Manager
 Packages/
 Package.pins
 Package.resolved
-
-# fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
 
 # macOS
 .DS_Store
