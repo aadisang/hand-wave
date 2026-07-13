@@ -1,0 +1,53 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/CtcCfg.json",
+    "type": "object",
+    "properties": {
+        "alpha": {
+            "type": "number",
+            "minimum": 0
+        },
+        "beta": {
+            "type": "number"
+        },
+        "unkScoreOffset": {
+            "type": "number"
+        },
+        "beamWidth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+        },
+        "beamPruneLogp": {
+            "type": "number"
+        },
+        "tokenMinLogp": {
+            "type": "number"
+        },
+        "confidenceTemperature": {
+            "type": "number",
+            "minimum": 0
+        },
+        "hotwords": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "hotwordWeight": {
+            "type": "number",
+            "minimum": 0
+        }
+    },
+    "required": [
+        "alpha",
+        "beta",
+        "unkScoreOffset",
+        "beamWidth",
+        "beamPruneLogp",
+        "tokenMinLogp",
+        "confidenceTemperature",
+        "hotwords",
+        "hotwordWeight"
+    ]
+}

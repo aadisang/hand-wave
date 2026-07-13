@@ -88,7 +88,8 @@
         "required": [
           "decode",
           "stream",
-          "mp"
+          "mp",
+          "inference"
         ],
         "properties": {
           "decode": {
@@ -99,6 +100,67 @@
           },
           "mp": {
             "$ref": "#/components/schemas/MpCfg"
+          },
+          "inference": {
+            "$ref": "#/components/schemas/InferenceCfg"
+          }
+        }
+      },
+      "CtcCfg": {
+        "type": "object",
+        "required": [
+          "alpha",
+          "beta",
+          "unkScoreOffset",
+          "beamWidth",
+          "beamPruneLogp",
+          "tokenMinLogp",
+          "confidenceTemperature",
+          "hotwords",
+          "hotwordWeight"
+        ],
+        "properties": {
+          "alpha": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "beta": {
+            "type": "number",
+            "format": "double"
+          },
+          "unkScoreOffset": {
+            "type": "number",
+            "format": "double"
+          },
+          "beamWidth": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "beamPruneLogp": {
+            "type": "number",
+            "format": "double"
+          },
+          "tokenMinLogp": {
+            "type": "number",
+            "format": "double"
+          },
+          "confidenceTemperature": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "hotwords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hotwordWeight": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
           }
         }
       },
@@ -195,6 +257,21 @@
         "properties": {
           "ok": {
             "type": "boolean"
+          }
+        }
+      },
+      "InferenceCfg": {
+        "type": "object",
+        "required": [
+          "ctc",
+          "smooth"
+        ],
+        "properties": {
+          "ctc": {
+            "$ref": "#/components/schemas/CtcCfg"
+          },
+          "smooth": {
+            "$ref": "#/components/schemas/SmoothGateCfg"
           }
         }
       },
@@ -642,6 +719,207 @@
             "type": "number",
             "format": "double",
             "minimum": 0
+          }
+        }
+      },
+      "SmoothGateCfg": {
+        "type": "object",
+        "required": [
+          "displayConfidence",
+          "displayStreak",
+          "displayCount",
+          "displayClearMisses",
+          "displayClearMotion",
+          "instantDisplayConfidence",
+          "commitConfidence",
+          "shortCommitConfidence",
+          "commitStreak",
+          "commitCount",
+          "endpointCommitCount",
+          "commitSoftOovMinChars",
+          "commitSoftOovConfidence",
+          "commitRejectUncorrectedOovChars",
+          "stableCommitConfidence",
+          "stableCommitCount",
+          "stableCommitStreak",
+          "stableCommitMinChars",
+          "shortStableCommitConfidence",
+          "shortStableCommitCount",
+          "shortStableCommitStreak",
+          "shortStableCommitMinChars",
+          "shortStableCommitMaxChars",
+          "majorityCommitMinCount",
+          "majorityCommitMinShare",
+          "majorityCommitMinChars",
+          "alternativeCommitConfidence",
+          "alternativeCommitCount",
+          "alternativeCommitMinChars",
+          "alternativeCommitRecentMisses",
+          "replaceMargin"
+        ],
+        "properties": {
+          "displayConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "displayStreak": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "displayCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "displayClearMisses": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "displayClearMotion": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "instantDisplayConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "commitConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "shortCommitConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "commitStreak": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "commitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "endpointCommitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "commitSoftOovMinChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "commitSoftOovConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "commitRejectUncorrectedOovChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "stableCommitConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stableCommitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "stableCommitStreak": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "stableCommitMinChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "shortStableCommitConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "shortStableCommitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "shortStableCommitStreak": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "shortStableCommitMinChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "shortStableCommitMaxChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "majorityCommitMinCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "majorityCommitMinShare": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "majorityCommitMinChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "alternativeCommitConfidence": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "alternativeCommitCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "alternativeCommitMinChars": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "alternativeCommitRecentMisses": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "replaceMargin": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

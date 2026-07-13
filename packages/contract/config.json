@@ -6,9 +6,9 @@
     "fps": 24,
     "min": 18,
     "stride": 3,
-    "idle": 15,
+    "idle": 27,
     "lost": 9,
-    "holdMs": 1200,
+    "holdMs": 1600,
     "motion": 0.003
   },
   "mp": {
@@ -25,6 +25,52 @@
         "beta": 0.8,
         "dCutoff": 1.5
       }
+    }
+  },
+  "inference": {
+    "ctc": {
+      "alpha": 1.6,
+      "beta": 2.0,
+      "unkScoreOffset": -10.0,
+      "beamWidth": 50,
+      "beamPruneLogp": -10.0,
+      "tokenMinLogp": -5.0,
+      "confidenceTemperature": 2.279,
+      "hotwords": ["aadi", "chad", "shiven"],
+      "hotwordWeight": 8.0
+    },
+    "smooth": {
+      "displayConfidence": 0.101,
+      "displayStreak": 1,
+      "displayCount": 1,
+      "displayClearMisses": 1,
+      "displayClearMotion": 0.003,
+      "instantDisplayConfidence": 0.721,
+      "commitConfidence": 0.853,
+      "shortCommitConfidence": 0.921,
+      "commitStreak": 5,
+      "commitCount": 7,
+      "endpointCommitCount": 1,
+      "commitSoftOovMinChars": 7,
+      "commitSoftOovConfidence": 0.765,
+      "commitRejectUncorrectedOovChars": 8,
+      "stableCommitConfidence": 0.949,
+      "stableCommitCount": 14,
+      "stableCommitStreak": 11,
+      "stableCommitMinChars": 3,
+      "shortStableCommitConfidence": 0.594,
+      "shortStableCommitCount": 15,
+      "shortStableCommitStreak": 14,
+      "shortStableCommitMinChars": 2,
+      "shortStableCommitMaxChars": 3,
+      "majorityCommitMinCount": 26,
+      "majorityCommitMinShare": 0.73,
+      "majorityCommitMinChars": 2,
+      "alternativeCommitConfidence": 0.178,
+      "alternativeCommitCount": 22,
+      "alternativeCommitMinChars": 4,
+      "alternativeCommitRecentMisses": 6,
+      "replaceMargin": -0.041
     }
   }
 }
