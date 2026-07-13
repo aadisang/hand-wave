@@ -154,6 +154,7 @@ model Config {
   decode: DecodeCfg;
   stream: StreamCfg;
   mp: MpCfg;
+  inference: InferenceCfg;
 }
 
 model DecodeCfg {
@@ -206,6 +207,136 @@ model SmoothCfg {
 
   @minValue(0)
   dCutoff: float64;
+}
+
+model InferenceCfg {
+  ctc: CtcCfg;
+  smooth: SmoothGateCfg;
+}
+
+model CtcCfg {
+  @minValue(0)
+  alpha: float64;
+
+  beta: float64;
+  unkScoreOffset: float64;
+
+  @minValue(1)
+  beamWidth: int32;
+
+  beamPruneLogp: float64;
+  tokenMinLogp: float64;
+
+  @minValue(0)
+  confidenceTemperature: float64;
+
+  hotwords: string[];
+
+  @minValue(0)
+  hotwordWeight: float64;
+}
+
+model SmoothGateCfg {
+  @minValue(0)
+  @maxValue(1)
+  displayConfidence: float64;
+
+  @minValue(0)
+  displayStreak: int32;
+
+  @minValue(0)
+  displayCount: int32;
+
+  @minValue(0)
+  displayClearMisses: int32;
+
+  @minValue(0)
+  displayClearMotion: float64;
+
+  @minValue(0)
+  @maxValue(1)
+  instantDisplayConfidence: float64;
+
+  @minValue(0)
+  @maxValue(1)
+  commitConfidence: float64;
+
+  @minValue(0)
+  @maxValue(1)
+  shortCommitConfidence: float64;
+
+  @minValue(0)
+  commitStreak: int32;
+
+  @minValue(0)
+  commitCount: int32;
+
+  @minValue(0)
+  endpointCommitCount: int32;
+
+  @minValue(0)
+  commitSoftOovMinChars: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  commitSoftOovConfidence: float64;
+
+  @minValue(0)
+  commitRejectUncorrectedOovChars: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  stableCommitConfidence: float64;
+
+  @minValue(0)
+  stableCommitCount: int32;
+
+  @minValue(0)
+  stableCommitStreak: int32;
+
+  @minValue(0)
+  stableCommitMinChars: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  shortStableCommitConfidence: float64;
+
+  @minValue(0)
+  shortStableCommitCount: int32;
+
+  @minValue(0)
+  shortStableCommitStreak: int32;
+
+  @minValue(0)
+  shortStableCommitMinChars: int32;
+
+  @minValue(0)
+  shortStableCommitMaxChars: int32;
+
+  @minValue(0)
+  majorityCommitMinCount: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  majorityCommitMinShare: float64;
+
+  @minValue(0)
+  majorityCommitMinChars: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  alternativeCommitConfidence: float64;
+
+  @minValue(0)
+  alternativeCommitCount: int32;
+
+  @minValue(0)
+  alternativeCommitMinChars: int32;
+
+  @minValue(0)
+  alternativeCommitRecentMisses: int32;
+
+  replaceMargin: float64;
 }
 
 @route("/v1")

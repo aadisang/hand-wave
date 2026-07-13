@@ -70,6 +70,7 @@ tasks:
       - "../../apps/web/src/lib/inference/openapi.ts"
       - "../../apps/mobile/HandWave/Sources/Generated/OpenAPI"
       - "../../apps/inference/src/inference/generated_schemas.py"
+      - "../../apps/inference/src/inference/generated_tunings.py"
     preset: "utility"
 
   compile:
@@ -107,6 +108,12 @@ tasks:
       - "generated/json-schema/SmoothSet.json"
       - "-r"
       - "generated/json-schema/SmoothCfg.json"
+      - "-r"
+      - "generated/json-schema/InferenceCfg.json"
+      - "-r"
+      - "generated/json-schema/CtcCfg.json"
+      - "-r"
+      - "generated/json-schema/SmoothGateCfg.json"
       - "-d"
       - "config.json"
     deps:
@@ -193,6 +200,16 @@ tasks:
     outputs:
       - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*"
 
+  generateTunings:
+    command:
+      - "node"
+      - "scripts/generate-inference-tunings.mjs"
+    inputs:
+      - "config.json"
+      - "scripts/generate-inference-tunings.mjs"
+    outputs:
+      - "/apps/inference/src/inference/generated_tunings.py"
+
   generate:
     command:
       - "true"
@@ -201,6 +218,7 @@ tasks:
       - "generateWeb"
       - "generatePython"
       - "generateSwift"
+      - "generateTunings"
     options:
       cache: false
 
@@ -223,6 +241,12 @@ tasks:
       - "generated/json-schema/SmoothSet.json"
       - "-r"
       - "generated/json-schema/SmoothCfg.json"
+      - "-r"
+      - "generated/json-schema/InferenceCfg.json"
+      - "-r"
+      - "generated/json-schema/CtcCfg.json"
+      - "-r"
+      - "generated/json-schema/SmoothGateCfg.json"
       - "-d"
       - "config.json"
     deps:

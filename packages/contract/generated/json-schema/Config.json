@@ -11,11 +11,15 @@
         },
         "mp": {
             "$ref": "https://hand-wave.local/schemas/MpCfg.json"
+        },
+        "inference": {
+            "$ref": "https://hand-wave.local/schemas/InferenceCfg.json"
         }
     },
     "required": [
         "decode",
         "stream",
-        "mp"
+        "mp",
+        "inference"
     ]
 }

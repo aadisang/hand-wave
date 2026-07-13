@@ -60,6 +60,26 @@ export interface components {
             decode: components["schemas"]["DecodeCfg"];
             stream: components["schemas"]["StreamCfg"];
             mp: components["schemas"]["MpCfg"];
+            inference: components["schemas"]["InferenceCfg"];
+        };
+        CtcCfg: {
+            /** Format: double */
+            alpha: number;
+            /** Format: double */
+            beta: number;
+            /** Format: double */
+            unkScoreOffset: number;
+            /** Format: int32 */
+            beamWidth: number;
+            /** Format: double */
+            beamPruneLogp: number;
+            /** Format: double */
+            tokenMinLogp: number;
+            /** Format: double */
+            confidenceTemperature: number;
+            hotwords: string[];
+            /** Format: double */
+            hotwordWeight: number;
         };
         DecodeCfg: {
             /** Format: int32 */
@@ -90,6 +110,10 @@ export interface components {
         };
         HealthOut: {
             ok: boolean;
+        };
+        InferenceCfg: {
+            ctc: components["schemas"]["CtcCfg"];
+            smooth: components["schemas"]["SmoothGateCfg"];
         };
         LandmarkFrame: number[];
         MpCfg: {
@@ -185,6 +209,70 @@ export interface components {
             beta: number;
             /** Format: double */
             dCutoff: number;
+        };
+        SmoothGateCfg: {
+            /** Format: double */
+            displayConfidence: number;
+            /** Format: int32 */
+            displayStreak: number;
+            /** Format: int32 */
+            displayCount: number;
+            /** Format: int32 */
+            displayClearMisses: number;
+            /** Format: double */
+            displayClearMotion: number;
+            /** Format: double */
+            instantDisplayConfidence: number;
+            /** Format: double */
+            commitConfidence: number;
+            /** Format: double */
+            shortCommitConfidence: number;
+            /** Format: int32 */
+            commitStreak: number;
+            /** Format: int32 */
+            commitCount: number;
+            /** Format: int32 */
+            endpointCommitCount: number;
+            /** Format: int32 */
+            commitSoftOovMinChars: number;
+            /** Format: double */
+            commitSoftOovConfidence: number;
+            /** Format: int32 */
+            commitRejectUncorrectedOovChars: number;
+            /** Format: double */
+            stableCommitConfidence: number;
+            /** Format: int32 */
+            stableCommitCount: number;
+            /** Format: int32 */
+            stableCommitStreak: number;
+            /** Format: int32 */
+            stableCommitMinChars: number;
+            /** Format: double */
+            shortStableCommitConfidence: number;
+            /** Format: int32 */
+            shortStableCommitCount: number;
+            /** Format: int32 */
+            shortStableCommitStreak: number;
+            /** Format: int32 */
+            shortStableCommitMinChars: number;
+            /** Format: int32 */
+            shortStableCommitMaxChars: number;
+            /** Format: int32 */
+            majorityCommitMinCount: number;
+            /** Format: double */
+            majorityCommitMinShare: number;
+            /** Format: int32 */
+            majorityCommitMinChars: number;
+            /** Format: double */
+            alternativeCommitConfidence: number;
+            /** Format: int32 */
+            alternativeCommitCount: number;
+            /** Format: int32 */
+            alternativeCommitMinChars: number;
+            /** Format: int32 */
+            alternativeCommitRecentMisses: number;
+            /** Format: double */
+            replaceMargin: number;
         };
         SmoothSet: {
             hand: components["schemas"]["SmoothCfg"];

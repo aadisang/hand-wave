@@ -9,6 +9,18 @@ from typing import Annotated
 from pydantic import BaseModel, Field, RootModel
 
 
+class CtcCfg(BaseModel):
+    alpha: Annotated[float, Field(ge=0.0)]
+    beta: float
+    unkScoreOffset: float
+    beamWidth: Annotated[int, Field(ge=1)]
+    beamPruneLogp: float
+    tokenMinLogp: float
+    confidenceTemperature: Annotated[float, Field(ge=0.0)]
+    hotwords: list[str]
+    hotwordWeight: Annotated[float, Field(ge=0.0)]
+
+
 class DecodeCfg(BaseModel):
     window: Annotated[int, Field(ge=8, le=512)]
 
@@ -103,6 +115,40 @@ class SmoothCfg(BaseModel):
     dCutoff: Annotated[float, Field(ge=0.0)]
 
 
+class SmoothGateCfg(BaseModel):
+    displayConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    displayStreak: Annotated[int, Field(ge=0)]
+    displayCount: Annotated[int, Field(ge=0)]
+    displayClearMisses: Annotated[int, Field(ge=0)]
+    displayClearMotion: Annotated[float, Field(ge=0.0)]
+    instantDisplayConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    commitConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    shortCommitConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    commitStreak: Annotated[int, Field(ge=0)]
+    commitCount: Annotated[int, Field(ge=0)]
+    endpointCommitCount: Annotated[int, Field(ge=0)]
+    commitSoftOovMinChars: Annotated[int, Field(ge=0)]
+    commitSoftOovConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    commitRejectUncorrectedOovChars: Annotated[int, Field(ge=0)]
+    stableCommitConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    stableCommitCount: Annotated[int, Field(ge=0)]
+    stableCommitStreak: Annotated[int, Field(ge=0)]
+    stableCommitMinChars: Annotated[int, Field(ge=0)]
+    shortStableCommitConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    shortStableCommitCount: Annotated[int, Field(ge=0)]
+    shortStableCommitStreak: Annotated[int, Field(ge=0)]
+    shortStableCommitMinChars: Annotated[int, Field(ge=0)]
+    shortStableCommitMaxChars: Annotated[int, Field(ge=0)]
+    majorityCommitMinCount: Annotated[int, Field(ge=0)]
+    majorityCommitMinShare: Annotated[float, Field(ge=0.0, le=1.0)]
+    majorityCommitMinChars: Annotated[int, Field(ge=0)]
+    alternativeCommitConfidence: Annotated[float, Field(ge=0.0, le=1.0)]
+    alternativeCommitCount: Annotated[int, Field(ge=0)]
+    alternativeCommitMinChars: Annotated[int, Field(ge=0)]
+    alternativeCommitRecentMisses: Annotated[int, Field(ge=0)]
+    replaceMargin: float
+
+
 class SmoothSet(BaseModel):
     hand: SmoothCfg
     pose: SmoothCfg
@@ -122,6 +168,11 @@ class StreamCfg(BaseModel):
     lost: Annotated[int, Field(ge=1)]
     holdMs: Annotated[int, Field(ge=1)]
     motion: Annotated[float, Field(ge=0.0)]
+
+
+class InferenceCfg(BaseModel):
+    ctc: CtcCfg
+    smooth: SmoothGateCfg
 
 
 class MpCfg(BaseModel):
@@ -157,3 +208,4 @@ class Config(BaseModel):
     decode: DecodeCfg
     stream: StreamCfg
     mp: MpCfg
+    inference: InferenceCfg

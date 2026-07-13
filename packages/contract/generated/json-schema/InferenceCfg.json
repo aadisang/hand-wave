@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/InferenceCfg.json",
+    "type": "object",
+    "properties": {
+        "ctc": {
+            "$ref": "https://hand-wave.local/schemas/CtcCfg.json"
+        },
+        "smooth": {
+            "$ref": "https://hand-wave.local/schemas/SmoothGateCfg.json"
+        }
+    },
+    "required": [
+        "ctc",
+        "smooth"
+    ]
+}

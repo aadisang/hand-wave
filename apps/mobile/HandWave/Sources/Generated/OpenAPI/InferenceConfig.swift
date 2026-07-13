@@ -13,17 +13,20 @@ public struct InferenceConfig: Sendable, Codable, Hashable {
     public var decode: InferenceDecodeCfg
     public var stream: InferenceStreamCfg
     public var mp: InferenceMpCfg
+    public var inference: InferenceInferenceCfg
 
-    public init(decode: InferenceDecodeCfg, stream: InferenceStreamCfg, mp: InferenceMpCfg) {
+    public init(decode: InferenceDecodeCfg, stream: InferenceStreamCfg, mp: InferenceMpCfg, inference: InferenceInferenceCfg) {
         self.decode = decode
         self.stream = stream
         self.mp = mp
+        self.inference = inference
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case decode
         case stream
         case mp
+        case inference
     }
 
     // Encodable protocol methods
@@ -33,6 +36,7 @@ public struct InferenceConfig: Sendable, Codable, Hashable {
         try container.encode(decode, forKey: .decode)
         try container.encode(stream, forKey: .stream)
         try container.encode(mp, forKey: .mp)
+        try container.encode(inference, forKey: .inference)
     }
 }
 
