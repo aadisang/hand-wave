@@ -31,6 +31,7 @@ tasks:
       - "/packages/contract/config.json"
       - "moon.yml"
       - "Project.swift"
+      - "Workspace.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
     deps:
@@ -74,6 +75,7 @@ tasks:
       - "Podfile"
       - "Podfile.lock"
       - "Project.swift"
+      - "Workspace.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
 
@@ -99,6 +101,7 @@ tasks:
       - "Podfile"
       - "Podfile.lock"
       - "Project.swift"
+      - "Workspace.swift"
       - "Tuist/**/*"
       - "HandWave/**/*"
 

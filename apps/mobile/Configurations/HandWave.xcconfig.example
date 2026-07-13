@@ -3,12 +3,8 @@
 
 META_APP_ID = REPLACE_WITH_META_APP_ID
 CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
-HANDWAVE_DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
+DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
-// Debug builds use these local inference URLs. Release builds always use
+// Debug builds use this local inference URL. Release builds always use
 // https://handwave.sh so local endpoints are not shipped accidentally.
 HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
-HANDWAVE_INFERENCE_URLS = $(HANDWAVE_INFERENCE_URL)
-
-MARKETING_VERSION = 0.1.0
-CURRENT_PROJECT_VERSION = 1
