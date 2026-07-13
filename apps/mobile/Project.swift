@@ -73,14 +73,8 @@ let project = Project(
       "CURRENT_PROJECT_VERSION": "2",
     ],
     configurations: [
-      .debug(name: "Debug", xcconfig: "Configurations/HandWave.xcconfig"),
-      .release(
-        name: "Release",
-        settings: [
-          "HANDWAVE_INFERENCE_URL": "https://handwave.sh"
-        ],
-        xcconfig: "Configurations/HandWave.xcconfig"
-      ),
+      .debug(name: "Debug", xcconfig: "Configurations/Debug.xcconfig"),
+      .release(name: "Release", xcconfig: "Configurations/Release.xcconfig"),
     ]
   ),
   targets: [
