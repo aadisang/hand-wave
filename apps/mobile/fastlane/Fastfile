@@ -45,7 +45,7 @@ platform :ios do
       output_directory: "Derived/TestFlight",
       output_name: "HandWave.ipa",
       xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
-      export_method: "app-store-connect",
+      export_method: "app-store",
       export_team_id: developer_team_id,
       export_options: {
         signingStyle: "manual",
