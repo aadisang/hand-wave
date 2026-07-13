@@ -215,7 +215,11 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     }
 
     if (disposed || finalEpoch !== epoch) return;
-    const prediction = toDetectionPrediction(result.display_prediction);
+    const prediction = toDetectionPrediction(
+      result.display_prediction,
+      0,
+      result.committed,
+    );
     setPrediction(prediction);
     if (prediction) {
       clearTimer = window.setTimeout(() => {

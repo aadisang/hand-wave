@@ -54,11 +54,13 @@ export type EndpointReason = "idle" | "landmark-lost";
 export function toDetectionPrediction(
   prediction: WirePrediction | null | undefined,
   processingTimeMs = 0,
+  committed = false,
 ): DetectionPrediction | null {
   if (!prediction) return null;
   return {
     text: prediction.label,
     confidence: prediction.confidence,
     processingTimeMs,
+    committed,
   };
 }

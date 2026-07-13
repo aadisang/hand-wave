@@ -164,6 +164,7 @@ describe("stream controller", () => {
       text: "cat",
       confidence: 0.92,
       processingTimeMs: 1,
+      committed: false,
     });
 
     const controller = createStreamCtrl();
