@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from os import getenv
 from time import perf_counter
+from typing import Any
 
 from inference.model import ModelBackend
 from inference.schemas import (
@@ -25,6 +26,24 @@ from inference.schemas import (
 from inference.text_normalizer import is_uncorrected_oov, normalize_prediction_text
 
 logger = logging.getLogger(__name__)
+
+# generated_tunings (codegen from packages/contract/config.json) is the source of
+# truth for deployed defaults; env vars still override, and the literal dataclass
+# defaults below only apply when constructing SmoothConfig() directly (e.g. tests)
+# or if the generated module is missing.
+_SMOOTH: dict[str, Any]
+try:
+    from inference.generated_tunings import SMOOTH as _SMOOTH
+except ImportError:  # pragma: no cover - generated module ships with the source tree
+    _SMOOTH = {}
+
+
+def _tuning_float(key: str, fallback: float) -> float:
+    return float(_SMOOTH.get(key, fallback))
+
+
+def _tuning_int(key: str, fallback: int) -> int:
+    return int(_SMOOTH.get(key, fallback))
 
 
 @dataclass(frozen=True)
@@ -52,6 +71,9 @@ class SmoothConfig:
     short_stable_commit_streak: int = 12
     short_stable_commit_min_chars: int = 2
     short_stable_commit_max_chars: int = 3
+    majority_commit_min_count: int = 12
+    majority_commit_min_share: float = 0.5
+    majority_commit_min_chars: int = 3
     alternative_commit_confidence: float = 0.25
     alternative_commit_count: int = 20
     alternative_commit_min_chars: int = 4
@@ -61,90 +83,139 @@ class SmoothConfig:
     @classmethod
     def from_env(cls) -> SmoothConfig:
         return cls(
-            display_confidence=_env_float("DISPLAY_MIN_CONFIDENCE", cls.display_confidence),
-            display_streak=_env_int("DISPLAY_MIN_STREAK", cls.display_streak),
-            display_count=_env_int("DISPLAY_MIN_COUNT", cls.display_count),
-            display_clear_misses=_env_int("DISPLAY_CLEAR_MISSES", cls.display_clear_misses),
-            display_clear_motion=_env_float("DISPLAY_CLEAR_MOTION", cls.display_clear_motion),
-            instant_display_confidence=_env_float(
-                "DISPLAY_INSTANT_CONFIDENCE", cls.instant_display_confidence
+            display_confidence=_env_float(
+                "DISPLAY_MIN_CONFIDENCE",
+                _tuning_float("display_confidence", cls.display_confidence),
             ),
-            commit_confidence=_env_float("COMMIT_MIN_CONFIDENCE", cls.commit_confidence),
+            display_streak=_env_int(
+                "DISPLAY_MIN_STREAK",
+                _tuning_int("display_streak", cls.display_streak),
+            ),
+            display_count=_env_int(
+                "DISPLAY_MIN_COUNT",
+                _tuning_int("display_count", cls.display_count),
+            ),
+            display_clear_misses=_env_int(
+                "DISPLAY_CLEAR_MISSES",
+                _tuning_int("display_clear_misses", cls.display_clear_misses),
+            ),
+            display_clear_motion=_env_float(
+                "DISPLAY_CLEAR_MOTION",
+                _tuning_float("display_clear_motion", cls.display_clear_motion),
+            ),
+            instant_display_confidence=_env_float(
+                "DISPLAY_INSTANT_CONFIDENCE",
+                _tuning_float("instant_display_confidence", cls.instant_display_confidence),
+            ),
+            commit_confidence=_env_float(
+                "COMMIT_MIN_CONFIDENCE",
+                _tuning_float("commit_confidence", cls.commit_confidence),
+            ),
             short_commit_confidence=_env_float(
                 "SHORT_COMMIT_MIN_CONFIDENCE",
-                cls.short_commit_confidence,
+                _tuning_float("short_commit_confidence", cls.short_commit_confidence),
             ),
-            commit_streak=_env_int("COMMIT_MIN_STREAK", cls.commit_streak),
-            commit_count=_env_int("COMMIT_MIN_COUNT", cls.commit_count),
+            commit_streak=_env_int(
+                "COMMIT_MIN_STREAK",
+                _tuning_int("commit_streak", cls.commit_streak),
+            ),
+            commit_count=_env_int(
+                "COMMIT_MIN_COUNT",
+                _tuning_int("commit_count", cls.commit_count),
+            ),
             endpoint_commit_count=_env_int(
                 "ENDPOINT_COMMIT_MIN_COUNT",
-                cls.endpoint_commit_count,
+                _tuning_int("endpoint_commit_count", cls.endpoint_commit_count),
             ),
             commit_soft_oov_min_chars=_env_int(
                 "COMMIT_SOFT_OOV_MIN_CHARS",
-                cls.commit_soft_oov_min_chars,
+                _tuning_int("commit_soft_oov_min_chars", cls.commit_soft_oov_min_chars),
             ),
             commit_soft_oov_confidence=_env_float(
                 "COMMIT_SOFT_OOV_MIN_CONFIDENCE",
-                cls.commit_soft_oov_confidence,
+                _tuning_float("commit_soft_oov_confidence", cls.commit_soft_oov_confidence),
             ),
             commit_reject_uncorrected_oov_chars=_env_int(
                 "COMMIT_REJECT_UNCORRECTED_OOV_CHARS",
-                cls.commit_reject_uncorrected_oov_chars,
+                _tuning_int(
+                    "commit_reject_uncorrected_oov_chars",
+                    cls.commit_reject_uncorrected_oov_chars,
+                ),
             ),
             stable_commit_confidence=_env_float(
                 "STABLE_COMMIT_MIN_CONFIDENCE",
-                cls.stable_commit_confidence,
+                _tuning_float("stable_commit_confidence", cls.stable_commit_confidence),
             ),
             stable_commit_count=_env_int(
                 "STABLE_COMMIT_MIN_COUNT",
-                cls.stable_commit_count,
+                _tuning_int("stable_commit_count", cls.stable_commit_count),
             ),
             stable_commit_streak=_env_int(
                 "STABLE_COMMIT_MIN_STREAK",
-                cls.stable_commit_streak,
+                _tuning_int("stable_commit_streak", cls.stable_commit_streak),
             ),
             stable_commit_min_chars=_env_int(
                 "STABLE_COMMIT_MIN_CHARS",
-                cls.stable_commit_min_chars,
+                _tuning_int("stable_commit_min_chars", cls.stable_commit_min_chars),
             ),
             short_stable_commit_confidence=_env_float(
                 "SHORT_STABLE_COMMIT_MIN_CONFIDENCE",
-                cls.short_stable_commit_confidence,
+                _tuning_float(
+                    "short_stable_commit_confidence",
+                    cls.short_stable_commit_confidence,
+                ),
             ),
             short_stable_commit_count=_env_int(
                 "SHORT_STABLE_COMMIT_MIN_COUNT",
-                cls.short_stable_commit_count,
+                _tuning_int("short_stable_commit_count", cls.short_stable_commit_count),
             ),
             short_stable_commit_streak=_env_int(
                 "SHORT_STABLE_COMMIT_MIN_STREAK",
-                cls.short_stable_commit_streak,
+                _tuning_int("short_stable_commit_streak", cls.short_stable_commit_streak),
             ),
             short_stable_commit_min_chars=_env_int(
                 "SHORT_STABLE_COMMIT_MIN_CHARS",
-                cls.short_stable_commit_min_chars,
+                _tuning_int("short_stable_commit_min_chars", cls.short_stable_commit_min_chars),
             ),
             short_stable_commit_max_chars=_env_int(
                 "SHORT_STABLE_COMMIT_MAX_CHARS",
-                cls.short_stable_commit_max_chars,
+                _tuning_int("short_stable_commit_max_chars", cls.short_stable_commit_max_chars),
+            ),
+            majority_commit_min_count=_env_int(
+                "MAJORITY_COMMIT_MIN_COUNT",
+                _tuning_int("majority_commit_min_count", cls.majority_commit_min_count),
+            ),
+            majority_commit_min_share=_env_float(
+                "MAJORITY_COMMIT_MIN_SHARE",
+                _tuning_float("majority_commit_min_share", cls.majority_commit_min_share),
+            ),
+            majority_commit_min_chars=_env_int(
+                "MAJORITY_COMMIT_MIN_CHARS",
+                _tuning_int("majority_commit_min_chars", cls.majority_commit_min_chars),
             ),
             alternative_commit_confidence=_env_float(
                 "ALTERNATIVE_COMMIT_MIN_CONFIDENCE",
-                cls.alternative_commit_confidence,
+                _tuning_float("alternative_commit_confidence", cls.alternative_commit_confidence),
             ),
             alternative_commit_count=_env_int(
                 "ALTERNATIVE_COMMIT_MIN_COUNT",
-                cls.alternative_commit_count,
+                _tuning_int("alternative_commit_count", cls.alternative_commit_count),
             ),
             alternative_commit_min_chars=_env_int(
                 "ALTERNATIVE_COMMIT_MIN_CHARS",
-                cls.alternative_commit_min_chars,
+                _tuning_int("alternative_commit_min_chars", cls.alternative_commit_min_chars),
             ),
             alternative_commit_recent_misses=_env_int(
                 "ALTERNATIVE_COMMIT_RECENT_MISSES",
-                cls.alternative_commit_recent_misses,
+                _tuning_int(
+                    "alternative_commit_recent_misses",
+                    cls.alternative_commit_recent_misses,
+                ),
             ),
-            replace_margin=_env_float("DISPLAY_REPLACE_MARGIN", cls.replace_margin),
+            replace_margin=_env_float(
+                "DISPLAY_REPLACE_MARGIN",
+                _tuning_float("replace_margin", cls.replace_margin),
+            ),
         )
 
 
@@ -319,6 +390,11 @@ def finalize(
     if selected:
         prediction = selected.prediction
         committed = should_commit(selected, count_for_candidate(state, selected), config)
+    if not committed:
+        majority = majority_candidate(state, config)
+        if majority is not None:
+            prediction = majority.prediction
+            committed = True
     display = prediction if committed else None
     reason = context.endpoint_reason or EndpointReason.idle
     trace = FinalizeTrace(
@@ -591,6 +667,54 @@ def pick_final(
     return candidate if candidate.score > current.score + config.replace_margin else current
 
 
+def majority_candidate(
+    state: RecognitionState,
+    config: SmoothConfig,
+) -> RecognitionScored | None:
+    """Finalize-time fallback: commit the dominant windowed prediction.
+
+    A text that won a large share of streaming windows is trustworthy even when
+    no confidence/streak gate fired (junk windows interleave and break streaks).
+    Only consulted when nothing else commits.
+    """
+    counts = state.counts or []
+    total = sum(item.count for item in counts)
+    if total <= 0:
+        return None
+    eligible = [
+        item
+        for item in counts
+        if len(clean(item.text).replace(" ", "")) >= config.majority_commit_min_chars
+    ]
+    if not eligible:
+        return None
+    best = max(eligible, key=lambda item: (item.count, len(item.text)))
+    # Near-duplicates (prefix growth, plural drift) support the same reading.
+    cluster_count = sum(item.count for item in counts if compatible_text(item.text, best.text))
+    share = cluster_count / total
+    if (
+        cluster_count < config.majority_commit_min_count
+        or share < config.majority_commit_min_share
+        or is_uncorrected_oov(
+            best.text,
+            min_chars=config.commit_reject_uncorrected_oov_chars,
+        )
+    ):
+        return None
+    return RecognitionScored(
+        prediction=Prediction(
+            label=best.text,
+            confidence=min(1.0, share),
+            raw_label=best.text,
+        ),
+        score=min(1.0, share),
+        source="majority",
+        lm_score=None,
+        model_agrees=False,
+        streak=best.count,
+    )
+
+
 def select_final(state: RecognitionState, config: SmoothConfig) -> RecognitionScored | None:
     selected = select_primary_final(state, config)
     if selected and should_commit(selected, count_for_candidate(state, selected), config):
@@ -680,9 +804,7 @@ def is_stable_short_model_agreed_candidate(
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     return (
         candidate.model_agrees
-        and config.short_stable_commit_min_chars
-        <= text_len
-        <= config.short_stable_commit_max_chars
+        and config.short_stable_commit_min_chars <= text_len <= config.short_stable_commit_max_chars
         and seen >= config.short_stable_commit_count
         and candidate.streak >= config.short_stable_commit_streak
         and candidate.prediction.confidence >= config.short_stable_commit_confidence
@@ -732,12 +854,9 @@ def is_low_confidence_soft_oov(
     confidence: float,
     config: SmoothConfig,
 ) -> bool:
-    return (
-        confidence < config.commit_soft_oov_confidence
-        and is_uncorrected_oov(
-            text,
-            min_chars=config.commit_soft_oov_min_chars,
-        )
+    return confidence < config.commit_soft_oov_confidence and is_uncorrected_oov(
+        text,
+        min_chars=config.commit_soft_oov_min_chars,
     )
 
 

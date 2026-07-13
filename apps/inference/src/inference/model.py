@@ -29,9 +29,7 @@ class CheckpointBackend(ModelBackend):
 def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
     best = decoded.alternatives[0] if decoded.alternatives else None
     frame_confidence = (
-        decoded.confidence / best.confidence
-        if best is not None and best.confidence > 0
-        else 1.0
+        decoded.confidence / best.confidence if best is not None and best.confidence > 0 else 1.0
     )
     label = normalize_prediction_text(decoded.text)
     return PredictOut(

@@ -21,8 +21,10 @@ MIN_CORRECTION_LENGTH = 6
 ACCEPT_SCORE = 5.6
 EXACT_SPLIT_ACCEPT_SCORE = 5.1
 SAFE_EXACT_OOV_SPLIT_SCORE = 6.1
-MIN_EXACT_SPLIT_WORDS = 3
+MIN_EXACT_SPLIT_WORDS = 2
 MAX_EXACT_SPLIT_WORDS = 5
+TWO_WORD_EXACT_SPLIT_ACCEPT_SCORE = 5.4
+RARE_COMPOUND_SPLIT_MIN_RANK = 8_000
 MAX_CORRECTION_WORDS = 5
 SHORT_FIRST_WORD_ACCEPT_SCORE = 4.9
 SHORT_FIRST_WORD_LENGTH = 3
@@ -66,7 +68,8 @@ class TextNormalizer:
         if " " in text:
             return self.normalize_spaced(text, raw)
         if raw in self.word_set:
-            return text
+            compound_split = self.rare_compound_split(raw)
+            return compound_split if compound_split is not None else text
 
         corrected_word = self.single_word_correction(raw)
         if corrected_word is not None:
@@ -194,6 +197,19 @@ class TextNormalizer:
             return best.word
         return None
 
+    def rare_compound_split(self, raw: str) -> str | None:
+        """Split rare joined compounds like 'thankyou' into common words.
+
+        Inverse of should_collapse_split_compound: a dictionary word this rare
+        is usually a junk vocab entry glued from a fingerspelled phrase.
+        """
+        if self.ranks.get(raw, 0) < RARE_COMPOUND_SPLIT_MIN_RANK:
+            return None
+        split = self.best_exact_split(raw)
+        if split is None or len(split.words) < 2 or has_one_letter_word(split.words):
+            return None
+        return " ".join(split.words)
+
     def best_exact_split_score(self, raw: str) -> float | None:
         path = self.best_exact_split(raw)
         return self.path_score(path) if path is not None else None
@@ -208,13 +224,17 @@ class TextNormalizer:
                 and len(path.words) <= MAX_EXACT_SPLIT_WORDS
                 and plausible_phrase(path.words)
                 and not has_rare_short_word(path.words, self.ranks)
+                and not (len(path.words) == 2 and has_one_letter_word(path.words))
                 and preserves_edges(raw, path.words, min_first_word_len=2)
             )
         ]
         if not candidates:
             return None
         best = min(candidates, key=self.path_score)
-        if self.path_score(best) >= EXACT_SPLIT_ACCEPT_SCORE:
+        accept_score = (
+            TWO_WORD_EXACT_SPLIT_ACCEPT_SCORE if len(best.words) == 2 else EXACT_SPLIT_ACCEPT_SCORE
+        )
+        if self.path_score(best) >= accept_score:
             return None
         return best
 
@@ -235,12 +255,7 @@ class TextNormalizer:
         text = " ".join(path.words)
         lm_cost = -self.language_model.score(text, bos=True, eos=True) / (len(path.words) + 1)
         rank_cost = sum(log1p(self.ranks[word]) for word in path.words) / len(path.words)
-        return (
-            path.edits * 0.35
-            + lm_cost * 1.3
-            + rank_cost * 0.025
-            + len(path.words) * 0.03
-        )
+        return path.edits * 0.35 + lm_cost * 1.3 + rank_cost * 0.025 + len(path.words) * 0.03
 
     def segmentations(self, raw: str) -> tuple[SegmentationPath, ...]:
         size = len(raw)
@@ -255,12 +270,7 @@ class TextNormalizer:
                     source = raw[start:end]
                     for candidate in self.word_candidates(source):
                         rank = self.ranks[candidate.word]
-                        cost = (
-                            path.base_cost
-                            + candidate.edits * 0.5
-                            + log1p(rank) * 0.015
-                            + 0.02
-                        )
+                        cost = path.base_cost + candidate.edits * 0.5 + log1p(rank) * 0.015 + 0.02
                         paths[end].append(
                             SegmentationPath(
                                 base_cost=cost,

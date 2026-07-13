@@ -8,11 +8,28 @@ from typing import Any
 
 import pytest
 
+from inference.ctc import (
+    DEFAULT_KENLM_MODEL_PATH,
+    DEFAULT_UNIGRAMS_PATH,
+    CtcDecoderConfig,
+)
 from inference.model import resolve_checkpoint_path
 from inference.runtime import HandwaveRuntime
 from inference.schemas import LandmarkFrame
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "traces"
+
+# These fixtures assert single-shot full-recording decodes and were recorded
+# against these decoder params; the deployed tunings (generated_tunings) are
+# optimized for the streaming commit path and may rank single-shot beams
+# differently. Pin the params so this test keeps catching runtime regressions.
+FIXTURE_DECODER_CONFIG = CtcDecoderConfig(
+    kenlm_model_path=DEFAULT_KENLM_MODEL_PATH,
+    unigram_path=DEFAULT_UNIGRAMS_PATH,
+    alpha=1.2,
+    beta=2.0,
+    unk_score_offset=-10.0,
+)
 
 
 def fixture_paths() -> list[Path]:
@@ -21,7 +38,11 @@ def fixture_paths() -> list[Path]:
 
 @cache
 def runtime() -> HandwaveRuntime:
-    return HandwaveRuntime(resolve_checkpoint_path(), device="cpu")
+    return HandwaveRuntime(
+        resolve_checkpoint_path(),
+        device="cpu",
+        decoder_config=FIXTURE_DECODER_CONFIG,
+    )
 
 
 def normalize_text(text: str) -> str:

@@ -65,6 +65,12 @@ def test_predict_is_stateless(monkeypatch) -> None:
 
 
 def test_recognize_returns_state_for_finalize(monkeypatch) -> None:
+    # This test exercises the accept -> finalize commit mechanism with three
+    # sightings; pin the commit gates so tuned deployment defaults (which
+    # require more streaming evidence) don't change what it asserts.
+    monkeypatch.setenv("COMMIT_MIN_COUNT", "3")
+    monkeypatch.setenv("COMMIT_MIN_STREAK", "3")
+    monkeypatch.setenv("COMMIT_MIN_CONFIDENCE", "0.85")
     context = {
         "idle_frames": 0,
         "missing_frames": 0,
