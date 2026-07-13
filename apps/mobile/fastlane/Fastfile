@@ -1,0 +1,73 @@
+opt_out_usage
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and upload the next internal TestFlight release"
+  lane :beta do
+    app_identifier = "sh.handwave.HandWave"
+    developer_team_id = "4PUCF2DKX4"
+    profile_name = ENV.fetch("APPSTORE_PROFILE_NAME")
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("APPSTORE_API_KEY_ID"),
+      issuer_id: ENV.fetch("APPSTORE_ISSUER_ID"),
+      key_content: ENV.fetch("APPSTORE_API_PRIVATE_KEY"),
+      duration: 1200
+    )
+
+    version = get_version_number(
+      xcodeproj: "HandWave.xcodeproj",
+      target: "HandWave"
+    )
+    build_number = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: app_identifier,
+      version: version,
+      initial_build_number: 2
+    ) + 1
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "HandWave.xcodeproj",
+      team_id: developer_team_id,
+      code_sign_identity: "Apple Distribution",
+      profile_name: profile_name,
+      build_configurations: ["Release"],
+      targets: ["HandWave"]
+    )
+
+    build_app(
+      workspace: "HandWave.xcworkspace",
+      scheme: "HandWave",
+      configuration: "Release",
+      clean: true,
+      output_directory: "Derived/TestFlight",
+      output_name: "HandWave.ipa",
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
+      export_method: "app-store-connect",
+      export_team_id: developer_team_id,
+      export_options: {
+        signingStyle: "manual",
+        signingCertificate: "Apple Distribution",
+        provisioningProfiles: {
+          app_identifier => profile_name
+        }
+      }
+    )
+
+    upload_options = {
+      api_key: api_key,
+      app_identifier: app_identifier,
+      ipa: "Derived/TestFlight/HandWave.ipa",
+      distribute_external: false,
+      groups: ["Internal Testers"],
+      notify_external_testers: false,
+      skip_waiting_for_build_processing: false
+    }
+    changelog = ENV.fetch("TESTFLIGHT_CHANGELOG", "").strip
+    upload_options[:changelog] = changelog unless changelog.empty?
+
+    upload_to_testflight(**upload_options)
+  end
+end
