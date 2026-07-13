@@ -42,7 +42,6 @@ jobs:
         working-directory: apps/mobile
         run: |
           tuist install
-          tuist setup cache
           tuist generate --no-open
           pod install
 
