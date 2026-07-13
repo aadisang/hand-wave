@@ -1,0 +1,4 @@
+#include "Base.xcconfig"
+#include? "HandWave.xcconfig"
+
+HANDWAVE_INFERENCE_URL = https:/$()/handwave.sh

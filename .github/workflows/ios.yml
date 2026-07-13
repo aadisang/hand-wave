@@ -1,0 +1,58 @@
+name: iOS
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ios.yml"
+      - "apps/mobile/**"
+      - "packages/contract/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ios.yml"
+      - "apps/mobile/**"
+      - "packages/contract/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
+      - name: Install Tuist
+        run: brew install --cask tuist
+
+      - name: Authenticate Tuist
+        run: tuist auth login
+
+      - name: Generate workspace
+        working-directory: apps/mobile
+        run: |
+          tuist install
+          tuist setup cache
+          tuist generate --no-open
+          pod install
+
+      - name: Test
+        working-directory: apps/mobile
+        run: |
+          tuist xcodebuild test \
+            -workspace HandWave.xcworkspace \
+            -scheme HandWave \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -derivedDataPath Derived/CI

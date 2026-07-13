@@ -1,10 +1,9 @@
-// Copy this file to HandWave.xcconfig and fill in your own values.
-// HandWave.xcconfig is gitignored.
+// Copy this file to HandWave.xcconfig to override local build settings.
+// HandWave.xcconfig is optional and gitignored.
 
 META_APP_ID = REPLACE_WITH_META_APP_ID
 CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
 DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
-// Debug builds use this local inference URL. Release builds always use
-// https://handwave.sh so local endpoints are not shipped accidentally.
+// Debug builds use this local inference URL. Release always uses handwave.sh.
 HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
