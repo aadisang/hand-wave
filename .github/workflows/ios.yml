@@ -21,23 +21,22 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
+
+env:
+  TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
 
 jobs:
   test:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.5.app
 
       - name: Install Tuist
         run: brew install --cask tuist
-
-      - name: Authenticate Tuist
-        run: tuist auth login
 
       - name: Generate workspace
         working-directory: apps/mobile
