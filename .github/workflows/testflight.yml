@@ -1,0 +1,86 @@
+name: TestFlight
+
+on:
+  push:
+    tags:
+      - "ios-v*"
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: What changed in this build?
+        required: false
+        type: string
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
+  APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+  APPSTORE_PROFILE_NAME: ${{ vars.APPSTORE_PROFILE_NAME }}
+  APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+  FASTLANE_HIDE_CHANGELOG: "1"
+  FASTLANE_SKIP_UPDATE_CHECK: "1"
+  TESTFLIGHT_CHANGELOG: ${{ inputs.changelog }}
+  TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
+
+jobs:
+  release:
+    name: Build and upload
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: apps/mobile
+
+      - name: Install Tuist
+        run: |
+          brew untap aws/tap 2>/dev/null || true
+          brew install --cask tuist
+
+      - name: Restore release configuration
+        working-directory: apps/mobile
+        env:
+          HANDWAVE_XCCONFIG_BASE64: ${{ secrets.HANDWAVE_XCCONFIG_BASE64 }}
+        run: printf '%s' "$HANDWAVE_XCCONFIG_BASE64" | base64 --decode > Configurations/HandWave.xcconfig
+
+      - name: Generate workspace
+        working-directory: apps/mobile
+        run: |
+          tuist install
+          tuist generate --no-open
+          pod install
+
+      - name: Import distribution certificate
+        uses: Apple-Actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
+          p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPSTORE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          profile="$RUNNER_TEMP/HandWaveAppStore.mobileprovision"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$profile"
+          uuid="$(security cms -D -i "$profile" | plutil -extract UUID raw -)"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$profile" "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+
+      - name: Upload to TestFlight
+        working-directory: apps/mobile
+        run: bundle exec fastlane ios beta
