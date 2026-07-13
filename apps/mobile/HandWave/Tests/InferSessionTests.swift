@@ -5,154 +5,147 @@ import Testing
 
 @Suite
 struct InferSessionTests {
-  @Test
-  func finalizesPredictionAfterIdleFrames() async throws {
-    let client = BlockingInferAPI(responseText: "hello")
-    let controller = InferSession(client: client)
-    try await controller.start()
+  @Test(arguments: [12, 30, 60, 120])
+  func captureRateDoesNotChangeModelCadence(sourceFPS: Int) async throws {
+    let client = RecordingInferAPI(responseText: "hello")
+    let session = InferSession(client: client)
+    try await session.start()
 
-    var lastEvent: InferSession.Event?
-    for index in 0..<InferCfg.Stream.min {
-      lastEvent = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
+    let step = 1_000 / sourceFPS
+    for timestamp in stride(from: 0, through: 850, by: step) {
+      _ = try await session.ingest(Self.frame(at: timestamp), at: timestamp)
+      await Task.yield()
     }
-    await Self.waitForPredictionStart(client)
+
+    let frameCount = await client.firstBatchCount
+    #expect(frameCount != nil)
+    #expect((18...21).contains(frameCount ?? 0))
+  }
+
+  @Test
+  func deliversNetworkPredictionsWithoutAnotherFrame() async throws {
+    let client = RecordingInferAPI(responseText: "hello")
+    let events = EventRecorder()
+    let session = InferSession(client: client)
+    await session.setEventHandler { event in
+      await events.append(event)
+    }
+    try await session.start()
+
+    try await Self.feedMovement(to: session, through: 756)
+
+    await events.waitForCount(1)
+    let event = await events.first
+    #expect(Self.partialText(event) == "hello")
+  }
+
+  @Test
+  func keepsIngestingWhilePredictionRuns() async throws {
+    let client = BlockingInferAPI(responseText: "go")
+    let session = InferSession(client: client)
+    try await session.start()
+    try await Self.feedMovement(to: session, through: 800)
+    await client.waitUntilStarted()
+
+    let start = ContinuousClock.now
+    _ = try await session.ingest(Self.frame(at: 850), at: 850)
+    #expect(start.duration(to: .now) < .milliseconds(100))
+
     await client.complete()
-    lastEvent = try await Self.nextEvent(from: controller, offset: 0.24)
-
-    #expect(Self.text(from: lastEvent) == "hello")
-
-    for _ in 0..<(InferCfg.Stream.idle + 2) {
-      if let event = try await controller.ingest(Self.frame(offset: 0.24)) {
-        lastEvent = event
-      }
-    }
-
-    #expect(Self.finalizedText(from: lastEvent) == "hello")
   }
 
   @Test
-  func finalizesPredictionWhenLandmarksAreLost() async throws {
-    let client = MockInferAPI(responseText: "thanks")
-    let controller = InferSession(client: client)
-    try await controller.start()
-
-    var lastEvent: InferSession.Event?
-    for index in 0..<InferCfg.Stream.min {
-      lastEvent = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
+  func waitsForPartialBeforeFinalizingLostLandmarks() async throws {
+    let client = BlockingInferAPI(responseText: "thanks")
+    let events = EventRecorder()
+    let session = InferSession(client: client)
+    await session.setEventHandler { event in
+      await events.append(event)
     }
-    lastEvent = try await Self.nextEvent(from: controller, offset: 0.24)
+    try await session.start()
+    try await Self.feedMovement(to: session, through: 800)
+    await client.waitUntilStarted()
 
-    #expect(Self.text(from: lastEvent) == "thanks")
-
-    for _ in 0..<InferCfg.Stream.lost {
-      lastEvent = try await controller.ingest(nil)
+    for timestamp in stride(from: 850, through: 1_300, by: 50) {
+      _ = try await session.ingest(nil, at: timestamp)
     }
+    _ = try await session.ingest(Self.frame(at: 1_400), at: 1_400)
+    #expect(await events.values.isEmpty)
 
-    #expect(Self.finalizedText(from: lastEvent) == "thanks")
+    await client.complete()
+    await events.waitForCount(2)
+    let values = await events.values
+    let finalFrameTimestamp = await client.finalFrameTimestamp
+    #expect(Self.partialText(values.first) == "thanks")
+    #expect(Self.finalizedText(values.last) == "thanks")
+    #expect((finalFrameTimestamp ?? .max) < 1_400)
   }
 
   @Test
-  func clearsDisplayWhenLandmarksDisappearBeforeDecode() async throws {
-    let client = MockInferAPI(responseText: "hello")
-    let controller = InferSession(client: client)
-    try await controller.start()
+  func stopDiscardsAStaleResponse() async throws {
+    let client = BlockingInferAPI(responseText: "stale")
+    let events = EventRecorder()
+    let session = InferSession(client: client)
+    await session.setEventHandler { event in
+      await events.append(event)
+    }
+    try await session.start()
+    try await Self.feedMovement(to: session, through: 800)
+    await client.waitUntilStarted()
 
-    let event = try await controller.ingest(nil)
+    await session.stop()
+    await client.complete()
+    for _ in 0..<20 { await Task.yield() }
+
+    #expect(await events.values.isEmpty)
+  }
+
+  @Test
+  func surfacesDecodeFailureOnNextFrame() async throws {
+    let failure = InferenceFailure.badStatus(URL(string: "https://example.test")!, 503)
+    let client = FailingInferAPI(failure: failure)
+    let session = InferSession(client: client)
+    try await session.start()
+    try await Self.feedMovement(to: session, through: 756)
+    await client.waitUntilCalled()
+
+    await #expect(throws: InferenceFailure.self) {
+      _ = try await session.ingest(Self.frame(at: 850), at: 850)
+    }
+  }
+
+  @Test
+  func clearsWhenLandmarksDisappearBeforeMovement() async throws {
+    let client = RecordingInferAPI(responseText: "hello")
+    let session = InferSession(client: client)
+    try await session.start()
+
+    let event = try await session.ingest(nil, at: 0)
 
     #expect(event == .clear)
     #expect(await client.recognizeCount == 0)
   }
 
   @Test
-  func encodesLandmarkFramesAsBackendFeatures() throws {
-    struct Request: Encodable {
-      let frames: [LandmarkFrame]
-    }
-
-    let data = try JSONEncoder().encode(Request(frames: [Self.fullFrame()]))
-    let object = try #require(
-      JSONSerialization.jsonObject(with: data) as? [String: Any]
-    )
-    let frames = try #require(object["frames"] as? [[Double]])
-
-    #expect(frames[0].count == 162)
-    #expect(frames[0][0] == 0)
-    #expect(frames[0][1] == 0)
-    #expect(frames[0][2] == 0)
+  func producesTheBackendFeatureWidth() {
+    let features = Self.frame(at: 0).inferenceFeatures
+    #expect(features.count == 162)
   }
 
-  @Test
-  func keepsIngestingWhilePredictionRuns() async throws {
-    let client = BlockingInferAPI(responseText: "go")
-    let controller = InferSession(client: client)
-    try await controller.start()
-
-    for index in 0..<InferCfg.Stream.min {
-      _ = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
-    }
-    await Self.waitForPredictionStart(client)
-
-    let start = ContinuousClock.now
-    _ = try await controller.ingest(Self.frame(offset: 0.25))
-    #expect(start.duration(to: .now) < .milliseconds(100))
-
-    await client.complete()
-    let event = try await Self.nextEvent(from: controller, offset: 0.26)
-
-    #expect(Self.text(from: event) == "go")
-  }
-
-  @Test
-  func preservesDelayedPredictionWhenLandmarksDropBeforeResponse() async throws {
-    let client = BlockingInferAPI(responseText: "cat")
-    let controller = InferSession(client: client)
-    try await controller.start()
-
-    for index in 0..<InferCfg.Stream.min {
-      _ = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
-    }
-    await Self.waitForPredictionStart(client)
-
-    for _ in 0..<(InferCfg.Stream.lost + 2) {
-      let event = try await controller.ingest(nil)
-      #expect(event == nil)
-    }
-
-    await client.complete()
-    for _ in 0..<100 {
+  private static func feedMovement(
+    to session: InferSession,
+    through end: Int,
+    step: Int = 42
+  ) async throws {
+    for timestamp in stride(from: 0, through: end, by: step) {
+      _ = try await session.ingest(frame(at: timestamp), at: timestamp)
       await Task.yield()
     }
-
-    let partial = try await controller.ingest(nil)
-    #expect(Self.text(from: partial) == "cat")
-
-    let finalized = try await controller.ingest(nil)
-    #expect(Self.finalizedText(from: finalized) == "cat")
   }
 
-  @Test
-  func surfacesDecodeFailureOnNextIngest() async throws {
-    let failure = InferenceFailure.badStatus(URL(string: "https://example.test")!, 503)
-    let client = FailingInferAPI(failure: failure)
-    let controller = InferSession(client: client)
-    try await controller.start()
-
-    for index in 0..<(InferCfg.Stream.min + InferCfg.Stream.stride) {
-      _ = try await controller.ingest(Self.frame(offset: Double(index) * 0.01))
-      if await client.recognizeCount > 0 { break }
-    }
-    await Self.waitForFailingRecognition(client)
-
-    do {
-      _ = try await controller.ingest(Self.frame(offset: 0.24))
-      Issue.record("Expected pending inference failure to be surfaced")
-    } catch {
-      #expect(error == failure)
-    }
-  }
-
-  private static func frame(offset: Double) -> LandmarkFrame {
-    LandmarkFrame(
+  private static func frame(at timestamp: Int) -> LandmarkFrame {
+    let offset = Double(timestamp) / 1_000
+    return LandmarkFrame(
       landmarks: (0..<54).map { index in
         LandmarkPoint(
           x: offset + Double(index) * 0.001,
@@ -160,60 +153,41 @@ struct InferSessionTests {
           z: nil
         )
       },
-      timestampMs: Int((offset * 1_000).rounded())
+      timestampMs: timestamp
     )
   }
 
-  private static func fullFrame() -> LandmarkFrame {
-    frame(offset: 0)
-  }
-
-  private static func nextEvent(
-    from controller: InferSession,
-    offset: Double
-  ) async throws -> InferSession.Event? {
-    for _ in 0..<100 {
-      await Task.yield()
-    }
-    for index in 0..<10 {
-      await Task.yield()
-      if let event = try await controller.ingest(
-        Self.frame(offset: offset + Double(index) * 0.001)
-      ) {
-        return event
-      }
-    }
-    return nil
-  }
-
-  private static func waitForPredictionStart(_ client: BlockingInferAPI) async {
-    for _ in 0..<100 {
-      if await client.started { return }
-      await Task.yield()
-    }
-  }
-
-  private static func waitForFailingRecognition(_ client: FailingInferAPI) async {
-    for _ in 0..<100 {
-      if await client.recognizeCount > 0 { return }
-      await Task.yield()
-    }
-  }
-
-  private static func text(from event: InferSession.Event?) -> String? {
+  private static func partialText(_ event: RecognitionEvent?) -> String? {
     guard case .partial(let prediction) = event else { return nil }
     return prediction.text
   }
 
-  private static func finalizedText(from event: InferSession.Event?) -> String? {
+  private static func finalizedText(_ event: RecognitionEvent?) -> String? {
     guard case .finalized(let prediction) = event else { return nil }
     return prediction.text
   }
 }
 
-private actor MockInferAPI: InferAPI {
+@MainActor
+private final class EventRecorder {
+  private(set) var values: [RecognitionEvent] = []
+  var first: RecognitionEvent? { values.first }
+
+  func append(_ event: RecognitionEvent) {
+    values.append(event)
+  }
+
+  func waitForCount(_ count: Int) async {
+    for _ in 0..<200 where values.count < count {
+      await Task.yield()
+    }
+  }
+}
+
+private actor RecordingInferAPI: InferAPI {
   private let responseText: String
   private(set) var recognizeCount = 0
+  private(set) var firstBatchCount: Int?
 
   init(responseText: String) {
     self.responseText = responseText
@@ -226,6 +200,7 @@ private actor MockInferAPI: InferAPI {
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     recognizeCount += 1
+    firstBatchCount = firstBatchCount ?? frames.count
     return recognitionResponse(text: responseText, context: context, finalize: finalize)
   }
 }
@@ -233,7 +208,8 @@ private actor MockInferAPI: InferAPI {
 private actor BlockingInferAPI: InferAPI {
   private let responseText: String
   private var continuation: CheckedContinuation<InferenceRecognizeOut, Never>?
-  private(set) var started = false
+  private var started = false
+  private(set) var finalFrameTimestamp: Int?
 
   init(responseText: String) {
     self.responseText = responseText
@@ -246,12 +222,16 @@ private actor BlockingInferAPI: InferAPI {
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     if finalize {
+      finalFrameTimestamp = frames.last?.timestampMs
       return recognitionResponse(text: responseText, context: context, finalize: true)
     }
-
     started = true
-    return await withCheckedContinuation { continuation in
-      self.continuation = continuation
+    return await withCheckedContinuation { continuation = $0 }
+  }
+
+  func waitUntilStarted() async {
+    for _ in 0..<200 where !started {
+      await Task.yield()
     }
   }
 
@@ -274,7 +254,7 @@ private actor BlockingInferAPI: InferAPI {
 
 private actor FailingInferAPI: InferAPI {
   private let failure: InferenceFailure
-  private(set) var recognizeCount = 0
+  private var wasCalled = false
 
   init(failure: InferenceFailure) {
     self.failure = failure
@@ -286,8 +266,14 @@ private actor FailingInferAPI: InferAPI {
     context: InferenceRecognitionContext,
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
-    recognizeCount += 1
+    wasCalled = true
     throw failure
+  }
+
+  func waitUntilCalled() async {
+    for _ in 0..<200 where !wasCalled {
+      await Task.yield()
+    }
   }
 }
 

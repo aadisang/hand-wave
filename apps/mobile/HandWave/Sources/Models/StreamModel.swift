@@ -1,154 +1,120 @@
 import AVFoundation
-import Dependencies
 import MWDATCamera
 import MWDATCore
 import Observation
 import UIKit
 
+enum StreamFailure: Error, LocalizedError, Sendable {
+  case noGlasses
+  case session(String)
+  case camera(String)
+  case recognition(String)
+
+  static func ended(_ error: DeviceSessionError?) -> Self {
+    .session(error.map(message) ?? "Glasses stopped before streaming. Keep them open nearby.")
+  }
+
+  static func stopped(_ error: DeviceSessionError) -> Self {
+    .session(message(error))
+  }
+
+  var errorDescription: String? {
+    switch self {
+    case .noGlasses: "No glasses ready."
+    case .session(let message), .camera(let message), .recognition(let message): message
+    }
+  }
+
+  private static func message(_ error: DeviceSessionError) -> String {
+    switch error {
+    case .noEligibleDevice: "No glasses ready. Open or wear them nearby."
+    case .sessionAlreadyStopped: "Session already stopped. Try again."
+    case .sessionAlreadyExists: "Another session is active."
+    case .sessionIdle: "Session stayed idle. Reopen glasses."
+    case .capabilityAlreadyActive: "Camera already in use."
+    case .capabilityNotFound: "Camera unavailable. Try again."
+    case .unexpectedError(let description): description
+    case .thermalCritical: "Glasses too warm."
+    case .thermalEmergency: "Glasses overheated."
+    case .peakPowerShutdown: "Glasses need charging."
+    case .batteryCritical: "Glasses battery low."
+    case .datAppOnTheGlassesUpdateRequired: "Update DAT in Meta AI."
+    case .dwaUnavailable: "DAT unavailable. Reconnect in Meta AI."
+    }
+  }
+}
+
+extension DeviceSessionError {
+  fileprivate var stopsSession: Bool {
+    switch self {
+    case .thermalCritical, .thermalEmergency, .peakPowerShutdown, .batteryCritical,
+      .datAppOnTheGlassesUpdateRequired:
+      true
+    default:
+      false
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class StreamModel {
-  enum Status { case idle, connecting, streaming }
-  private static let glassesFrameRate = 30.0
-
-  private enum SpeechLogEvent: String, Encodable {
-    case clear
-    case finalizedSeen
-    case partialRejected
-    case partialSeen
-    case pendingBlocked
-    case pendingCanceled
-    case pendingFired
-    case pendingScheduled
-    case speechEnded
-    case speechRequested
-    case speechStarted
+  enum Status: Sendable {
+    case idle
+    case connecting
+    case streaming
   }
 
-  private struct SpeechLogEntry: Encodable {
-    let timestamp: Date
-    let event: SpeechLogEvent
-    let reason: String?
-    let source: String
-    let status: String
-    let text: String?
-    let confidence: Double?
-    let processingTimeMs: Double?
-    let currentText: String?
-    let pendingText: String?
-    let spokenText: String?
-  }
-
-  private struct SpeechLogExport: Encodable {
-    let createdAt: Date
-    let speechDelayMs: Int
-    let partialSpeechConfidence: Double
-    let entries: [SpeechLogEntry]
-  }
-
-  enum Source: String, CaseIterable, Identifiable {
+  enum Source: String, CaseIterable, Identifiable, Sendable {
     case glasses
     case phone
 
     var id: Self { self }
-
-    var title: String {
-      switch self {
-      case .glasses: "Glasses"
-      case .phone: "Phone"
-      }
-    }
-
+    var title: String { self == .glasses ? "Glasses" : "Phone" }
   }
 
   var source: Source = .glasses
   private(set) var status: Status = .idle
   private(set) var activeSource: Source?
-  private(set) var hasActiveDevice: Bool = false
+  private(set) var hasActiveDevice = false
   private(set) var latestFrame: UIImage?
   private(set) var overlayFrame = HandLandmarksFrame.empty
-  private(set) var statusText = "Starting"
-  private(set) var current: InferSession.Pred?
+  private(set) var current: Prediction?
   private(set) var isSpeaking = false
-  private(set) var transcript: [InferSession.Pred] = []
-  private(set) var speechLogCount = 0
+  private(set) var backendMessage: String?
   var failure: StreamFailure?
 
-  @ObservationIgnored
-  @Dependency(\.recognizer) private var recognizer
-
-  @ObservationIgnored
-  private let wearables: WearablesInterface
-  @ObservationIgnored
-  private let selector: AutoDeviceSelector
-  @ObservationIgnored
-  private let speech = Speech()
-  @ObservationIgnored
-  private let phoneCamera = PhoneCamera()
-  @ObservationIgnored
-  private let frameGate = FrameGate(
-    previewFPS: StreamModel.glassesFrameRate,
-    recognitionFPS: StreamModel.glassesFrameRate
-  )
-  @ObservationIgnored
-  private var session: DeviceSession?
-  @ObservationIgnored
-  private var stream: MWDATCamera.Stream?
-  @ObservationIgnored
-  private var stateToken: AnyListenerToken?
-  @ObservationIgnored
-  private var frameToken: AnyListenerToken?
-  @ObservationIgnored
-  private var errorToken: AnyListenerToken?
-  @ObservationIgnored
-  private var sessionErrorTask: Task<Void, Never>?
-  @ObservationIgnored
-  private var startError: DeviceSessionError?
-  @ObservationIgnored
-  private var streamStarted = false
-  @ObservationIgnored
-  private var isTearingDown = false
-  @ObservationIgnored
-  private var emptyReads = 0
-  @ObservationIgnored
-  private var pendingSpeechTask: Task<Void, Never>?
-  @ObservationIgnored
-  private var pendingSpeechText: String?
-  @ObservationIgnored
-  private var spokenText: String?
-  @ObservationIgnored
-  private var speechLog: [SpeechLogEntry] = []
-  private static let emptyReadGrace = 4
-  private static let maxSpeechLogEntries = 1_000
-  private static let speechDelay: Duration = .milliseconds(950)
-  private static let speechDelayMs = 950
-  private static let partialSpeechConfidence = 0.6
-  private(set) var phonePosition: PhoneCamera.Position = .back
+  @ObservationIgnored private let wearables: WearablesInterface
+  @ObservationIgnored private let selector: AutoDeviceSelector
+  @ObservationIgnored private let phoneCamera = PhoneCamera()
+  @ObservationIgnored private let pipeline = FramePipeline()
+  @ObservationIgnored private let speech = SpeechCoordinator()
+  @ObservationIgnored private var deviceSession: DeviceSession?
+  @ObservationIgnored private var glassesStream: MWDATCamera.Stream?
+  @ObservationIgnored private var stateToken: AnyListenerToken?
+  @ObservationIgnored private var frameToken: AnyListenerToken?
+  @ObservationIgnored private var errorToken: AnyListenerToken?
+  @ObservationIgnored private var sessionErrorTask: Task<Void, Never>?
+  @ObservationIgnored private var frameTask: Task<Void, Never>?
+  @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var isStopping = false
+  @ObservationIgnored private var streamStarted = false
+  @ObservationIgnored private var startError: DeviceSessionError?
+  @ObservationIgnored private var clearPredictionAfterSpeech = false
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
     self.selector = AutoDeviceSelector(wearables: wearables)
-    self.speech.onSpeakingChanged = { [weak self] speaking in
-      self?.isSpeaking = speaking
-      self?.logSpeech(speaking ? .speechStarted : .speechEnded)
-    }
+    speech.onSpeakingChanged = { [weak self] in self?.speakingChanged($0) }
+    speech.onPartialSpoken = { [weak self] in self?.partialWasSpoken() }
   }
 
   var isStreaming: Bool { status == .streaming }
   var isActive: Bool { status != .idle }
-  var isPhoneCameraActive: Bool { activeSource == .phone }
   var phoneSession: AVCaptureSession { phoneCamera.session }
 
   func observe() async {
     refresh()
-    let poll = Task { [weak self] in
-      while !Task.isCancelled {
-        try? await Task.sleep(for: .milliseconds(500))
-        self?.refresh()
-      }
-    }
-    defer { poll.cancel() }
-
     for await device in selector.activeDeviceStream() {
       hasActiveDevice = device != nil
     }
@@ -158,466 +124,278 @@ final class StreamModel {
     hasActiveDevice = selector.activeDevice != nil
   }
 
-  func prewarmRecognition() async {
-    guard status == .idle else { return }
-    try? await recognizer.start()
+  func prepare() async {
+    do {
+      try await pipeline.prepare()
+    } catch {
+      AppLog.inference.error(
+        "Recognizer preparation failed: \(error.localizedDescription, privacy: .private)")
+    }
   }
 
   func start() async {
-    switch source {
-    case .glasses:
-      await startGlasses()
-    case .phone:
-      await startPhone()
+    guard status == .idle, !isStopping else { return }
+    failure = nil
+    generation &+= 1
+    let run = generation
+    activeSource = source
+    status = .connecting
+
+    do {
+      switch source {
+      case .glasses:
+        try await preparePipeline(for: run)
+        guard isCurrent(run) else { return }
+        try await startGlasses(run: run)
+      case .phone:
+        try await startPhone(run: run)
+      }
+    } catch is CancellationError {
+      guard generation == run else { return }
+      await stop()
+    } catch {
+      guard generation == run else { return }
+      let failure = error as? StreamFailure ?? .camera(error.localizedDescription)
+      await stop()
+      self.failure = failure
+      AppLog.stream.error("Stream failed: \(failure.localizedDescription, privacy: .private)")
     }
   }
 
   func rotateCamera() async {
     guard activeSource == .phone else { return }
     do {
-      let (position, frameRate) = try await phoneCamera.rotate()
-      phonePosition = position
-      await setFrameRate(frameRate)
+      _ = try await phoneCamera.rotate()
     } catch {
       failure = .camera(error.localizedDescription)
     }
   }
 
   func stop() async {
-    await teardown()
-  }
+    guard status != .idle, !isStopping else { return }
+    isStopping = true
+    generation &+= 1
 
-  func clearSpeechLog() {
-    speechLog.removeAll(keepingCapacity: true)
-    speechLogCount = 0
-  }
-
-  func exportSpeechLog() throws -> URL {
-    let export = SpeechLogExport(
-      createdAt: Date(),
-      speechDelayMs: Self.speechDelayMs,
-      partialSpeechConfidence: Self.partialSpeechConfidence,
-      entries: speechLog
-    )
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-
-    let url = FileManager.default.temporaryDirectory
-      .appending(path: "hand-wave-speech-\(Int(Date().timeIntervalSince1970)).json")
-    try encoder.encode(export).write(to: url, options: .atomic)
-    return url
-  }
-
-  private func startGlasses() async {
-    guard status == .idle else { return }
-    guard hasActiveDevice else {
-      failure = .noGlasses
-      return
-    }
-    activeSource = .glasses
-    status = .connecting
-    await setFrameRate(Self.glassesFrameRate)
-    do {
-      let session = try wearables.createSession(deviceSelector: selector)
-      self.session = session
-
-      let stateStream = session.stateStream()
-      observeSessionErrors(session)
-      // The SDK can emit `.started` synchronously during `start()`.
-      try session.start()
-
-      for await state in stateStream {
-        switch state {
-        case .started:
-          await openStream(on: session)
-          return
-        case .stopped:
-          failure = .ended(self.startError)
-          await teardown()
-          return
-        case .idle, .starting, .paused, .stopping:
-          break
-        }
-      }
-    } catch {
-      failure = .session(error.localizedDescription)
-      await teardown()
-    }
-  }
-
-  private func startPhone() async {
-    guard status == .idle else { return }
-    activeSource = .phone
-    status = .connecting
-    do {
-      try await recognizer.start()
-      let frameRate = try await phoneCamera.start(position: phonePosition) { [weak self] frame in
-        Task { @MainActor [weak self] in
-          await self?.processCamera(frame)
-        }
-      }
-      await setFrameRate(frameRate)
-      status = .streaming
-    } catch {
-      failure = .camera(error.localizedDescription)
-      await teardown()
-    }
-  }
-
-  private func openStream(on session: DeviceSession) async {
-    let config = MWDATCamera.StreamConfiguration(
-      videoCodec: .raw,
-      resolution: .low,
-      frameRate: UInt(Self.glassesFrameRate)
-    )
-    let stream: MWDATCamera.Stream
-    do {
-      guard let opened = try session.addStream(config: config) else {
-        failure = .camera("Stream settings rejected.")
-        await teardown()
-        return
-      }
-      stream = opened
-    } catch {
-      failure = .camera(error.localizedDescription)
-      await teardown()
-      return
-    }
-    self.stream = stream
-
-    do {
-      try await recognizer.start()
-    } catch {
-      failure = .recognition(error.localizedDescription)
-      await teardown()
-      return
-    }
-
-    stateToken = stream.statePublisher.listen { [weak self] (state: MWDATCamera.StreamState) in
-      Task { @MainActor [weak self] in
-        guard let self else { return }
-        switch state {
-        case .streaming:
-          self.streamStarted = true
-          self.status = .streaming
-        case .stopped:
-          guard self.streamStarted else { return }
-          Task { await self.teardown() }
-        case .waitingForDevice, .starting, .paused, .stopping:
-          self.streamStarted = true
-          self.status = .connecting
-        }
-      }
-    }
-
-    errorToken = stream.errorPublisher.listen { [weak self] (error: MWDATCamera.StreamError) in
-      Task { @MainActor [weak self] in
-        self?.failure = .camera(error.localizedDescription)
-        await self?.teardown()
-      }
-    }
-
-    let frameGate = frameGate
-    frameToken = stream.videoFramePublisher.listen {
-      [weak self, recognizer, frameGate] (frame: MWDATCamera.VideoFrame) in
-      Task { [weak self, recognizer, frameGate] in
-        let decision = await frameGate.accept()
-        guard decision.hasWork else { return }
-
-        if decision.preview {
-          Task(priority: .userInitiated) { [weak self, frameGate] in
-            let image = frame.makeUIImage()
-            await MainActor.run {
-              guard let self, self.status != .idle, let image else { return }
-              self.latestFrame = image
-            }
-            await frameGate.finishPreview()
-          }
-        }
-
-        if decision.recognition {
-          Task(priority: .utility) { [weak self, recognizer, frameGate] in
-            do {
-              let output = try await recognizer.process(frame)
-              await MainActor.run {
-                guard self?.status != .idle else { return }
-                self?.apply(output)
-              }
-            } catch {
-              await MainActor.run {
-                guard self?.status != .idle else { return }
-                self?.failure = .recognition(error.localizedDescription)
-              }
-            }
-            await frameGate.finishRecognition()
-          }
-        }
-      }
-    }
-
-    await stream.start()
-  }
-
-  private func processCamera(_ frame: CameraFrame) async {
-    guard activeSource == .phone, status != .idle else { return }
-    let decision = await frameGate.accept()
-    guard decision.hasWork else { return }
-
-    if decision.preview {
-      await frameGate.finishPreview()
-    }
-
-    guard decision.recognition else { return }
-    let frameGate = frameGate
-    Task(priority: .utility) { [weak self, recognizer, frameGate] in
-      do {
-        let output = try await recognizer.processCamera(frame)
-        await MainActor.run {
-          guard self?.status != .idle else { return }
-          self?.apply(output)
-        }
-      } catch {
-        await MainActor.run {
-          guard self?.status != .idle else { return }
-          self?.failure = .recognition(error.localizedDescription)
-        }
-      }
-      await frameGate.finishRecognition()
-    }
-  }
-
-  private func setFrameRate(_ frameRate: Double) async {
-    await frameGate.setFrameRate(frameRate)
-    await recognizer.setFrameRate(frameRate)
-  }
-
-  private func observeSessionErrors(_ session: DeviceSession) {
-    let errorStream = session.errorStream()
-    sessionErrorTask = Task { [weak self] in
-      for await error in errorStream {
-        await MainActor.run {
-          guard let self, self.status != .idle else { return }
-          self.startError = error
-          if error.stopsSession {
-            self.failure = .stopped(error)
-          }
-        }
-      }
-    }
-  }
-
-  private func statusText(for output: Recognizer.Output) -> String {
-    if let failure = output.failure { return failure.statusDescription }
-    if output.hasFrame {
-      emptyReads = 0
-      return "Reading"
-    }
-
-    emptyReads += 1
-    if emptyReads < Self.emptyReadGrace,
-      current != nil || statusText == "Reading"
-    {
-      return statusText
-    }
-
-    return output.overlayFrame.isEmpty ? "Show your hands" : "Center your hands"
-  }
-
-  private func apply(_ output: Recognizer.Output) {
-    if overlayFrame != output.overlayFrame {
-      overlayFrame = output.overlayFrame
-    }
-
-    let statusText = statusText(for: output)
-    if self.statusText != statusText {
-      self.statusText = statusText
-    }
-
-    apply(output.event)
-  }
-
-  private func apply(_ event: InferSession.Event?) {
-    guard let event else { return }
-    switch event {
-    case .clear:
-      logSpeech(.clear)
-      if current != nil {
-        current = nil
-      }
-      cancelPendingSpeech(reason: "clear")
-      spokenText = nil
-    case .partial(let prediction):
-      logSpeech(.partialSeen, prediction: prediction)
-      if current != prediction {
-        current = prediction
-      }
-      scheduleSpeech(prediction)
-    case .finalized(let prediction):
-      logSpeech(.finalizedSeen, prediction: prediction)
-      if current != prediction {
-        current = prediction
-      }
-      cancelPendingSpeech(reason: "finalized")
-      speak(prediction)
-    }
-  }
-
-  private func scheduleSpeech(_ prediction: InferSession.Pred) {
-    let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty else {
-      logSpeech(.partialRejected, prediction: prediction, reason: "empty_text")
-      return
-    }
-    guard text != spokenText else {
-      logSpeech(.partialRejected, prediction: prediction, reason: "already_spoken")
-      return
-    }
-    guard prediction.confidence >= Self.partialSpeechConfidence else {
-      logSpeech(.partialRejected, prediction: prediction, reason: "low_confidence")
-      cancelPendingSpeech(reason: "low_confidence")
-      return
-    }
-    guard text != pendingSpeechText else {
-      logSpeech(.partialRejected, prediction: prediction, reason: "already_pending")
-      return
-    }
-
-    cancelPendingSpeech(reason: "replaced_by_new_partial")
-    pendingSpeechText = text
-    logSpeech(.pendingScheduled, prediction: prediction)
-    pendingSpeechTask = Task { [weak self] in
-      do {
-        try await Task.sleep(for: Self.speechDelay)
-      } catch {
-        return
-      }
-      self?.finishPendingSpeech(text: text, prediction: prediction)
-    }
-  }
-
-  private func speak(_ prediction: InferSession.Pred) {
-    let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty, text != spokenText else { return }
-
-    spokenText = text
-    transcript.append(prediction)
-    logSpeech(.speechRequested, prediction: prediction)
-    speech.speak(text)
-  }
-
-  private func finishPendingSpeech(text: String, prediction: InferSession.Pred) {
-    guard status != .idle else {
-      logSpeech(.pendingBlocked, prediction: prediction, reason: "stream_idle")
-      return
-    }
-    guard pendingSpeechText == text else {
-      logSpeech(.pendingBlocked, prediction: prediction, reason: "pending_changed")
-      return
-    }
-    guard current?.text == prediction.text else {
-      logSpeech(.pendingBlocked, prediction: prediction, reason: "prediction_changed")
-      resetPendingSpeech()
-      return
-    }
-
-    logSpeech(.pendingFired, prediction: prediction)
-    resetPendingSpeech()
-    speak(prediction)
-    if current?.text == prediction.text {
-      current = nil
-      logSpeech(.clear)
-    }
-    Task { [recognizer] in
-      await recognizer.resetAfterSpokenPartial()
-    }
-  }
-
-  private func cancelPendingSpeech(reason: String) {
-    if pendingSpeechTask != nil || pendingSpeechText != nil {
-      logSpeech(.pendingCanceled, text: pendingSpeechText, reason: reason)
-    }
-    resetPendingSpeech()
-  }
-
-  private func resetPendingSpeech() {
-    pendingSpeechTask?.cancel()
-    pendingSpeechTask = nil
-    pendingSpeechText = nil
-  }
-
-  private func logSpeech(
-    _ event: SpeechLogEvent,
-    prediction: InferSession.Pred? = nil,
-    text: String? = nil,
-    reason: String? = nil
-  ) {
-    speechLog.append(
-      SpeechLogEntry(
-        timestamp: Date(),
-        event: event,
-        reason: reason,
-        source: (activeSource ?? source).title,
-        status: status.logTitle,
-        text: text ?? prediction?.text.trimmingCharacters(in: .whitespacesAndNewlines),
-        confidence: prediction?.confidence,
-        processingTimeMs: prediction?.processingTimeMs,
-        currentText: current?.text,
-        pendingText: pendingSpeechText,
-        spokenText: spokenText
-      )
-    )
-
-    if speechLog.count > Self.maxSpeechLogEntries {
-      speechLog.removeFirst(speechLog.count - Self.maxSpeechLogEntries)
-    }
-    speechLogCount = speechLog.count
-  }
-
-  private func teardown() async {
-    guard !isTearingDown else { return }
-    isTearingDown = true
-
-    let stream = self.stream
-    let session = self.session
     stateToken = nil
     frameToken = nil
     errorToken = nil
     sessionErrorTask?.cancel()
+    frameTask?.cancel()
     sessionErrorTask = nil
+    frameTask = nil
+
+    let stream = glassesStream
+    let session = deviceSession
+    glassesStream = nil
+    deviceSession = nil
+    streamStarted = false
     startError = nil
 
-    await recognizer.stop()
-    await stream?.stop()
-    session?.stop()
     await phoneCamera.stop()
+    await pipeline.stop()
+    stream?.stop()
+    session?.stop()
 
-    self.stream = nil
-    self.session = nil
-    activeSource = nil
-    await frameGate.reset()
-    streamStarted = false
-    status = .idle
     latestFrame = nil
     overlayFrame = .empty
-    statusText = "Starting"
     current = nil
-    isSpeaking = false
-    emptyReads = 0
-    cancelPendingSpeech(reason: "teardown")
-    spokenText = nil
-    transcript.removeAll(keepingCapacity: true)
+    clearPredictionAfterSpeech = false
+    backendMessage = nil
     speech.reset()
-    isTearingDown = false
+    activeSource = nil
+    status = .idle
+    isStopping = false
+    AppLog.stream.notice("Stream stopped")
   }
-}
 
-extension StreamModel.Status {
-  fileprivate var logTitle: String {
-    switch self {
-    case .idle: "idle"
-    case .connecting: "connecting"
-    case .streaming: "streaming"
+  private func preparePipeline(for run: Int) async throws {
+    try await pipeline.start(
+      onPreview: { [weak self] image in
+        guard self?.isCurrent(run) == true else { return }
+        self?.latestFrame = image
+      },
+      onOutput: { [weak self] output in
+        guard self?.isCurrent(run) == true else { return }
+        self?.apply(output)
+      },
+      onEvent: { [weak self] event in
+        guard self?.isCurrent(run) == true else { return }
+        self?.apply(event)
+      },
+      onFailure: { [weak self] message in
+        guard self?.isCurrent(run) == true else { return }
+        self?.failure = .recognition(message)
+      }
+    )
+  }
+
+  private func startPhone(run: Int) async throws {
+    let frames = try await phoneCamera.start(position: .back)
+    guard isCurrent(run) else {
+      await phoneCamera.stop()
+      return
     }
+    status = .streaming
+    AppLog.stream.notice("Phone stream started")
+
+    frameTask = Task { [weak self] in
+      guard let self else { return }
+      await Task.yield()
+      do {
+        try await preparePipeline(for: run)
+      } catch {
+        guard isCurrent(run) else { return }
+        await stop()
+        failure = .recognition(error.localizedDescription)
+        return
+      }
+      for await frame in frames {
+        guard isCurrent(run), !Task.isCancelled else { return }
+        await pipeline.submit(.phone(frame))
+      }
+    }
+  }
+
+  private func startGlasses(run: Int) async throws {
+    guard hasActiveDevice else { throw StreamFailure.noGlasses }
+    let session = try wearables.createSession(deviceSelector: selector)
+    deviceSession = session
+    let states = session.stateStream()
+    observeSessionErrors(session, run: run)
+
+    try session.start()
+    for await state in states {
+      guard isCurrent(run), !Task.isCancelled else { return }
+      switch state {
+      case .started:
+        try await openGlassesStream(session, run: run)
+        return
+      case .stopped:
+        throw StreamFailure.ended(startError)
+      case .idle, .starting, .paused, .stopping:
+        break
+      }
+    }
+  }
+
+  private func openGlassesStream(_ session: DeviceSession, run: Int) async throws {
+    let configuration = MWDATCamera.StreamConfiguration(
+      videoCodec: .raw,
+      resolution: .low,
+      frameRate: 30
+    )
+    guard let stream = try session.addStream(config: configuration) else {
+      throw StreamFailure.camera("Stream settings rejected.")
+    }
+    glassesStream = stream
+
+    stateToken = stream.statePublisher.listen { [weak self] state in
+      Task { @MainActor [weak self] in
+        guard let self, isCurrent(run) else { return }
+        switch state {
+        case .streaming:
+          streamStarted = true
+          status = .streaming
+        case .stopped where streamStarted:
+          await stop()
+        case .waitingForDevice, .starting, .paused, .stopping:
+          streamStarted = true
+          status = .connecting
+        case .stopped:
+          break
+        }
+      }
+    }
+
+    errorToken = stream.errorPublisher.listen { [weak self] error in
+      Task { @MainActor [weak self] in
+        guard let self, isCurrent(run) else { return }
+        await stop()
+        failure = .camera(error.localizedDescription)
+      }
+    }
+
+    let frames = AsyncStream.makeStream(
+      of: MWDATCamera.VideoFrame.self,
+      bufferingPolicy: .bufferingNewest(1)
+    )
+    frameToken = stream.videoFramePublisher.listen { frame in
+      frames.continuation.yield(frame)
+    }
+    frameTask = Task { [weak self] in
+      guard let self else { return }
+      for await frame in frames.stream {
+        guard isCurrent(run), !Task.isCancelled else { return }
+        await pipeline.submit(.glasses(frame))
+      }
+    }
+
+    stream.start()
+    AppLog.stream.notice("Glasses stream requested at 30 FPS")
+  }
+
+  private func observeSessionErrors(_ session: DeviceSession, run: Int) {
+    sessionErrorTask = Task { [weak self] in
+      guard let self else { return }
+      for await error in session.errorStream() {
+        guard isCurrent(run), !Task.isCancelled else { return }
+        startError = error
+        guard error.stopsSession else { continue }
+        await stop()
+        failure = .stopped(error)
+      }
+    }
+  }
+
+  private func apply(_ output: RecognitionOutput) {
+    if overlayFrame != output.overlay {
+      overlayFrame = output.overlay
+    }
+    backendMessage =
+      output.backendFailure.flatMap { failure in
+        switch failure {
+        case .badStatus(_, let status): "Backend HTTP \(status)"
+        case .cancelled: nil
+        default: "Backend unavailable"
+        }
+      } ?? nil
+    if let event = output.event {
+      apply(event)
+    }
+  }
+
+  private func apply(_ event: RecognitionEvent) {
+    switch event {
+    case .clear:
+      if isSpeaking {
+        clearPredictionAfterSpeech = true
+      } else {
+        current = nil
+      }
+    case .partial(let prediction), .finalized(let prediction):
+      current = prediction
+    }
+    speech.handle(event) { [weak self] in self?.current }
+  }
+
+  private func partialWasSpoken() {
+    clearPredictionAfterSpeech = true
+    let run = generation
+    Task { [weak self] in
+      guard let self, isCurrent(run) else { return }
+      await pipeline.resetAfterSpokenPartial()
+    }
+  }
+
+  private func speakingChanged(_ speaking: Bool) {
+    isSpeaking = speaking
+    if !speaking, clearPredictionAfterSpeech {
+      current = nil
+      clearPredictionAfterSpeech = false
+    }
+  }
+
+  private func isCurrent(_ run: Int) -> Bool {
+    run == generation && status != .idle
   }
 }

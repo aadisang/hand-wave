@@ -7,24 +7,14 @@ struct RootView: View {
 
   var body: some View {
     @Bindable var app = appModel
-    @Bindable var wearables = appModel.wearables
-    @Bindable var stream = appModel.stream
     navigation
-      .modifier(
-        EventHaptics(
-          registered: appModel.wearables.isRegistered,
-          streaming: appModel.stream.isStreaming,
-          wearablesFailure: wearables.failure?.localizedDescription,
-          streamFailure: stream.failure?.localizedDescription
-        )
-      )
       .alert(
         "Something went wrong",
         isPresented: Binding(
-          get: { wearables.failure != nil },
-          set: { if !$0 { wearables.failure = nil } }
+          get: { appModel.wearables.failure != nil },
+          set: { if !$0 { appModel.wearables.failure = nil } }
         ),
-        presenting: wearables.failure
+        presenting: appModel.wearables.failure
       ) { _ in
         Button("OK", role: .cancel) {}
       } message: {
@@ -33,10 +23,10 @@ struct RootView: View {
       .alert(
         "Something went wrong",
         isPresented: Binding(
-          get: { stream.failure != nil },
-          set: { if !$0 { stream.failure = nil } }
+          get: { appModel.stream.failure != nil },
+          set: { if !$0 { appModel.stream.failure = nil } }
         ),
-        presenting: stream.failure
+        presenting: appModel.stream.failure
       ) { _ in
         Button("OK", role: .cancel) {}
       } message: {
@@ -72,7 +62,11 @@ struct RootView: View {
     .preferredColorScheme(.dark)
     .task { await appModel.wearables.observe() }
     .task { await appModel.stream.observe() }
-    .task { await appModel.stream.prewarmRecognition() }
+    .task(priority: .utility) {
+      try? await Task.sleep(for: .milliseconds(300))
+      guard !Task.isCancelled else { return }
+      await appModel.stream.prepare()
+    }
     .task { await stopOnQuit() }
     .onChange(of: scenePhase) { _, phase in
       switch phase {
@@ -92,24 +86,5 @@ struct RootView: View {
     ) {
       await appModel.stream.stop()
     }
-  }
-}
-
-private struct EventHaptics: ViewModifier {
-  let registered: Bool
-  let streaming: Bool
-  let wearablesFailure: String?
-  let streamFailure: String?
-
-  func body(content: Content) -> some View {
-    content
-      .sensoryFeedback(trigger: registered) { _, isOn in isOn ? Haptic.connected : nil }
-      .sensoryFeedback(trigger: streaming) { _, isOn in isOn ? Haptic.streamLive : nil }
-      .sensoryFeedback(trigger: wearablesFailure) { _, failure in
-        failure != nil ? Haptic.failure : nil
-      }
-      .sensoryFeedback(trigger: streamFailure) { _, failure in
-        failure != nil ? Haptic.failure : nil
-      }
   }
 }

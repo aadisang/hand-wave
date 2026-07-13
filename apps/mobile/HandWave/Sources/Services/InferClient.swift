@@ -2,7 +2,6 @@ import Foundation
 
 protocol InferAPI: Sendable {
   func warmConnection() async throws(InferenceFailure)
-
   func recognize(
     frames: [LandmarkFrame],
     state: InferenceRecognitionState?,
@@ -15,150 +14,115 @@ extension InferAPI {
   func warmConnection() async throws(InferenceFailure) {}
 }
 
-struct InferClient: Sendable {
+struct InferClient: InferAPI, Sendable {
+  private static let productionURL = URL(string: "https://handwave.sh")!
+  private static let localURL = URL(string: "http://localhost:8000")!
+
   private let baseURLs: [URL]
   private let session: URLSession
-  private let encoder = JSONEncoder()
-  private let decoder = JSONDecoder()
 
   init(
-    baseURLs: [URL] = InferClient.defaultBaseURLs(),
-    session: URLSession = InferClient.defaultSession()
+    baseURLs: [URL] = Self.configuredURLs,
+    session: URLSession = Self.session
   ) {
     self.baseURLs = baseURLs
     self.session = session
+  }
+
+  func warmConnection() async throws(InferenceFailure) {
+    _ = try await send(path: "/v1/health", method: "GET", body: nil)
   }
 
   func recognize(
     frames: [LandmarkFrame],
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
-    finalize: Bool = false
+    finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
-    try await post(
-      path: "/v1/recognize",
-      body: InferenceRecognizeIn(
-        frames: frames.map(\.inferenceFeatures),
-        state: state,
-        context: context,
-        finalize: finalize
-      )
+    let request = InferenceRecognizeIn(
+      frames: frames.map(\.inferenceFeatures),
+      state: state,
+      context: context,
+      finalize: finalize
     )
-  }
-
-  func warmConnection() async throws(InferenceFailure) {
-    guard !baseURLs.isEmpty else { throw .missingBaseURL }
-
-    var lastFailure: InferenceFailure?
-    for baseURL in baseURLs {
-      guard baseURL.usableHere else {
-        lastFailure = .localhostOnDevice(baseURL)
-        continue
-      }
-
-      let url = baseURL.appending(path: "/v1/health")
-      var request = URLRequest(url: url)
-      request.httpMethod = "GET"
-
-      do {
-        let (_, response) = try await session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else {
-          lastFailure = .badStatus(url, status)
-          continue
-        }
-        return
-      } catch {
-        lastFailure = .requestFailed(url, error.localizedDescription)
-      }
+    let body: Data
+    do {
+      body = try JSONEncoder().encode(request)
+    } catch {
+      throw .encodeRequestFailed(error.localizedDescription)
     }
 
-    throw lastFailure ?? .missingBaseURL
+    let (data, url) = try await send(path: "/v1/recognize", method: "POST", body: body)
+    do {
+      return try JSONDecoder().decode(InferenceRecognizeOut.self, from: data)
+    } catch {
+      throw .decodeResponseFailed(url, error.localizedDescription)
+    }
   }
 
-  private func post<Response: Decodable & Sendable, Body: Encodable>(
+  private func send(
     path: String,
-    body: Body
-  ) async throws(InferenceFailure) -> Response {
+    method: String,
+    body: Data?
+  ) async throws(InferenceFailure) -> (Data, URL) {
     guard !baseURLs.isEmpty else { throw .missingBaseURL }
+    var lastFailure: InferenceFailure = .missingBaseURL
 
-    var lastFailure: InferenceFailure?
     for baseURL in baseURLs {
-      guard baseURL.usableHere else {
+      guard baseURL.isUsableBackend else {
         lastFailure = .localhostOnDevice(baseURL)
         continue
       }
 
       let url = baseURL.appending(path: path)
       var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      do {
-        request.httpBody = try encoder.encode(body)
-      } catch {
-        throw .encodeRequestFailed(url, error.localizedDescription)
+      request.httpMethod = method
+      request.httpBody = body
+      if body != nil {
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
       }
 
-      let data: Data
-      let response: URLResponse
       do {
-        (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else {
+          let failure = InferenceFailure.badStatus(url, status)
+          guard failure.canRetry else { throw failure }
+          lastFailure = failure
+          continue
+        }
+        return (data, url)
+      } catch let failure as InferenceFailure {
+        throw failure
       } catch {
-        let failure = InferenceFailure.requestFailed(url, error.localizedDescription)
-        lastFailure = failure
-        guard failure.canRetry else { throw failure }
-        continue
-      }
-
-      let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-      guard (200..<300).contains(status) else {
-        let failure = InferenceFailure.badStatus(url, status)
-        lastFailure = failure
-        guard failure.canRetry else { throw failure }
-        continue
-      }
-      do {
-        return try decoder.decode(Response.self, from: data)
-      } catch {
-        throw .decodeResponseFailed(url, error.localizedDescription)
+        if error is CancellationError || (error as? URLError)?.code == .cancelled {
+          throw .cancelled
+        }
+        lastFailure = .requestFailed(url, error.localizedDescription)
       }
     }
 
-    throw lastFailure ?? .missingBaseURL
+    throw lastFailure
   }
 
-  private static func defaultBaseURLs() -> [URL] {
+  private static var configuredURLs: [URL] {
+    let configured = (Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String)
+      .flatMap { $0.contains("$(") ? nil : URL(string: $0) }
     #if DEBUG
-    let urls = infoURLs("HandWaveInferenceURLs") + infoURLs("HandWaveInferenceURL")
-    return urls.isEmpty ? [URL(string: "http://localhost:8000")!] : urls
+    return [configured ?? localURL]
     #else
-    return [URL(string: "https://handwave.sh")!]
+    return [configured ?? productionURL]
     #endif
   }
 
-  private static func infoURLs(_ key: String) -> [URL] {
-    guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
-      return []
-    }
-
-    return value.split { ",;\n".contains($0) }
-      .compactMap { rawValue -> URL? in
-        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !trimmed.contains("$(") else { return nil }
-        return URL(string: trimmed)
-      }
-  }
-
-  private static func defaultSession() -> URLSession {
+  private static let session: URLSession = {
     let configuration = URLSessionConfiguration.default
     configuration.waitsForConnectivity = true
     configuration.timeoutIntervalForRequest = 4
     configuration.timeoutIntervalForResource = 8
     return URLSession(configuration: configuration)
-  }
+  }()
 }
-
-extension InferClient: InferAPI {}
 
 extension InferenceFailure {
   fileprivate var canRetry: Bool {
@@ -167,27 +131,20 @@ extension InferenceFailure {
       true
     case .badStatus(_, let status):
       (500..<600).contains(status)
-    case .missingBaseURL, .encodeRequestFailed, .decodeResponseFailed, .unexpected:
+    case .cancelled, .missingBaseURL, .encodeRequestFailed, .decodeResponseFailed, .unexpected:
       false
     }
   }
 }
 
 extension URL {
-  fileprivate var usableHere: Bool {
-    !isLoopbackHost || Self.allowsLoopbackBackend
-  }
-
-  private var isLoopbackHost: Bool {
-    guard let host = host(percentEncoded: false)?.lowercased() else { return false }
-    return host == "localhost" || host == "::1" || host.hasPrefix("127.")
-  }
-
-  private static var allowsLoopbackBackend: Bool {
+  fileprivate var isUsableBackend: Bool {
+    guard let host = host(percentEncoded: false)?.lowercased() else { return true }
+    let loopback = host == "localhost" || host == "::1" || host.hasPrefix("127.")
     #if targetEnvironment(simulator)
-    true
+    return true
     #else
-    false
+    return !loopback
     #endif
   }
 }

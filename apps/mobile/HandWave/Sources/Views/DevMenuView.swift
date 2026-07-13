@@ -3,8 +3,6 @@ import SwiftUI
 struct DevMenuView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(AppModel.self) private var appModel
-  @State private var speechLogURL: URL?
-  @State private var speechLogError: String?
 
   var body: some View {
     NavigationStack {
@@ -32,38 +30,6 @@ struct DevMenuView: View {
               set: { appModel.showsPoseLandmarks = $0 }
             )
           )
-        }
-
-        Section("Speech Diagnostics") {
-          DevRow("Entries", "\(appModel.stream.speechLogCount)")
-
-          Button("Prepare Speech Log", systemImage: "doc.badge.arrow.up") {
-            do {
-              speechLogURL = try appModel.stream.exportSpeechLog()
-              speechLogError = nil
-            } catch {
-              speechLogError = error.localizedDescription
-            }
-          }
-          .disabled(appModel.stream.speechLogCount == 0)
-
-          if let speechLogURL {
-            ShareLink(item: speechLogURL) {
-              Label("Share Speech Log", systemImage: "square.and.arrow.up")
-            }
-          }
-
-          Button("Clear Speech Log", systemImage: "trash", role: .destructive) {
-            appModel.stream.clearSpeechLog()
-            speechLogURL = nil
-          }
-          .disabled(appModel.stream.speechLogCount == 0)
-
-          if let speechLogError {
-            Text(speechLogError)
-              .font(.appFootnote)
-              .foregroundStyle(.red)
-          }
         }
 
         Section("Actions") {

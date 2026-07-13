@@ -2,6 +2,18 @@ import Foundation
 import MWDATCore
 import Observation
 
+enum WearablesFailure: Error, LocalizedError, Sendable {
+  case connection(String)
+  case camera(String)
+  case callback(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .connection(let message), .camera(let message), .callback(let message): message
+    }
+  }
+}
+
 @MainActor
 @Observable
 final class WearablesModel {
