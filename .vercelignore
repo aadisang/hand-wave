@@ -1,0 +1,16 @@
+.git
+.env*
+.moon
+.playwright-mcp
+.tanstack
+.vercel
+Traces
+node_modules
+apps/inference
+apps/mobile
+apps/web/.DS_Store
+apps/web/.env*
+apps/web/.output
+apps/web/.tanstack
+apps/web/node_modules
+apps/web/tsconfig.tsbuildinfo

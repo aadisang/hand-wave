@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/v1/:path*",
+      "destination": "https://sinarck--hand-wave-inference.modal.run/v1/:path*"
+    }
+  ]
+}
