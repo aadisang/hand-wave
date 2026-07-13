@@ -53,6 +53,8 @@ class HandwaveRuntime:
         self.beam_prune_logp = decoder_config.beam_prune_logp
         self.token_min_logp = decoder_config.token_min_logp
         self.confidence_temperature = decoder_config.confidence_temperature
+        self.hotwords = decoder_config.hotwords
+        self.hotword_weight = decoder_config.hotword_weight
         self.allowed_token_ids = allowed_token_ids("abcdefghijklmnopqrstuvwxyz ")
 
     @torch.no_grad()
@@ -100,6 +102,8 @@ class HandwaveRuntime:
             beam_prune_logp=getattr(self, "beam_prune_logp", -10.0),
             token_min_logp=getattr(self, "token_min_logp", -5.0),
             confidence_temperature=getattr(self, "confidence_temperature", 1.2),
+            hotwords=getattr(self, "hotwords", ()),
+            hotword_weight=getattr(self, "hotword_weight", 10.0),
         )
 
 
