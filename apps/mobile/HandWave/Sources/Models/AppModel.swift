@@ -24,6 +24,17 @@ final class AppModel {
     stream.refresh()
   }
 
+  func performPrimaryAction() async {
+    refresh()
+    if stream.source == .phone {
+      await stream.start()
+    } else if !wearables.isRegistered {
+      await wearables.connect()
+    } else if stream.hasActiveDevice, await wearables.ensureCameraPermission() {
+      await stream.start()
+    }
+  }
+
   func resetConnection() async {
     await stream.stop()
     await wearables.disconnect()

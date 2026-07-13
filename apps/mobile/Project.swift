@@ -24,16 +24,14 @@ let infoPlist: [String: Plist.Value] = [
     "AppLinkURLScheme": "\(urlScheme)://",
     "MetaAppID": "$(META_APP_ID)",
     "ClientToken": "$(CLIENT_TOKEN)",
-    "TeamID": "$(HANDWAVE_DEVELOPMENT_TEAM)",
+    "TeamID": "$(DEVELOPMENT_TEAM)",
   ],
   "HandWaveInferenceURL": "$(HANDWAVE_INFERENCE_URL)",
-  "HandWaveInferenceURLs": "$(HANDWAVE_INFERENCE_URLS)",
+  "ITSAppUsesNonExemptEncryption": false,
   "NSAppTransportSecurity": [
-    "NSAllowsArbitraryLoads": true
+    "NSAllowsLocalNetworking": true
   ],
   "UIBackgroundModes": [
-    "processing",
-    "bluetooth-central",
     "bluetooth-peripheral",
     "external-accessory",
   ],
@@ -41,14 +39,9 @@ let infoPlist: [String: Plist.Value] = [
     "Hand Wave connects to your Meta wearable over Bluetooth.",
   "NSLocalNetworkUsageDescription":
     "Hand Wave connects to the local inference server while recognizing signs.",
-  "NSBonjourServices": ["_http._tcp"],
   "UISupportedExternalAccessoryProtocols": ["com.meta.ar.wearable"],
   "NSCameraUsageDescription":
     "Hand Wave uses your phone or Meta wearable camera to interpret signs.",
-  "NSMicrophoneUsageDescription":
-    "Hand Wave streams audio from your Meta wearable to the recognizer.",
-  "NSPhotoLibraryAddUsageDescription":
-    "Hand Wave saves photos captured from your wearable.",
   "UIApplicationSceneManifest": [
     "UIApplicationSupportsMultipleScenes": false
   ],
@@ -68,17 +61,26 @@ let project = Project(
   organizationName: "Hand Wave",
   options: .options(
     automaticSchemesOptions: .enabled(),
-    defaultKnownRegions: ["en"],
+    defaultKnownRegions: ["Base", "en"],
     developmentRegion: "en"
   ),
   settings: .settings(
     base: [
       "SWIFT_VERSION": "6.0",
       "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
+      "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
+      "MARKETING_VERSION": "0.1.0",
+      "CURRENT_PROJECT_VERSION": "2",
     ],
     configurations: [
       .debug(name: "Debug", xcconfig: "Configurations/HandWave.xcconfig"),
-      .release(name: "Release", xcconfig: "Configurations/HandWave.xcconfig"),
+      .release(
+        name: "Release",
+        settings: [
+          "HANDWAVE_INFERENCE_URL": "https://handwave.sh"
+        ],
+        xcconfig: "Configurations/HandWave.xcconfig"
+      ),
     ]
   ),
   targets: [
@@ -100,13 +102,10 @@ let project = Project(
       dependencies: [
         .external(name: "MWDATCore"),
         .external(name: "MWDATCamera"),
-        .external(name: "Dependencies"),
       ],
       settings: .settings(
         base: [
-          "CODE_SIGN_STYLE": "Automatic",
-          "CODE_SIGN_IDENTITY": "Apple Development",
-          "DEVELOPMENT_TEAM": "$(HANDWAVE_DEVELOPMENT_TEAM)",
+          "CODE_SIGN_STYLE": "Automatic"
         ]
       )
     ),

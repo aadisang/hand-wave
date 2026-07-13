@@ -1,184 +1,224 @@
 import Foundation
 
-private struct StreamTiming {
-  private static let maxWireFrames = 512
+private struct StreamTiming: Sendable {
+  let sampleIntervalMs: Double
+  let minimumDurationMs: Double
+  let decodeIntervalMs: Double
+  let idleDurationMs: Double
+  let lostDurationMs: Double
+  let windowDurationMs: Double
 
-  let maxFrames: Int
-  let minFrames: Int
-  let stride: Int
-  let idleFrames: Int
-  let lostFrames: Int
-
-  init(frameRate: Double) {
-    precondition(frameRate > 0)
-    let scale = frameRate / Double(InferCfg.Stream.fps)
-    maxFrames = min(Self.maxWireFrames, Self.scaled(InferCfg.Decode.window, by: scale))
-    minFrames = Self.scaled(InferCfg.Stream.min, by: scale)
-    stride = Self.scaled(InferCfg.Stream.stride, by: scale)
-    idleFrames = Self.scaled(InferCfg.Stream.idle, by: scale)
-    lostFrames = Self.scaled(InferCfg.Stream.lost, by: scale)
+  init() {
+    let frameDuration = 1_000.0 / Double(InferCfg.Stream.fps)
+    sampleIntervalMs = frameDuration
+    minimumDurationMs = Double(InferCfg.Stream.min) * frameDuration
+    decodeIntervalMs = Double(InferCfg.Stream.stride) * frameDuration
+    idleDurationMs = Double(InferCfg.Stream.idle) * frameDuration
+    lostDurationMs = Double(InferCfg.Stream.lost) * frameDuration
+    windowDurationMs = Double(InferCfg.Decode.window) * frameDuration
   }
 
-  private static func scaled(_ value: Int, by scale: Double) -> Int {
-    max(1, Int((Double(value) * scale).rounded(.up)))
+  func frameCount(for durationMs: Double) -> Int {
+    max(0, Int((durationMs / sampleIntervalMs).rounded()))
   }
 }
 
 actor InferSession {
-  enum Event: Equatable, Sendable {
-    case clear
-    case partial(Pred)
-    case finalized(Pred)
-  }
+  typealias EventHandler = @Sendable (RecognitionEvent) async -> Void
 
-  struct Pred: Equatable, Sendable {
-    let text: String
-    let confidence: Double
-    let processingTimeMs: Double
+  private struct Endpoint: Sendable {
+    let frames: [LandmarkFrame]
+    let context: InferenceRecognitionContext
   }
 
   private let client: InferAPI
-  private var state: InferenceRecognitionState?
+  private let timing = StreamTiming()
+  private var eventHandler: EventHandler?
+  private var recognitionState: InferenceRecognitionState?
   private var frames: [LandmarkFrame] = []
-  private var seen = 0
-  private var inFlight = false
-  private var last: LandmarkFrame?
-  private var idle = 0
-  private var moved = false
-  private var ended = false
-  private var lost = 0
-  private var epoch = 0
-  private var requestId = 0
-  private var pendingEvent: Event?
-  private var pendingError: InferenceFailure?
+  private var lastObservedFrame: LandmarkFrame?
+  private var segmentStartedAt: Int?
+  private var lastMotionAt: Int?
+  private var missingSince: Int?
+  private var nextSampleAt: Double?
+  private var lastDecodeAt: Int?
+  private var sampledFrames = 0
+  private var hasMoved = false
+  private var hasEnded = false
   private var hasDisplayedPrediction = false
-  private var timing = StreamTiming(frameRate: Double(InferCfg.Stream.fps))
+  private var inFlight = false
+  private var pendingEndpoint: Endpoint?
+  private var pendingEvent: RecognitionEvent?
+  private var pendingError: InferenceFailure?
+  private var deferredFrames: [LandmarkFrame] = []
+  private var endingFrame: LandmarkFrame?
+  private var epoch = 0
+  private var requestID = 0
+  private var requestTask: Task<Void, Never>?
 
   init(client: InferAPI = InferClient()) {
     self.client = client
+  }
+
+  func setEventHandler(_ handler: @escaping EventHandler) {
+    eventHandler = handler
   }
 
   func start() async throws(InferenceFailure) {
     try await client.warmConnection()
   }
 
-  func setFrameRate(_ frameRate: Double) {
-    timing = StreamTiming(frameRate: frameRate)
-    resetLive()
-  }
-
-  func stop() async {
-    epoch += 1
-    requestId += 1
-    inFlight = false
+  func stop() {
+    invalidateRequests()
+    eventHandler = nil
     pendingEvent = nil
     pendingError = nil
     hasDisplayedPrediction = false
-    state = nil
+    recognitionState = nil
     resetSegment()
   }
 
   func resetAfterSpokenPartial() {
-    epoch += 1
-    requestId += 1
-    inFlight = false
+    invalidateRequests()
     pendingError = nil
-    state = nil
+    recognitionState = nil
     resetSegment()
-    if hasDisplayedPrediction {
-      hasDisplayedPrediction = false
-      pendingEvent = .clear
-    } else {
-      pendingEvent = nil
-    }
+    queue(hasDisplayedPrediction ? .clear : nil)
+    hasDisplayedPrediction = false
   }
 
-  func ingest(_ frame: LandmarkFrame?) async throws(InferenceFailure) -> Event? {
-    if let error = pendingError {
-      pendingError = nil
-      throw error
+  func ingest(
+    _ frame: LandmarkFrame?,
+    at timestampMs: Int
+  ) async throws(InferenceFailure) -> RecognitionEvent? {
+    if let pendingEvent {
+      self.pendingEvent = nil
+      return pendingEvent
     }
-    if let pending = takePendingEvent() {
-      return pending
+    if let pendingError {
+      self.pendingError = nil
+      throw pendingError
     }
 
     if let frame {
-      return try await accept(frame)
+      return accept(frame, at: timestampMs)
     }
-    return try await acceptMissingFrame()
+    return acceptMissingFrame(at: timestampMs)
   }
 
-  private func accept(_ frame: LandmarkFrame) async throws(InferenceFailure) -> Event? {
-    let motion = frameMotion(previous: last, current: frame)
-    last = frame
-    lost = 0
-    let moving = motion >= InferCfg.Stream.motion
-    var clearVisiblePrediction = false
-
-    if moving {
-      if ended {
-        resetSegment()
-        last = frame
-        if hasDisplayedPrediction {
-          hasDisplayedPrediction = false
-          clearVisiblePrediction = true
-        }
+  private func accept(_ frame: LandmarkFrame, at timestampMs: Int) -> RecognitionEvent? {
+    if hasEnded {
+      deferredFrames.append(frame)
+      if deferredFrames.count > InferCfg.Decode.window {
+        deferredFrames.removeFirst(deferredFrames.count - InferCfg.Decode.window)
       }
-      ended = false
-      moved = true
-      idle = 0
-    } else if moved {
-      idle += 1
+      return nil
     }
 
-    if ended { return nil }
+    let previousFrame = lastObservedFrame
+    let motion = frameMotion(previous: previousFrame, current: frame)
+    lastObservedFrame = frame
+    missingSince = nil
 
-    frames.append(frame)
-    if frames.count > timing.maxFrames {
-      frames.removeFirst(frames.count - timing.maxFrames)
-    }
-    seen += 1
-
-    if idle >= timing.idleFrames {
-      return try await finalizeSegment(reason: .idle)
+    if motion >= InferCfg.Stream.motion {
+      hasMoved = true
+      lastMotionAt = timestampMs
     }
 
-    if seen < timing.minFrames { return clearVisiblePrediction ? .clear : nil }
-    if seen % timing.stride != 0 || inFlight { return clearVisiblePrediction ? .clear : nil }
+    guard !hasEnded else { return nil }
+    segmentStartedAt = segmentStartedAt ?? timestampMs
+    sample(frame, after: previousFrame, at: timestampMs)
 
-    startDecode(batch: frames, idleFrames: idle, motion: motion)
-    return clearVisiblePrediction ? .clear : nil
+    if hasMoved, duration(since: lastMotionAt, at: timestampMs) >= timing.idleDurationMs {
+      requestFinalization(reason: .idle, at: timestampMs)
+      return nil
+    }
+
+    guard duration(since: segmentStartedAt, at: timestampMs) >= timing.minimumDurationMs else {
+      return nil
+    }
+    guard sampledFrames >= InferCfg.Stream.min else { return nil }
+    guard !inFlight else { return nil }
+    if let lastDecodeAt,
+      duration(since: lastDecodeAt, at: timestampMs) < timing.decodeIntervalMs
+    {
+      return nil
+    }
+
+    startDecode(at: timestampMs, motion: motion)
+    return nil
   }
 
-  private func startDecode(
-    batch: [LandmarkFrame],
-    idleFrames: Int,
-    motion: Double
-  ) {
-    requestId += 1
-    let id = requestId
-    let requestEpoch = epoch
-    let currentState = state
-    let context = recognitionContext(idleFrames: idleFrames, motion: motion)
-    inFlight = true
+  private func acceptMissingFrame(at timestampMs: Int) -> RecognitionEvent? {
+    guard !hasEnded else { return nil }
+    guard hasMoved, segmentStartedAt != nil else {
+      resetSegment()
+      return .clear
+    }
 
-    Task { [client] in
+    missingSince = missingSince ?? timestampMs
+    let missingDuration = duration(since: missingSince, at: timestampMs)
+    let idleDuration = duration(since: lastMotionAt, at: timestampMs)
+    if missingDuration >= timing.lostDurationMs || idleDuration >= timing.idleDurationMs {
+      requestFinalization(reason: .landmarkLost, at: timestampMs)
+    }
+    return nil
+  }
+
+  private func sample(
+    _ frame: LandmarkFrame,
+    after previous: LandmarkFrame?,
+    at timestampMs: Int
+  ) {
+    if nextSampleAt == nil {
+      frames.append(frame)
+      sampledFrames += 1
+      nextSampleAt = Double(timestampMs) + timing.sampleIntervalMs
+      return
+    }
+    guard let sampleAt = nextSampleAt, Double(timestampMs) >= sampleAt else { return }
+
+    // Advance a fixed 24 FPS grid instead of coupling model time to camera or detector FPS.
+    var next = sampleAt
+    while next <= Double(timestampMs) {
+      frames.append(interpolate(from: previous, to: frame, at: next))
+      sampledFrames += 1
+      next += timing.sampleIntervalMs
+    }
+    nextSampleAt = next
+
+    let cutoff = Double(timestampMs) - timing.windowDurationMs
+    if let firstValid = frames.firstIndex(where: { Double($0.timestampMs) >= cutoff }),
+      firstValid > 0
+    {
+      frames.removeFirst(firstValid)
+    }
+  }
+
+  private func startDecode(at timestampMs: Int, motion: Double) {
+    requestID &+= 1
+    let id = requestID
+    let requestEpoch = epoch
+    let batch = frames
+    let state = recognitionState
+    let context = recognitionContext(at: timestampMs, motion: motion)
+    inFlight = true
+    lastDecodeAt = timestampMs
+
+    requestTask = Task { [client] in
       do {
         let response = try await client.recognize(
           frames: batch,
-          state: currentState,
+          state: state,
           context: context,
           finalize: false
         )
-        self.finishDecode(
-          response,
-          id: id,
-          epoch: requestEpoch
-        )
-      } catch let error as InferenceFailure {
-        self.failDecode(error, id: id, epoch: requestEpoch)
+        guard !Task.isCancelled else { return }
+        await self.finishDecode(response, id: id, epoch: requestEpoch)
+      } catch let failure as InferenceFailure {
+        self.fail(failure, id: id, epoch: requestEpoch)
       } catch {
-        preconditionFailure("Unexpected inference error: \(error)")
+        self.fail(.unexpected(error.localizedDescription), id: id, epoch: requestEpoch)
       }
     }
   }
@@ -187,145 +227,267 @@ actor InferSession {
     _ response: InferenceRecognizeOut,
     id: Int,
     epoch requestEpoch: Int
-  ) {
-    guard id == requestId else { return }
+  ) async {
+    guard id == requestID, requestEpoch == epoch else { return }
     inFlight = false
-    guard requestEpoch == epoch else { return }
+    requestTask = nil
+    recognitionState = response.state
+    await deliver(event(from: response))
 
-    state = response.state
+    if let endpoint = pendingEndpoint {
+      pendingEndpoint = nil
+      startFinalization(endpoint)
+    }
+  }
+
+  private func requestFinalization(reason: InferenceEndpointReason, at timestampMs: Int) {
+    guard !hasEnded else { return }
+    hasEnded = true
+    endingFrame = lastObservedFrame
+    let endpoint = Endpoint(
+      frames: frames,
+      context: endpointContext(reason, at: timestampMs)
+    )
+    guard !inFlight else {
+      pendingEndpoint = endpoint
+      return
+    }
+    startFinalization(endpoint)
+  }
+
+  private func startFinalization(_ endpoint: Endpoint) {
+    guard let state = recognitionState else {
+      hasDisplayedPrediction = false
+      resetSegment()
+      queue(.clear)
+      return
+    }
+
+    requestID &+= 1
+    let id = requestID
+    let requestEpoch = epoch
+    inFlight = true
+
+    requestTask = Task { [client] in
+      do {
+        let response = try await client.recognize(
+          frames: endpoint.frames,
+          state: state,
+          context: endpoint.context,
+          finalize: true
+        )
+        guard !Task.isCancelled else { return }
+        await self.finishFinalization(response, id: id, epoch: requestEpoch)
+      } catch let failure as InferenceFailure {
+        self.fail(failure, id: id, epoch: requestEpoch)
+      } catch {
+        self.fail(.unexpected(error.localizedDescription), id: id, epoch: requestEpoch)
+      }
+    }
+  }
+
+  private func finishFinalization(
+    _ response: InferenceRecognizeOut,
+    id: Int,
+    epoch requestEpoch: Int
+  ) async {
+    guard id == requestID, requestEpoch == epoch else { return }
+    inFlight = false
+    requestTask = nil
+    recognitionState = nil
+
+    let event: RecognitionEvent
+    if let prediction = response.displayPrediction, !prediction.label.isEmpty {
+      hasDisplayedPrediction = true
+      event = .finalized(Self.prediction(from: prediction, response: response))
+    } else {
+      hasDisplayedPrediction = false
+      event = .clear
+    }
+    await deliver(event)
+    let deferredFrames = takeDeferredFrames()
+    let endpointFrame = endingFrame
+    resetSegment()
+    replay(deferredFrames, after: endpointFrame)
+  }
+
+  private func fail(_ failure: InferenceFailure, id: Int, epoch requestEpoch: Int) {
+    guard id == requestID, requestEpoch == epoch else { return }
+    inFlight = false
+    requestTask = nil
+    pendingError = failure
+    if hasEnded {
+      let deferredFrames = takeDeferredFrames()
+      let endpointFrame = endingFrame
+      pendingEndpoint = nil
+      recognitionState = nil
+      hasDisplayedPrediction = false
+      resetSegment()
+      queue(.clear)
+      replay(deferredFrames, after: endpointFrame)
+    }
+  }
+
+  private func event(from response: InferenceRecognizeOut) -> RecognitionEvent? {
     if let prediction = response.displayPrediction {
       hasDisplayedPrediction = true
-      pendingEvent = .partial(
-        Self.prediction(from: prediction, processingTimeMs: response.trace.decode?.latencyMs ?? 0)
-      )
-    } else if hasDisplayedPrediction {
-      hasDisplayedPrediction = false
-      pendingEvent = .clear
-    } else {
-      pendingEvent = nil
+      return .partial(Self.prediction(from: prediction, response: response))
     }
-  }
-
-  private func failDecode(_ error: InferenceFailure, id: Int, epoch requestEpoch: Int) {
-    guard id == requestId else { return }
-    inFlight = false
-    guard requestEpoch == epoch else { return }
-    pendingError = error
-  }
-
-  private func takePendingEvent() -> Event? {
-    let event = pendingEvent
-    pendingEvent = nil
-    return event
-  }
-
-  private func acceptMissingFrame() async throws(InferenceFailure) -> Event? {
-    guard !ended else { return nil }
-    guard moved, seen >= timing.minFrames else {
-      resetLive()
-      return .clear
-    }
-
-    lost += 1
-    idle += 1
-    if lost >= timing.lostFrames
-      || idle >= timing.idleFrames
-    {
-      if inFlight { return nil }
-      return try await finalizeSegment(reason: .landmarkLost)
-    }
-    return nil
-  }
-
-  private func finalizeSegment(
-    reason: InferenceEndpointReason
-  ) async throws(InferenceFailure) -> Event? {
-    let currentState = state
-    let context = endpointContext(reason)
-    let finalFrames = frames
-    ended = true
-    epoch += 1
-    requestId += 1
-    inFlight = false
-    pendingEvent = nil
-    state = nil
-    resetSegment()
-
-    guard let currentState else {
-      hasDisplayedPrediction = false
-      return .clear
-    }
-    let response = try await client.recognize(
-      frames: finalFrames,
-      state: currentState,
-      context: context,
-      finalize: true
-    )
-
-    guard let prediction = response.displayPrediction, !prediction.label.isEmpty else {
-      hasDisplayedPrediction = false
-      return .clear
-    }
-    hasDisplayedPrediction = true
-    return .finalized(Self.prediction(from: prediction, processingTimeMs: 0))
-  }
-
-  private func resetLive() {
-    resetSegment()
+    guard hasDisplayedPrediction else { return nil }
     hasDisplayedPrediction = false
-    state = nil
+    return .clear
   }
 
-  private func resetSegment() {
-    frames.removeAll(keepingCapacity: true)
-    seen = 0
-    last = nil
-    idle = 0
-    moved = false
-    lost = 0
-  }
-
-  private func frameMotion(previous: LandmarkFrame?, current: LandmarkFrame) -> Double {
-    guard let previous else { return 0 }
-    let count = min(21, previous.landmarks.count, current.landmarks.count)
-    guard count > 0 else { return 0 }
-
-    var total = 0.0
-    for index in 0..<count {
-      let a = previous.landmarks[index]
-      let b = current.landmarks[index]
-      total += abs(a.x - b.x) + abs(a.y - b.y)
+  private func deliver(_ event: RecognitionEvent?) async {
+    guard let event else { return }
+    if let eventHandler {
+      await eventHandler(event)
+    } else {
+      pendingEvent = event
     }
-    return total / Double(count)
   }
 
-  private func recognitionContext(idleFrames: Int, motion: Double) -> InferenceRecognitionContext {
+  private func queue(_ event: RecognitionEvent?) {
+    guard let event else { return }
+    pendingEvent = event
+  }
+
+  private func beginNextSegment() {
+    invalidateRequests()
+    recognitionState = nil
+    let shouldClear = hasDisplayedPrediction
+    hasDisplayedPrediction = false
+    resetSegment()
+    queue(shouldClear ? .clear : nil)
+  }
+
+  private func invalidateRequests() {
+    epoch &+= 1
+    requestID &+= 1
+    requestTask?.cancel()
+    requestTask = nil
+    inFlight = false
+    pendingEndpoint = nil
+    deferredFrames.removeAll(keepingCapacity: true)
+    endingFrame = nil
+  }
+
+  private func resetSegment(keepingEnded: Bool = false) {
+    frames.removeAll(keepingCapacity: true)
+    lastObservedFrame = nil
+    segmentStartedAt = nil
+    lastMotionAt = nil
+    missingSince = nil
+    nextSampleAt = nil
+    lastDecodeAt = nil
+    sampledFrames = 0
+    hasMoved = false
+    hasEnded = keepingEnded
+    if !keepingEnded {
+      endingFrame = nil
+    }
+  }
+
+  private func takeDeferredFrames() -> [LandmarkFrame] {
+    let frames = deferredFrames
+    deferredFrames.removeAll(keepingCapacity: true)
+    return frames
+  }
+
+  private func replay(_ frames: [LandmarkFrame], after endingFrame: LandmarkFrame?) {
+    let startIndex: Int
+    let movementIndex: Int?
+    if let endingFrame {
+      guard
+        let detectedMovement = frames.firstIndex(where: {
+          frameMotion(previous: endingFrame, current: $0) >= InferCfg.Stream.motion
+        })
+      else {
+        return
+      }
+      movementIndex = detectedMovement
+      startIndex = max(0, detectedMovement - 1)
+    } else {
+      movementIndex = nil
+      startIndex = 0
+    }
+
+    for index in startIndex..<frames.count {
+      let frame = frames[index]
+      if index == movementIndex {
+        hasMoved = true
+        lastMotionAt = frame.timestampMs
+      }
+      _ = accept(frame, at: frame.timestampMs)
+    }
+  }
+
+  private func recognitionContext(
+    at timestampMs: Int, motion: Double
+  ) -> InferenceRecognitionContext {
     InferenceRecognitionContext(
-      idleFrames: idleFrames,
-      missingFrames: lost,
-      segmentFrames: seen,
+      idleFrames: timing.frameCount(for: duration(since: lastMotionAt, at: timestampMs)),
+      missingFrames: timing.frameCount(for: duration(since: missingSince, at: timestampMs)),
+      segmentFrames: sampledFrames,
       motion: motion
     )
   }
 
-  private func endpointContext(_ reason: InferenceEndpointReason) -> InferenceRecognitionContext {
+  private func endpointContext(
+    _ reason: InferenceEndpointReason,
+    at timestampMs: Int
+  ) -> InferenceRecognitionContext {
     InferenceRecognitionContext(
-      idleFrames: idle,
-      missingFrames: lost,
-      segmentFrames: seen,
+      idleFrames: timing.frameCount(for: duration(since: lastMotionAt, at: timestampMs)),
+      missingFrames: timing.frameCount(for: duration(since: missingSince, at: timestampMs)),
+      segmentFrames: sampledFrames,
       motion: 0,
       endpointReason: reason
     )
   }
 
+  private func duration(since start: Int?, at timestampMs: Int) -> Double {
+    guard let start else { return 0 }
+    return Double(max(0, timestampMs - start))
+  }
+
+  private func interpolate(
+    from previous: LandmarkFrame?,
+    to current: LandmarkFrame,
+    at timestamp: Double
+  ) -> LandmarkFrame {
+    guard let previous, previous.landmarks.count == current.landmarks.count else {
+      return current
+    }
+    let span = Double(current.timestampMs - previous.timestampMs)
+    guard span > 0 else { return current }
+    let progress = min(1, max(0, (timestamp - Double(previous.timestampMs)) / span))
+    let landmarks = zip(previous.landmarks, current.landmarks).map { start, end in
+      LandmarkPoint(
+        x: start.x + (end.x - start.x) * progress,
+        y: start.y + (end.y - start.y) * progress,
+        z: (start.z ?? 0) + ((end.z ?? 0) - (start.z ?? 0)) * progress
+      )
+    }
+    return LandmarkFrame(landmarks: landmarks, timestampMs: Int(timestamp.rounded()))
+  }
+
+  private func frameMotion(previous: LandmarkFrame?, current: LandmarkFrame) -> Double {
+    guard let previous else { return 0 }
+    let pairs = zip(previous.landmarks.prefix(21), current.landmarks.prefix(21))
+    let differences = pairs.map { abs($0.x - $1.x) + abs($0.y - $1.y) }
+    guard !differences.isEmpty else { return 0 }
+    return differences.reduce(0, +) / Double(differences.count)
+  }
+
   private static func prediction(
     from prediction: InferencePrediction,
-    processingTimeMs: Double
-  ) -> Pred {
-    Pred(
+    response: InferenceRecognizeOut
+  ) -> Prediction {
+    Prediction(
       text: prediction.label,
       confidence: prediction.confidence,
-      processingTimeMs: processingTimeMs
+      processingTimeMs: response.trace.decode?.latencyMs ?? 0
     )
   }
 }

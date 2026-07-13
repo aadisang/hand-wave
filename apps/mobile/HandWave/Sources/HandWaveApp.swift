@@ -11,7 +11,8 @@ struct HandWaveApp: App {
     do {
       try Wearables.configure()
     } catch {
-      assertionFailure("Failed to configure Wearables SDK: \(error)")
+      AppLog.app.fault(
+        "Wearables configuration failed: \(error.localizedDescription, privacy: .private)")
     }
     _appModel = State(initialValue: AppModel())
   }

@@ -14,6 +14,7 @@ struct StreamView: View {
       overlayFrame: appModel.stream.overlayFrame,
       current: appModel.stream.current,
       isSpeaking: appModel.stream.isSpeaking,
+      backendMessage: appModel.stream.backendMessage,
       showsPoseLandmarks: appModel.showsPoseLandmarks,
       showLandmarks: $showLandmarks,
       rotateCamera: appModel.stream.rotateCamera,
@@ -27,8 +28,9 @@ private struct StreamContent: View {
   let phoneSession: AVCaptureSession
   let latestFrame: UIImage?
   let overlayFrame: HandLandmarksFrame
-  let current: InferSession.Pred?
+  let current: Prediction?
   let isSpeaking: Bool
+  let backendMessage: String?
   let showsPoseLandmarks: Bool
   @Binding var showLandmarks: Bool
   let rotateCamera: () async -> Void
@@ -49,6 +51,13 @@ private struct StreamContent: View {
       VStack(spacing: 0) {
         if let current {
           PredictionOverlay(prediction: current, isSpeaking: isSpeaking)
+        } else if let backendMessage {
+          Text(backendMessage)
+            .font(.appFootnote)
+            .foregroundStyle(.textSecondary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .glassEffect(.regular, in: .capsule)
         }
         Spacer(minLength: 0)
         ControlBar(
@@ -67,14 +76,11 @@ private struct StreamContent: View {
     .animation(Motion.overlay, value: current?.text)
     .animation(Motion.overlay, value: isSpeaking)
     .animation(Motion.standard, value: showLandmarks)
-    .sensoryFeedback(trigger: isSpeaking) { _, speaking in
-      speaking ? Haptic.recognized : nil
-    }
   }
 }
 
 private struct PredictionOverlay: View {
-  let prediction: InferSession.Pred
+  let prediction: Prediction
   let isSpeaking: Bool
 
   var body: some View {
@@ -107,14 +113,11 @@ private struct ControlBar: View {
   let canRotateCamera: Bool
   let rotateCamera: () async -> Void
   let stop: () async -> Void
-  @State private var rotateTaps = 0
-  @State private var stopTaps = 0
 
   var body: some View {
     GlassEffectContainer(spacing: Spacing.sm) {
       HStack(spacing: Spacing.sm) {
         Button(role: .destructive) {
-          stopTaps &+= 1
           Task { await stop() }
         } label: {
           Label("Stop", systemImage: "stop.fill")
@@ -125,7 +128,6 @@ private struct ControlBar: View {
 
         if canRotateCamera {
           Button {
-            rotateTaps &+= 1
             Task { await rotateCamera() }
           } label: {
             Image(systemName: "arrow.triangle.2.circlepath.camera")
@@ -147,9 +149,6 @@ private struct ControlBar: View {
       .controlSize(.large)
       .buttonBorderShape(.capsule)
     }
-    .sensoryFeedback(Haptic.stop, trigger: stopTaps)
-    .sensoryFeedback(Haptic.toggle, trigger: rotateTaps)
-    .sensoryFeedback(Haptic.toggle, trigger: showLandmarks)
   }
 }
 

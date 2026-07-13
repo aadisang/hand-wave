@@ -128,6 +128,7 @@ actor LandmarkDetector {
   }
 
   func resetSelection() {
+    lastTimestampMs = 0
     activeHandSelector.reset()
     recentLandmarks.reset()
     lastSelectedHand = nil

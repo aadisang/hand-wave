@@ -20,8 +20,6 @@ struct PairingView: View {
     .padding(.bottom, Spacing.xl)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(.canvas)
-    .animation(Motion.standard, value: appModel.wearables.isRegistered)
-    .animation(Motion.standard, value: appModel.stream.source)
   }
 }
 
@@ -51,7 +49,6 @@ private struct Hero: View {
 
 private struct PrimaryAction: View {
   @Environment(AppModel.self) private var appModel
-  @State private var taps = 0
 
   var body: some View {
     @Bindable var stream = appModel.stream
@@ -63,8 +60,7 @@ private struct PrimaryAction: View {
 
       HStack(spacing: Spacing.sm) {
         Button {
-          taps &+= 1
-          tap()
+          Task { await appModel.performPrimaryAction() }
         } label: {
           HStack(spacing: Spacing.sm) {
             if state.isBusy {
@@ -87,26 +83,6 @@ private struct PrimaryAction: View {
         .disabled(!state.canTap)
 
         SourceButton(source: $stream.source, isDisabled: appModel.stream.status != .idle)
-      }
-    }
-    .sensoryFeedback(Haptic.primaryTap, trigger: taps)
-    .animation(Motion.standard, value: state)
-  }
-
-  private func tap() {
-    Task {
-      appModel.refresh()
-      if appModel.stream.source == .phone {
-        await appModel.stream.start()
-        return
-      }
-      guard appModel.wearables.isRegistered else {
-        await appModel.wearables.connect()
-        return
-      }
-      guard appModel.stream.hasActiveDevice else { return }
-      if await appModel.wearables.ensureCameraPermission() {
-        await appModel.stream.start()
       }
     }
   }
@@ -153,7 +129,6 @@ private struct SourceButton: View {
     .buttonBorderShape(.circle)
     .disabled(isDisabled)
     .accessibilityLabel(title)
-    .sensoryFeedback(Haptic.toggle, trigger: source)
   }
 
   private var title: String {
