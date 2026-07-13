@@ -6,7 +6,12 @@ export const useDetectionsStore = create<DetectionsState>((set) => ({
   setCurrentPrediction: (prediction) =>
     set((state) => {
       if (!state.currentPrediction && !prediction) return state;
-      if (state.currentPrediction?.text === prediction?.text) return state;
+      if (
+        state.currentPrediction?.text === prediction?.text &&
+        state.currentPrediction?.committed === prediction?.committed
+      ) {
+        return state;
+      }
       return { currentPrediction: prediction };
     }),
 }));

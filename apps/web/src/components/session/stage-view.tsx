@@ -9,6 +9,7 @@ import { DevPanel } from "./dev-panel";
 import { LandmarksOverlay } from "./landmarks-overlay";
 import { IdleStage } from "./idle-stage";
 import { PredictionOverlay } from "./prediction-overlay";
+import { StatusDot } from "./status-dot";
 import { StreamToolbar } from "./stream-toolbar";
 
 export function Stage() {
@@ -72,7 +73,12 @@ export function Stage() {
         <DevPanel />
       </div>
       {state.status === "live" && (
-        <div className="pointer-events-none absolute top-4 right-4 z-20 flex max-w-dev-panel justify-end">
+        <div className="pointer-events-none absolute top-4 right-4 z-20 flex h-2 items-center">
+          <StatusDot />
+        </div>
+      )}
+      {state.status === "live" && (
+        <div className="pointer-events-none absolute right-0 bottom-20 left-0 z-20 flex justify-center px-4 sm:bottom-24 sm:px-8">
           <PredictionOverlay />
         </div>
       )}
