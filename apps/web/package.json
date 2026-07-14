@@ -37,7 +37,7 @@
     "nitro": "3.0.260610-beta",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "0.55.0",
-    "oxlint": "1.70.0",
+    "oxlint": "1.73.0",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.9.2",
     "vite": "^8.0.16",
