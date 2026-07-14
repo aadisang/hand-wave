@@ -24,26 +24,23 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
-
 jobs:
   test:
     runs-on: macos-26
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.5.app
 
-      - name: Install Tuist
-        run: |
-          brew untap aws/tap 2>/dev/null || true
-          brew install --cask tuist
+      - name: Set up Tuist
+        uses: ./.github/actions/setup-tuist
 
       - name: Generate workspace
         working-directory: apps/mobile
+        env:
+          TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
         run: |
           tuist install
           tuist generate --no-open
@@ -51,6 +48,8 @@ jobs:
 
       - name: Test
         working-directory: apps/mobile
+        env:
+          TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
         run: |
           tuist xcodebuild test \
             -workspace HandWave.xcworkspace \
