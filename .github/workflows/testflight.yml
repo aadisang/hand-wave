@@ -100,7 +100,7 @@ jobs:
           pod install
 
       - name: Import distribution certificate
-        uses: Apple-Actions/import-codesign-certs@7abe6dfe88f6bf6b1fa06e6a5704a2605d897418 # v7
+        uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7
         with:
           p12-file-base64: ${{ secrets.APPSTORE_CERTIFICATES_FILE_BASE64 }}
           p12-password: ${{ secrets.APPSTORE_CERTIFICATES_PASSWORD }}
