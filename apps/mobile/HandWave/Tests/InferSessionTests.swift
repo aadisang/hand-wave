@@ -17,7 +17,7 @@ struct InferSessionTests {
       await Task.yield()
     }
 
-    let frameCount = await client.firstBatchCount
+    let frameCount = await client.waitForFirstBatch()
     #expect(frameCount != nil)
     #expect((18...21).contains(frameCount ?? 0))
   }
@@ -204,6 +204,15 @@ private actor RecordingInferAPI: InferAPI {
     recognizeCount += 1
     firstBatchCount = firstBatchCount ?? frames.count
     return recognitionResponse(text: responseText, context: context, finalize: finalize)
+  }
+
+  func waitForFirstBatch() async -> Int? {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while firstBatchCount == nil, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
+    }
+    return firstBatchCount
   }
 }
 
