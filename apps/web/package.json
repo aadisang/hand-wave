@@ -19,7 +19,7 @@
     "clsx": "^2.1.1",
     "comlink": "^4.4.2",
     "effect": "^3.21.2",
-    "lucide-react": "^1.11.0",
+    "lucide-react": "^1.24.0",
     "motion": "^12.38.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.1.1",
