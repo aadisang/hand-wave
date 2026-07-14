@@ -81,6 +81,7 @@ final class StreamModel {
   private(set) var overlayFrame = HandLandmarksFrame.empty
   private(set) var current: Prediction?
   private(set) var isSpeaking = false
+  private(set) var isPreparingLandmarks = false
   private(set) var backendMessage: String?
   var failure: StreamFailure?
 
@@ -112,6 +113,10 @@ final class StreamModel {
   var isStreaming: Bool { status == .streaming }
   var isActive: Bool { status != .idle }
   var phoneSession: AVCaptureSession { phoneCamera.session }
+  var startupMessage: String? {
+    guard isPreparingLandmarks else { return nil }
+    return status == .connecting ? "Starting camera" : "Preparing hand tracking"
+  }
 
   func observe() async {
     refresh()
@@ -124,15 +129,6 @@ final class StreamModel {
     hasActiveDevice = selector.activeDevice != nil
   }
 
-  func prepare() async {
-    do {
-      try await pipeline.prepare()
-    } catch {
-      AppLog.inference.error(
-        "Recognizer preparation failed: \(error.localizedDescription, privacy: .private)")
-    }
-  }
-
   func start() async {
     guard status == .idle, !isStopping else { return }
     failure = nil
@@ -140,11 +136,12 @@ final class StreamModel {
     let run = generation
     activeSource = source
     status = .connecting
+    isPreparingLandmarks = true
 
     do {
       switch source {
       case .glasses:
-        try await preparePipeline(for: run)
+        try await preparePipeline(for: run, source: .glasses)
         guard isCurrent(run) else { return }
         try await startGlasses(run: run)
       case .phone:
@@ -200,6 +197,7 @@ final class StreamModel {
     overlayFrame = .empty
     current = nil
     clearPredictionAfterSpeech = false
+    isPreparingLandmarks = false
     backendMessage = nil
     speech.reset()
     activeSource = nil
@@ -208,8 +206,9 @@ final class StreamModel {
     AppLog.stream.notice("Stream stopped")
   }
 
-  private func preparePipeline(for run: Int) async throws {
+  private func preparePipeline(for run: Int, source: Source) async throws {
     try await pipeline.start(
+      poseMode: source == .phone ? .required : .fallback,
       onPreview: { [weak self] image in
         guard self?.isCurrent(run) == true else { return }
         self?.latestFrame = image
@@ -242,7 +241,7 @@ final class StreamModel {
       guard let self else { return }
       await Task.yield()
       do {
-        try await preparePipeline(for: run)
+        try await preparePipeline(for: run, source: .phone)
       } catch {
         guard isCurrent(run) else { return }
         await stop()
@@ -348,6 +347,7 @@ final class StreamModel {
   }
 
   private func apply(_ output: RecognitionOutput) {
+    isPreparingLandmarks = false
     if overlayFrame != output.overlay {
       overlayFrame = output.overlay
     }
@@ -356,7 +356,7 @@ final class StreamModel {
         switch failure {
         case .badStatus(_, let status): "Backend HTTP \(status)"
         case .cancelled: nil
-        default: "Backend unavailable"
+        default: "Backend warming up"
         }
       } ?? nil
     if let event = output.event {

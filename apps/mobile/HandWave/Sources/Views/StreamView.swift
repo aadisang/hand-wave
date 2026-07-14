@@ -4,7 +4,8 @@ import UIKit
 
 struct StreamView: View {
   @Environment(AppModel.self) private var appModel
-  @State private var showLandmarks = true
+  @AppStorage(AppSettingKey.showsLandmarks) private var showsLandmarks = true
+  @AppStorage(AppSettingKey.showsPoseLandmarks) private var showsPoseLandmarks = false
 
   var body: some View {
     StreamContent(
@@ -15,8 +16,9 @@ struct StreamView: View {
       current: appModel.stream.current,
       isSpeaking: appModel.stream.isSpeaking,
       backendMessage: appModel.stream.backendMessage,
-      showsPoseLandmarks: appModel.showsPoseLandmarks,
-      showLandmarks: $showLandmarks,
+      startupMessage: appModel.stream.startupMessage,
+      showsPoseLandmarks: showsPoseLandmarks,
+      showsLandmarks: showsLandmarks,
       rotateCamera: appModel.stream.rotateCamera,
       stop: appModel.stream.stop
     )
@@ -31,8 +33,9 @@ private struct StreamContent: View {
   let current: Prediction?
   let isSpeaking: Bool
   let backendMessage: String?
+  let startupMessage: String?
   let showsPoseLandmarks: Bool
-  @Binding var showLandmarks: Bool
+  let showsLandmarks: Bool
   let rotateCamera: () async -> Void
   let stop: () async -> Void
 
@@ -41,8 +44,12 @@ private struct StreamContent: View {
       ZStack {
         Color.stage
         PreviewPane(source: source, phoneSession: phoneSession, frame: latestFrame)
-        if showLandmarks {
+        if showsLandmarks {
           LandmarkOverlay(frame: overlayFrame, showsPose: showsPoseLandmarks)
+            .transition(.opacity)
+        }
+        if let startupMessage {
+          StartupOverlay(message: startupMessage)
             .transition(.opacity)
         }
       }
@@ -61,7 +68,6 @@ private struct StreamContent: View {
         }
         Spacer(minLength: 0)
         ControlBar(
-          showLandmarks: $showLandmarks,
           canRotateCamera: source == .phone,
           rotateCamera: rotateCamera,
           stop: stop
@@ -75,7 +81,7 @@ private struct StreamContent: View {
     .statusBarHidden()
     .animation(Motion.overlay, value: current?.text)
     .animation(Motion.overlay, value: isSpeaking)
-    .animation(Motion.standard, value: showLandmarks)
+    .animation(Motion.standard, value: startupMessage)
   }
 }
 
@@ -109,7 +115,6 @@ private struct PredictionOverlay: View {
 }
 
 private struct ControlBar: View {
-  @Binding var showLandmarks: Bool
   let canRotateCamera: Bool
   let rotateCamera: () async -> Void
   let stop: () async -> Void
@@ -136,15 +141,6 @@ private struct ControlBar: View {
           .buttonStyle(.glass)
           .accessibilityLabel("Switch camera")
         }
-
-        Button {
-          showLandmarks.toggle()
-        } label: {
-          Image(systemName: showLandmarks ? "eye.fill" : "eye.slash.fill")
-            .font(.body)
-        }
-        .buttonStyle(.glass)
-        .accessibilityLabel(showLandmarks ? "Hide landmarks" : "Show landmarks")
       }
       .controlSize(.large)
       .buttonBorderShape(.capsule)
@@ -167,16 +163,28 @@ private struct PreviewPane: View {
         .aspectRatio(contentMode: .fit)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
-      VStack(spacing: Spacing.md) {
-        ProgressView()
-          .controlSize(.large)
-          .tint(.textSecondary)
-        Text("Starting")
-          .font(.appFootnote)
-          .foregroundStyle(.textSecondary)
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      Color.stage
     }
+  }
+}
+
+private struct StartupOverlay: View {
+  let message: String
+
+  var body: some View {
+    VStack(spacing: Spacing.md) {
+      ProgressView()
+        .controlSize(.large)
+        .tint(.textPrimary)
+      Text(message)
+        .font(.appFootnote)
+        .foregroundStyle(.textSecondary)
+    }
+    .padding(.horizontal, Spacing.xl)
+    .padding(.vertical, Spacing.lg)
+    .glassEffect(.regular, in: .rect(cornerRadius: 20))
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel(message)
   }
 }
 

@@ -7,7 +7,6 @@ final class AppModel {
   let wearables: WearablesModel
   let stream: StreamModel
   var isDevMenuPresented = false
-  var showsPoseLandmarks = false
 
   init(wearables: WearablesInterface = Wearables.shared) {
     let wearablesModel = WearablesModel(wearables: wearables)

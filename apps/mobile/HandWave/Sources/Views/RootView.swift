@@ -62,11 +62,6 @@ struct RootView: View {
     .preferredColorScheme(.dark)
     .task { await appModel.wearables.observe() }
     .task { await appModel.stream.observe() }
-    .task(priority: .utility) {
-      try? await Task.sleep(for: .milliseconds(300))
-      guard !Task.isCancelled else { return }
-      await appModel.stream.prepare()
-    }
     .task { await stopOnQuit() }
     .onChange(of: scenePhase) { _, phase in
       switch phase {

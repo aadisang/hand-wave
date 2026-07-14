@@ -1,15 +1,22 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DevMenuView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(AppModel.self) private var appModel
+  @AppStorage(AppSettingKey.showsLandmarks) private var showsLandmarks = true
+  @AppStorage(AppSettingKey.showsPoseLandmarks) private var showsPoseLandmarks = false
+  @State private var isPreparingLogs = false
+  @State private var isLogExporterPresented = false
+  @State private var logDocument: LogDocument?
+  @State private var logExportError: String?
 
   var body: some View {
     NavigationStack {
       List {
         Section("Status") {
           DevRow("Source", activeSource)
-          DevRow("Registration", String(describing: appModel.wearables.registrationState))
+          DevRow("Registration", registrationStatus)
           DevRow("Glasses", glassesStatus)
           DevRow("Stream", streamStatus)
         }
@@ -22,20 +29,23 @@ struct DevMenuView: View {
           }
         }
 
-        Section("Visual Debug") {
-          Toggle(
-            "Pose Landmarks",
-            isOn: Binding(
-              get: { appModel.showsPoseLandmarks },
-              set: { appModel.showsPoseLandmarks = $0 }
-            )
-          )
+        Section("Landmark Overlay") {
+          Toggle("Landmarks", isOn: $showsLandmarks)
+          Toggle("Pose Landmarks", isOn: $showsPoseLandmarks)
         }
 
         Section("Actions") {
           Button("Refresh Status", systemImage: "arrow.clockwise") {
             appModel.refresh()
           }
+
+          Button(
+            isPreparingLogs ? "Preparing Logs" : "Export Logs",
+            systemImage: "square.and.arrow.up"
+          ) {
+            prepareLogExport()
+          }
+          .disabled(isPreparingLogs)
 
           if appModel.stream.isActive {
             Button("Stop Stream", systemImage: "stop.fill", role: .destructive) {
@@ -67,11 +77,42 @@ struct DevMenuView: View {
           Button("Done") { dismiss() }
         }
       }
+      .fileExporter(
+        isPresented: $isLogExporterPresented,
+        document: logDocument,
+        contentType: .plainText,
+        defaultFilename: "hand-wave-logs"
+      ) { result in
+        if case .failure(let error) = result {
+          logExportError = error.localizedDescription
+        }
+      }
+      .alert(
+        "Could not export logs",
+        isPresented: Binding(
+          get: { logExportError != nil },
+          set: { if !$0 { logExportError = nil } }
+        )
+      ) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(logExportError ?? "Unknown error")
+      }
     }
   }
 
   private var activeSource: String {
     (appModel.stream.activeSource ?? appModel.stream.source).title
+  }
+
+  private var registrationStatus: String {
+    switch appModel.wearables.registrationState {
+    case .unavailable: "Unavailable"
+    case .available: "Available"
+    case .registering: "Registering"
+    case .registered: "Registered"
+    @unknown default: "Unknown"
+    }
   }
 
   private var glassesStatus: String {
@@ -89,6 +130,19 @@ struct DevMenuView: View {
     case .idle: "Idle"
     case .connecting: "Starting"
     case .streaming: "Streaming"
+    }
+  }
+
+  private func prepareLogExport() {
+    isPreparingLogs = true
+    Task {
+      defer { isPreparingLogs = false }
+      do {
+        logDocument = LogDocument(text: try await LogExporter.text())
+        isLogExporterPresented = true
+      } catch {
+        logExportError = error.localizedDescription
+      }
     }
   }
 }
