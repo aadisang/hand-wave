@@ -20,6 +20,7 @@ blob-report/
 *.trace.zip
 
 # Raw dev-panel MediaPipe traces are large. Keep compact fixtures only.
+/Traces/
 handwave-trace-*.json
 apps/web/src/tests/fixtures/traces/*.json
 apps/inference/tests/fixtures/traces/handwave-trace-*.json
