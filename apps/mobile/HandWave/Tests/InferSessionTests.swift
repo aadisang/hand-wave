@@ -178,8 +178,10 @@ private final class EventRecorder {
   }
 
   func waitForCount(_ count: Int) async {
-    for _ in 0..<200 where values.count < count {
-      await Task.yield()
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while values.count < count, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 }
@@ -230,8 +232,10 @@ private actor BlockingInferAPI: InferAPI {
   }
 
   func waitUntilStarted() async {
-    for _ in 0..<200 where !started {
-      await Task.yield()
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while !started, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 
@@ -271,8 +275,10 @@ private actor FailingInferAPI: InferAPI {
   }
 
   func waitUntilCalled() async {
-    for _ in 0..<200 where !wasCalled {
-      await Task.yield()
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while !wasCalled, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 }
