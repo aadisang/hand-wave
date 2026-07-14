@@ -19,14 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
-      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-      HAND_WAVE_MODAL_LM: ${{ vars.HAND_WAVE_MODAL_LM }}
-      HAND_WAVE_MODAL_LM_VOLUME: ${{ vars.HAND_WAVE_MODAL_LM_VOLUME }}
-
     steps:
       - name: Validate Modal credentials
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: |
           missing=0
           if [ -z "${MODAL_TOKEN_ID}" ]; then
@@ -39,13 +36,13 @@ jobs:
           fi
           if [ "$missing" -ne 0 ]; then
             echo "Create a Modal service user token, then run:"
-            echo "  gh secret set MODAL_TOKEN_ID --repo sinarck/hand-wave"
-            echo "  gh secret set MODAL_TOKEN_SECRET --repo sinarck/hand-wave"
+            echo "  gh secret set MODAL_TOKEN_ID --repo aadisang/hand-wave"
+            echo "  gh secret set MODAL_TOKEN_SECRET --repo aadisang/hand-wave"
             exit 1
           fi
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           lfs: true
 
@@ -63,12 +60,12 @@ jobs:
           done
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version-file: apps/inference/.python-version
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
         with:
           enable-cache: true
           cache-dependency-glob: apps/inference/uv.lock
@@ -79,8 +76,16 @@ jobs:
 
       - name: Verify Modal auth
         working-directory: apps/inference
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: uv run --frozen --group deploy modal token info
 
       - name: Deploy Modal app
         working-directory: apps/inference
+        env:
+          HAND_WAVE_MODAL_LM: ${{ vars.HAND_WAVE_MODAL_LM }}
+          HAND_WAVE_MODAL_LM_VOLUME: ${{ vars.HAND_WAVE_MODAL_LM_VOLUME }}
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: uv run --frozen --group deploy modal deploy modal_app.py

@@ -1,0 +1,25 @@
+name: Set up Tuist
+description: Install the repository's pinned Tuist release
+
+runs:
+  using: composite
+  steps:
+    - name: Install Tuist 4.202.1
+      shell: bash
+      run: |
+        set -euo pipefail
+        archive="$RUNNER_TEMP/tuist-4.202.1.zip"
+        install_dir="$RUNNER_TEMP/tuist-4.202.1"
+
+        curl --fail --location --proto '=https' --retry 3 --tlsv1.2 \
+          --output "$archive" \
+          https://github.com/tuist/tuist/releases/download/4.202.1/tuist.zip
+        printf '%s  %s\n' \
+          '27fc65c11456df32ebd378c0e97a5ae5fae54501876bf9e6cf3963df9ff7d2dc' \
+          "$archive" | shasum -a 256 --check
+
+        mkdir -p "$install_dir"
+        ditto -x -k "$archive" "$install_dir"
+        chmod +x "$install_dir/tuist"
+        echo "$install_dir" >> "$GITHUB_PATH"
+        "$install_dir/tuist" version
