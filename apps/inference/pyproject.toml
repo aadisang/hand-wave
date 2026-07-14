@@ -8,8 +8,8 @@ dependencies = [
     "kenlm @ https://github.com/kpu/kenlm/archive/refs/heads/master.zip",
     "numpy>=1.26,<3",
     "pyctcdecode>=0.5.0",
-    "torch>=2.2,<2.6",
-    "torchaudio>=2.2,<2.6",
+    "torch>=2.13,<2.14",
+    "torchaudio>=2.11,<2.12",
     "uvicorn[standard]>=0.38.0",
 ]
 
