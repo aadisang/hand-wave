@@ -6,11 +6,8 @@ actor Recognizer {
 
   private let detector: LandmarkDetector
   private let inference: InferSession
-  private var isPrepared = false
   private var isInferenceReady = false
-  private var retryAt = ContinuousClock.now
   private var backendFailure: InferenceFailure?
-  private var preparationTask: Task<Void, Error>?
   private var warmupTask: Task<Void, Never>?
   private var generation = 0
 
@@ -22,33 +19,16 @@ actor Recognizer {
     self.inference = inference
   }
 
-  func start(onEvent: @escaping InferSession.EventHandler) async throws {
+  func start(
+    poseMode: LandmarkDetector.PoseMode,
+    onEvent: @escaping InferSession.EventHandler
+  ) async throws {
     generation &+= 1
     let startGeneration = generation
     await inference.setEventHandler(onEvent)
-    try await prepare()
+    try await detector.prepare(poseMode: poseMode)
     guard generation == startGeneration else { throw CancellationError() }
-    warmupTask = Task { [weak self] in
-      await self?.warmInference(generation: startGeneration)
-    }
-  }
-
-  func prepare() async throws {
-    guard !isPrepared else { return }
-    if let preparationTask {
-      return try await preparationTask.value
-    }
-
-    let task = Task { try await detector.prepare() }
-    preparationTask = task
-    do {
-      try await task.value
-      isPrepared = true
-      preparationTask = nil
-    } catch {
-      preparationTask = nil
-      throw error
-    }
+    startWarmup(generation: startGeneration)
   }
 
   func process(_ frame: FramePipeline.Frame) async throws -> RecognitionOutput {
@@ -70,7 +50,13 @@ actor Recognizer {
       poseMode: poseMode
     )
     try Task.checkCancellation()
-    let result = await ingest(detection.inferenceFrame, at: timestamp)
+    let result: (event: RecognitionEvent?, failure: InferenceFailure?)
+    if isInferenceReady {
+      result = await ingest(detection.inferenceFrame, at: timestamp)
+    } else {
+      startWarmup(generation: generation)
+      result = (nil, backendFailure)
+    }
     return RecognitionOutput(
       event: result.event,
       overlay: detection.overlayFrame,
@@ -88,7 +74,6 @@ actor Recognizer {
     warmupTask?.cancel()
     warmupTask = nil
     isInferenceReady = false
-    retryAt = .now
     backendFailure = nil
     await detector.resetSelection()
     await inference.stop()
@@ -98,49 +83,46 @@ actor Recognizer {
     _ frame: LandmarkFrame?,
     at timestampMs: Int
   ) async -> (event: RecognitionEvent?, failure: InferenceFailure?) {
-    guard isInferenceReady || ContinuousClock.now >= retryAt else {
-      return (nil, backendFailure)
-    }
-
-    if !isInferenceReady {
-      do {
-        try await inference.start()
-        isInferenceReady = true
-        backendFailure = nil
-      } catch {
-        record(error)
-        return (nil, backendFailure)
-      }
-    }
-
     do {
       let event = try await inference.ingest(frame, at: timestampMs)
       backendFailure = nil
       return (event, nil)
     } catch {
       record(error)
+      startWarmup(generation: generation)
       return (nil, backendFailure)
     }
   }
 
-  private func warmInference(generation expectedGeneration: Int) async {
-    guard generation == expectedGeneration, !isInferenceReady, !Task.isCancelled else { return }
-    do {
-      try await inference.start()
-      guard generation == expectedGeneration, !Task.isCancelled else { return }
-      isInferenceReady = true
-      backendFailure = nil
-    } catch {
-      guard generation == expectedGeneration, !Task.isCancelled else { return }
-      record(error)
+  private func startWarmup(generation expectedGeneration: Int) {
+    guard !isInferenceReady, warmupTask == nil else { return }
+    warmupTask = Task { [weak self] in
+      await self?.warmInference(generation: expectedGeneration)
     }
+  }
+
+  private func warmInference(generation expectedGeneration: Int) async {
+    while generation == expectedGeneration, !isInferenceReady, !Task.isCancelled {
+      do {
+        try await inference.start()
+        guard generation == expectedGeneration, !Task.isCancelled else { break }
+        isInferenceReady = true
+        backendFailure = nil
+        AppLog.inference.notice("Inference backend ready")
+      } catch {
+        guard generation == expectedGeneration, !Task.isCancelled else { break }
+        record(error)
+        try? await Task.sleep(for: Self.retryDelay)
+      }
+    }
+    guard generation == expectedGeneration else { return }
+    warmupTask = nil
   }
 
   private func record(_ failure: InferenceFailure) {
     guard failure != .cancelled else { return }
     isInferenceReady = false
     backendFailure = failure
-    retryAt = .now.advanced(by: Self.retryDelay)
     AppLog.inference.error(
       "Inference unavailable: \(failure.localizedDescription, privacy: .private)")
   }

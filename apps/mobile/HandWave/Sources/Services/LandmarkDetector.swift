@@ -33,7 +33,14 @@ actor LandmarkDetector {
   private let imageBufferConverter = PixelBufferConverter()
   private static let poseReuseMs = 500
 
-  func prepare() async throws {
+  func prepare(poseMode: PoseMode) async throws {
+    try await prepareHand()
+    if poseMode == .required {
+      try await preparePose()
+    }
+  }
+
+  private func prepareHand() async throws {
     if handLandmarker != nil { return }
 
     let handPath = try await MediaPipeModelStore.path(
@@ -82,7 +89,7 @@ actor LandmarkDetector {
     timestampMs rawTimestampMs: Int,
     poseMode: PoseMode
   ) async throws -> DetectResult {
-    try await prepare()
+    try await prepare(poseMode: poseMode)
     guard let handLandmarker else {
       throw DetectorError.modelUnavailable("landmarker")
     }

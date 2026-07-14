@@ -1,7 +1,7 @@
 import OSLog
 
 enum AppLog {
-  private static let subsystem = "sh.handwave.HandWave"
+  static let subsystem = "sh.handwave.HandWave"
 
   static let app = Logger(subsystem: subsystem, category: "app")
   static let camera = Logger(subsystem: subsystem, category: "camera")

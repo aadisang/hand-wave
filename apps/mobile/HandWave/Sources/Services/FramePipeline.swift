@@ -33,11 +33,8 @@ actor FramePipeline {
     self.recognizer = recognizer
   }
 
-  func prepare() async throws {
-    try await recognizer.prepare()
-  }
-
   func start(
+    poseMode: LandmarkDetector.PoseMode,
     onPreview: @escaping PreviewHandler,
     onOutput: @escaping OutputHandler,
     onEvent: @escaping EventHandler,
@@ -50,7 +47,7 @@ actor FramePipeline {
     self.onFailure = onFailure
     reportStartedAt = .now
 
-    try await recognizer.start { [weak self] event in
+    try await recognizer.start(poseMode: poseMode) { [weak self] event in
       await self?.deliver(event)
     }
   }
