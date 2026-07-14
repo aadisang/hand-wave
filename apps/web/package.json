@@ -13,7 +13,7 @@
     "@reactuses/core": "^6.3.1",
     "@t3-oss/env-core": "^0.13.11",
     "@tanstack/react-router": "^1.170.16",
-    "@tanstack/react-start": "^1.168.26",
+    "@tanstack/react-start": "^1.168.28",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
