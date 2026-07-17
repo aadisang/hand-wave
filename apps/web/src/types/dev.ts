@@ -41,7 +41,6 @@ export type DevState = {
   pushTrace: (trace: DevTrace) => void;
   startRecording: (label: string) => void;
   stopRecording: () => void;
-  resetTraceCapture: () => void;
   markBoundary: () => void;
   pushFrameTrace: (trace: Omit<DevFrameTrace, "atMs" | "index">) => void;
 };

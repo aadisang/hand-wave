@@ -37,7 +37,18 @@ export const useDevStore = create<DevState>((set) => ({
   recordings: [],
   toggle: () => {
     clearPendingPanelUpdate();
-    set((s) => ({ enabled: !s.enabled, frame: null, fps: 0, inferenceMs: 0 }));
+    set((s) => ({
+      enabled: !s.enabled,
+      frame: null,
+      fps: 0,
+      inferenceMs: 0,
+      ...(s.enabled && s.recording
+        ? {
+            recording: null,
+            recordings: [...s.recordings, s.recording].slice(-maxRecordings),
+          }
+        : {}),
+    }));
   },
   push: (frame, ms) => {
     const now = performance.now();
@@ -89,7 +100,6 @@ export const useDevStore = create<DevState>((set) => ({
         recordings: [...s.recordings, s.recording].slice(-maxRecordings),
       };
     }),
-  resetTraceCapture: () => set({ traces: [], recording: null, recordings: [] }),
   markBoundary: () => set((s) => ({ boundary: s.boundary + 1 })),
   pushFrameTrace: (trace) =>
     set((s) => {

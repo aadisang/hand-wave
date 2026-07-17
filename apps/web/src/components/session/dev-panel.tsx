@@ -1,20 +1,20 @@
 import { DownloadIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cfg } from "@hand-wave/contract";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { useDevStore } from "@/stores/dev-store";
 import type { DevRecording, DevTrace } from "@/types/dev";
 
-export function DevPanel() {
+export function DevPanel({ live }: { live: boolean }) {
   const enabled = useDevStore((s) => s.enabled);
 
   if (!enabled) return null;
 
-  return <DevPanelContent />;
+  return <DevPanelContent live={live} />;
 }
 
-function DevPanelContent() {
+function DevPanelContent({ live }: { live: boolean }) {
   const frame = useDevStore((s) => s.frame);
   const fps = useDevStore((s) => s.fps);
   const inferenceMs = useDevStore((s) => s.inferenceMs);
@@ -23,18 +23,27 @@ function DevPanelContent() {
   const recordings = useDevStore((s) => s.recordings);
   const startRecording = useDevStore((s) => s.startRecording);
   const stopRecording = useDevStore((s) => s.stopRecording);
-  const resetTraceCapture = useDevStore((s) => s.resetTraceCapture);
   const markBoundary = useDevStore((s) => s.markBoundary);
   const [batchText, setBatchText] = useState("");
   const [batchIndex, setBatchIndex] = useState<number | null>(null);
   const batchLabels = useMemo(() => parseBatchLabels(batchText), [batchText]);
-  const activeBatchLabel =
-    batchIndex === null ? null : (batchLabels[batchIndex] ?? null);
-  const exportRecordings = recording ? [...recordings, recording] : recordings;
-  const canExport = traces.length > 0 || exportRecordings.length > 0;
-  const canStartBatch = batchLabels.length > 0 && !recording;
-  const batchProgress =
-    batchIndex === null ? "" : `${batchIndex + 1}/${batchLabels.length}`;
+  const canExport = !recording && (traces.length > 0 || recordings.length > 0);
+  const canStartBatch = live && batchLabels.length > 0 && !recording;
+  const batchActive = recording !== null;
+  const batchStatus = recording
+    ? `Recording ${(batchIndex ?? 0) + 1} of ${batchLabels.length}: ${recording.label}`
+    : !live
+      ? "Start a stream to record"
+      : recordings.length > 0
+        ? `${recordings.length} recording${recordings.length === 1 ? "" : "s"} ready to export`
+        : batchLabels.length > 0
+          ? `${batchLabels.length} label${batchLabels.length === 1 ? "" : "s"} ready`
+          : "Add one label per line";
+  const batchAction = batchActive
+    ? batchIndex === batchLabels.length - 1
+      ? "Finish recording"
+      : "Save & next"
+    : "Start recording";
 
   const hands = [
     ...(frame?.rightHandLandmarks ?? []).map((landmarks, index) => ({
@@ -49,9 +58,14 @@ function DevPanelContent() {
     })),
   ];
   const poseCount = frame?.poseLandmarks[0]?.length ?? 0;
+  useEffect(() => {
+    if (live || !recording) return;
+    stopRecording();
+    markBoundary();
+  }, [live, markBoundary, recording, stopRecording]);
+
   const startBatch = () => {
     if (!canStartBatch) return;
-    resetTraceCapture();
     markBoundary();
     setBatchIndex(0);
     startRecording(batchLabels[0]);
@@ -68,11 +82,6 @@ function DevPanelContent() {
     setBatchIndex(nextIndex);
     startRecording(batchLabels[nextIndex]);
   };
-  const finishBatch = () => {
-    if (recording) stopRecording();
-    markBoundary();
-    setBatchIndex(null);
-  };
 
   return (
     <div className="pointer-events-none w-dev-panel max-w-full">
@@ -82,87 +91,47 @@ function DevPanelContent() {
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="text-muted-foreground">Dev</span>
-          <div className="flex items-center gap-1">
-            <Button
-              onClick={() => {
-                if (recording) {
-                  stopRecording();
-                  markBoundary();
-                  setBatchIndex(null);
-                  return;
-                }
-                markBoundary();
-                startRecording(prompt("Trace label")?.trim() || "unlabeled");
-              }}
-              size="xs"
-              variant={recording ? "destructive" : "outline"}
-            >
-              {recording ? "Stop" : "Rec"}
-            </Button>
-            <Button
-              disabled={!canExport}
-              onClick={() => downloadTraces(traces, exportRecordings)}
-              size="xs"
-              variant="outline"
-            >
-              <DownloadIcon className="size-3" />
-              Trace
-            </Button>
-          </div>
+          <Button
+            disabled={!canExport}
+            onClick={() => downloadTraces(traces, recordings)}
+            size="xs"
+            variant="outline"
+          >
+            <DownloadIcon className="size-3" />
+            Export
+          </Button>
         </div>
         <div className="mb-2 space-y-1.5 border-b pb-2">
           <textarea
             aria-label="Trace batch labels"
-            className="h-trace-input w-full resize-none rounded-md border border-input bg-background/70 px-2 py-1 text-foreground outline-none transition duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring motion-reduce:transition-none"
+            className="h-trace-input w-full resize-none rounded-md border border-input bg-background/70 px-2 py-1 text-foreground outline-none transition duration-150 ease-out focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+            disabled={batchActive}
             onChange={(event) => setBatchText(event.currentTarget.value)}
             placeholder="one label per line"
             spellCheck={false}
             value={batchText}
           />
           <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-muted-foreground">
-              {activeBatchLabel
-                ? `${batchProgress} ${activeBatchLabel}`
-                : `${batchLabels.length} queued`}
+            <span
+              aria-live="polite"
+              className="min-w-0 truncate text-muted-foreground"
+            >
+              {batchStatus}
             </span>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                disabled={!canStartBatch}
-                onClick={startBatch}
-                size="xs"
-                variant="outline"
-              >
-                Start
-              </Button>
-              <Button
-                disabled={batchIndex === null || !recording}
-                onClick={nextBatchLabel}
-                size="xs"
-                variant="outline"
-              >
-                Next
-              </Button>
-              <Button
-                disabled={batchIndex === null && !recording}
-                onClick={finishBatch}
-                size="xs"
-                variant="outline"
-              >
-                Finish
-              </Button>
-            </div>
+            <Button
+              disabled={batchActive ? !recording : !canStartBatch}
+              onClick={batchActive ? nextBatchLabel : startBatch}
+              size="xs"
+              variant={batchActive ? "default" : "outline"}
+            >
+              {batchAction}
+            </Button>
           </div>
         </div>
         <Row label="FPS" value={fps.toFixed(1)} />
         <Row label="Inference" value={`${inferenceMs.toFixed(1)} ms`} />
         <Row label="Hands" value={hands.length.toString()} />
         <Row label="Pose" value={poseCount.toString()} />
-        <Row label="Trace" value={traces.length.toString()} />
-        <Row
-          label="Frames"
-          value={(recording?.frames.length ?? 0).toString()}
-        />
-        <Row label="Clips" value={exportRecordings.length.toString()} />
         {hands.map((hand) => {
           const wrist = hand.landmarks[0];
           return (

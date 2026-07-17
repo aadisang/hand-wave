@@ -70,7 +70,7 @@ export function Stage() {
         />
       )}
       <div className="pointer-events-none absolute top-4 left-4 z-20 max-w-dev-panel">
-        <DevPanel />
+        <DevPanel live={isLive} />
       </div>
       {state.status === "live" && (
         <div className="pointer-events-none absolute top-4 right-4 z-20 flex h-2 items-center">
