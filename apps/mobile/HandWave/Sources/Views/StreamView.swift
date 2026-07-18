@@ -14,9 +14,10 @@ struct StreamView: View {
       latestFrame: appModel.stream.latestFrame,
       overlayFrame: appModel.stream.overlayFrame,
       current: appModel.stream.current,
-      isSpeaking: appModel.stream.isSpeaking,
+      speakingText: appModel.stream.speakingText,
+      framingMessage: appModel.stream.framingMessage,
       backendMessage: appModel.stream.backendMessage,
-      startupMessage: appModel.stream.startupMessage,
+      isLoading: appModel.stream.isPreparingLandmarks,
       showsPoseLandmarks: showsPoseLandmarks,
       showsLandmarks: showsLandmarks,
       rotateCamera: appModel.stream.rotateCamera,
@@ -31,9 +32,10 @@ private struct StreamContent: View {
   let latestFrame: UIImage?
   let overlayFrame: HandLandmarksFrame
   let current: Prediction?
-  let isSpeaking: Bool
+  let speakingText: String?
+  let framingMessage: String?
   let backendMessage: String?
-  let startupMessage: String?
+  let isLoading: Bool
   let showsPoseLandmarks: Bool
   let showsLandmarks: Bool
   let rotateCamera: () async -> Void
@@ -48,16 +50,23 @@ private struct StreamContent: View {
           LandmarkOverlay(frame: overlayFrame, showsPose: showsPoseLandmarks)
             .transition(.opacity)
         }
-        if let startupMessage {
-          StartupOverlay(message: startupMessage)
+        if isLoading {
+          ProgressView()
+            .progressViewStyle(.circular)
+            .controlSize(.large)
+            .tint(.textPrimary)
             .transition(.opacity)
         }
       }
       .ignoresSafeArea()
 
       VStack(spacing: 0) {
-        if let current {
-          PredictionOverlay(prediction: current, isSpeaking: isSpeaking)
+        if let speakingText {
+          PredictionOverlay(text: speakingText, isSpeaking: true)
+        } else if let current {
+          PredictionOverlay(text: current.text, isSpeaking: false)
+        } else if let framingMessage {
+          FramingHint(message: framingMessage)
         } else if let backendMessage {
           Text(backendMessage)
             .font(.appFootnote)
@@ -80,13 +89,28 @@ private struct StreamContent: View {
     .toolbar(.hidden, for: .navigationBar)
     .statusBarHidden()
     .animation(Motion.overlay, value: current?.text)
-    .animation(Motion.overlay, value: isSpeaking)
-    .animation(Motion.standard, value: startupMessage)
+    .animation(Motion.overlay, value: speakingText)
+    .animation(Motion.standard, value: isLoading)
+  }
+}
+
+private struct FramingHint: View {
+  let message: String
+
+  var body: some View {
+    Label(message, systemImage: "figure.stand")
+      .font(.appFootnote)
+      .foregroundStyle(.textPrimary)
+      .multilineTextAlignment(.center)
+      .padding(.horizontal, Spacing.lg)
+      .padding(.vertical, Spacing.md)
+      .glassEffect(.regular, in: .capsule)
+      .accessibilityLabel(message)
   }
 }
 
 private struct PredictionOverlay: View {
-  let prediction: Prediction
+  let text: String
   let isSpeaking: Bool
 
   var body: some View {
@@ -99,7 +123,7 @@ private struct PredictionOverlay: View {
           .transition(.scale(scale: 0.86).combined(with: .opacity))
       }
 
-      Text(prediction.text)
+      Text(text)
         .font(.satoshi(22, .semibold))
         .foregroundStyle(.textPrimary)
         .lineLimit(1)
@@ -109,7 +133,7 @@ private struct PredictionOverlay: View {
     .padding(.vertical, Spacing.md)
     .glassEffect(.regular, in: .capsule)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel(isSpeaking ? "\(prediction.text), speaking" : prediction.text)
+    .accessibilityLabel(isSpeaking ? "\(text), speaking" : text)
     .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
   }
 }
@@ -165,26 +189,6 @@ private struct PreviewPane: View {
     } else {
       Color.stage
     }
-  }
-}
-
-private struct StartupOverlay: View {
-  let message: String
-
-  var body: some View {
-    VStack(spacing: Spacing.md) {
-      ProgressView()
-        .controlSize(.large)
-        .tint(.textPrimary)
-      Text(message)
-        .font(.appFootnote)
-        .foregroundStyle(.textSecondary)
-    }
-    .padding(.horizontal, Spacing.xl)
-    .padding(.vertical, Spacing.lg)
-    .glassEffect(.regular, in: .rect(cornerRadius: 20))
-    .accessibilityElement(children: .combine)
-    .accessibilityLabel(message)
   }
 }
 

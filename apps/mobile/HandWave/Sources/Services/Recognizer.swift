@@ -19,6 +19,10 @@ actor Recognizer {
     self.inference = inference
   }
 
+  func prepare(poseMode: LandmarkDetector.PoseMode) async throws {
+    try await detector.prepare(poseMode: poseMode)
+  }
+
   func start(
     poseMode: LandmarkDetector.PoseMode,
     onEvent: @escaping InferSession.EventHandler
@@ -26,7 +30,7 @@ actor Recognizer {
     generation &+= 1
     let startGeneration = generation
     await inference.setEventHandler(onEvent)
-    try await detector.prepare(poseMode: poseMode)
+    try await prepare(poseMode: poseMode)
     guard generation == startGeneration else { throw CancellationError() }
     startWarmup(generation: startGeneration)
   }
@@ -61,12 +65,12 @@ actor Recognizer {
       event: result.event,
       overlay: detection.overlayFrame,
       hasLandmarks: detection.inferenceFrame != nil,
+      needsPose: poseMode == .required
+        && detection.inferenceFrame == nil
+        && (!detection.overlayFrame.rightHandLandmarks.isEmpty
+          || !detection.overlayFrame.leftHandLandmarks.isEmpty),
       backendFailure: result.failure
     )
-  }
-
-  func resetAfterSpokenPartial() async {
-    await inference.resetAfterSpokenPartial()
   }
 
   func stop() async {

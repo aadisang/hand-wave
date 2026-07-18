@@ -26,11 +26,16 @@ actor FramePipeline {
   private var onFailure: FailureHandler?
   private var receivedFrames = 0
   private var processedFrames = 0
+  private var inferenceFrames = 0
   private var supersededFrames = 0
   private var reportStartedAt = ContinuousClock.now
 
   init(recognizer: Recognizer = Recognizer()) {
     self.recognizer = recognizer
+  }
+
+  func prepare(poseMode: LandmarkDetector.PoseMode) async throws {
+    try await recognizer.prepare(poseMode: poseMode)
   }
 
   func start(
@@ -65,10 +70,6 @@ actor FramePipeline {
     startPreviewIfNeeded()
   }
 
-  func resetAfterSpokenPartial() async {
-    await recognizer.resetAfterSpokenPartial()
-  }
-
   func stop() async {
     generation &+= 1
     let activeRecognitionTask = recognitionTask
@@ -87,6 +88,7 @@ actor FramePipeline {
     onFailure = nil
     receivedFrames = 0
     processedFrames = 0
+    inferenceFrames = 0
     supersededFrames = 0
     await recognizer.stop()
   }
@@ -110,6 +112,9 @@ actor FramePipeline {
         AppLog.performance.endInterval("Landmark processing", interval)
         guard expectedGeneration == generation, !Task.isCancelled else { break }
         processedFrames += 1
+        if output.hasLandmarks {
+          inferenceFrames += 1
+        }
         reportPerformanceIfNeeded()
         if let onOutput {
           await onOutput(output)
@@ -171,10 +176,11 @@ actor FramePipeline {
   private func reportPerformanceIfNeeded() {
     guard reportStartedAt.duration(to: .now) >= Self.reportInterval else { return }
     AppLog.stream.debug(
-      "Frame pipeline received=\(self.receivedFrames) processed=\(self.processedFrames) superseded=\(self.supersededFrames)"
+      "Frame pipeline received=\(self.receivedFrames) processed=\(self.processedFrames) inference=\(self.inferenceFrames) superseded=\(self.supersededFrames)"
     )
     receivedFrames = 0
     processedFrames = 0
+    inferenceFrames = 0
     supersededFrames = 0
     reportStartedAt = .now
   }

@@ -54,7 +54,6 @@ struct LandmarkSelectionTests {
       timestampMs: 100,
       recentLandmarks: recent
     )
-
     #expect(required == nil)
     #expect(fallback?.landmarks.count == 54)
     #expect(fallback?.landmarks[21].x == hand[0].x)

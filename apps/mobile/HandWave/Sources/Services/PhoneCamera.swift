@@ -28,7 +28,7 @@ final class PhoneCamera: NSObject, @unchecked Sendable {
   }
 
   let session = AVCaptureSession()
-  private static let targetFrameRate = 60.0
+  private static let targetFrameRate = 30.0
   private static let maxPixels = Int32(1920 * 1080)
   private let queue = DispatchQueue(label: "sh.handwave.phone-camera")
   private let output = AVCaptureVideoDataOutput()

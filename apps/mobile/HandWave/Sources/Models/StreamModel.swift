@@ -80,8 +80,9 @@ final class StreamModel {
   private(set) var latestFrame: UIImage?
   private(set) var overlayFrame = HandLandmarksFrame.empty
   private(set) var current: Prediction?
-  private(set) var isSpeaking = false
+  private(set) var speakingText: String?
   private(set) var isPreparingLandmarks = false
+  private(set) var framingMessage: String?
   private(set) var backendMessage: String?
   var failure: StreamFailure?
 
@@ -97,28 +98,27 @@ final class StreamModel {
   @ObservationIgnored private var errorToken: AnyListenerToken?
   @ObservationIgnored private var sessionErrorTask: Task<Void, Never>?
   @ObservationIgnored private var frameTask: Task<Void, Never>?
+  @ObservationIgnored private var prewarmTask: Task<Void, Never>?
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var isStopping = false
   @ObservationIgnored private var streamStarted = false
   @ObservationIgnored private var startError: DeviceSessionError?
-  @ObservationIgnored private var clearPredictionAfterSpeech = false
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
     self.selector = AutoDeviceSelector(wearables: wearables)
-    speech.onSpeakingChanged = { [weak self] in self?.speakingChanged($0) }
-    speech.onPartialSpoken = { [weak self] in self?.partialWasSpoken() }
+    speech.onSpeakingTextChanged = { [weak self] in self?.speakingText = $0 }
   }
 
   var isStreaming: Bool { status == .streaming }
   var isActive: Bool { status != .idle }
   var phoneSession: AVCaptureSession { phoneCamera.session }
-  var startupMessage: String? {
-    guard isPreparingLandmarks else { return nil }
-    return status == .connecting ? "Starting camera" : "Preparing hand tracking"
-  }
-
   func observe() async {
+    if prewarmTask == nil {
+      prewarmTask = Task(priority: .utility) { [pipeline] in
+        try? await pipeline.prepare(poseMode: .required)
+      }
+    }
     refresh()
     for await device in selector.activeDeviceStream() {
       hasActiveDevice = device != nil
@@ -145,6 +145,8 @@ final class StreamModel {
         guard isCurrent(run) else { return }
         try await startGlasses(run: run)
       case .phone:
+        try await preparePipeline(for: run, source: .phone)
+        guard isCurrent(run) else { return }
         try await startPhone(run: run)
       }
     } catch is CancellationError {
@@ -196,8 +198,9 @@ final class StreamModel {
     latestFrame = nil
     overlayFrame = .empty
     current = nil
-    clearPredictionAfterSpeech = false
+    speakingText = nil
     isPreparingLandmarks = false
+    framingMessage = nil
     backendMessage = nil
     speech.reset()
     activeSource = nil
@@ -239,15 +242,6 @@ final class StreamModel {
 
     frameTask = Task { [weak self] in
       guard let self else { return }
-      await Task.yield()
-      do {
-        try await preparePipeline(for: run, source: .phone)
-      } catch {
-        guard isCurrent(run) else { return }
-        await stop()
-        failure = .recognition(error.localizedDescription)
-        return
-      }
       for await frame in frames {
         guard isCurrent(run), !Task.isCancelled else { return }
         await pipeline.submit(.phone(frame))
@@ -359,6 +353,12 @@ final class StreamModel {
         default: "Backend warming up"
         }
       } ?? nil
+    let nextFramingMessage = output.needsPose
+      ? "Stand back."
+      : nil
+    if framingMessage != nextFramingMessage {
+      framingMessage = nextFramingMessage
+    }
     if let event = output.event {
       apply(event)
     }
@@ -367,32 +367,15 @@ final class StreamModel {
   private func apply(_ event: RecognitionEvent) {
     switch event {
     case .clear:
-      if isSpeaking {
-        clearPredictionAfterSpeech = true
-      } else {
-        current = nil
-      }
+      current = nil
     case .partial(let prediction), .finalized(let prediction):
+      guard prediction.isMeaningful else {
+        current = nil
+        return
+      }
       current = prediction
     }
     speech.handle(event) { [weak self] in self?.current }
-  }
-
-  private func partialWasSpoken() {
-    clearPredictionAfterSpeech = true
-    let run = generation
-    Task { [weak self] in
-      guard let self, isCurrent(run) else { return }
-      await pipeline.resetAfterSpokenPartial()
-    }
-  }
-
-  private func speakingChanged(_ speaking: Bool) {
-    isSpeaking = speaking
-    if !speaking, clearPredictionAfterSpeech {
-      current = nil
-      clearPredictionAfterSpeech = false
-    }
   }
 
   private func isCurrent(_ run: Int) -> Bool {
