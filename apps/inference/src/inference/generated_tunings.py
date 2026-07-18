@@ -10,7 +10,7 @@ CTC: dict[str, object] = {
     "beam_prune_logp": -10,
     "token_min_logp": -5,
     "confidence_temperature": 2.279,
-    "hotwords": ("aadi", "chad", "shiven"),
+    "hotwords": (),
     "hotword_weight": 8,
 }
 

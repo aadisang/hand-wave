@@ -36,7 +36,7 @@
       "beamPruneLogp": -10.0,
       "tokenMinLogp": -5.0,
       "confidenceTemperature": 2.279,
-      "hotwords": ["aadi", "chad", "shiven"],
+      "hotwords": [],
       "hotwordWeight": 8.0
     },
     "smooth": {

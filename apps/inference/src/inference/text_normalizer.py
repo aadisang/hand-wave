@@ -26,9 +26,9 @@ MAX_EXACT_SPLIT_WORDS = 5
 TWO_WORD_EXACT_SPLIT_ACCEPT_SCORE = 5.4
 RARE_COMPOUND_SPLIT_MIN_RANK = 8_000
 MAX_CORRECTION_WORDS = 5
-SHORT_FIRST_WORD_ACCEPT_SCORE = 4.9
 SHORT_FIRST_WORD_LENGTH = 3
 SHORT_FIRST_WORD_REPLACE_MARGIN = 0.35
+CORRECTION_COMPLEXITY_MARGIN = 0.35
 SPACED_CORRECTION_MARGIN = 0.18
 MAX_ONE_LETTER_WORDS = 1
 MAX_ONE_LETTER_SOURCE_RANK = 100
@@ -36,6 +36,7 @@ MAX_SHORT_EXACT_WORD_RANK = 5_000
 MAX_SHORT_FIRST_WORD_RANK = 500
 MAX_SINGLE_WORD_CORRECTION_CHARS = 8
 MAX_SINGLE_WORD_CORRECTION_RANK = 1_000
+MAX_FRAGMENTED_WORD_CORRECTION_RANK = 5_000
 MIN_SINGLE_WORD_RANK_RATIO = 2.5
 MIN_COMPOUND_COLLAPSE_RANK = 1_000
 
@@ -60,6 +61,8 @@ class TextNormalizer:
         self.delete_index = deletion_index(self.words)
         self.language_model = load_language_model()
         self._candidate_cache: dict[str, tuple[WordCandidate, ...]] = {}
+        self._correction_cache: dict[str, tuple[tuple[float, SegmentationPath], ...]] = {}
+        self._segmentation_cache: dict[str, tuple[SegmentationPath, ...]] = {}
 
     def normalize(self, text: str) -> str:
         raw = letters_only(text)
@@ -74,19 +77,32 @@ class TextNormalizer:
         corrected_word = self.single_word_correction(raw)
         if corrected_word is not None:
             return corrected_word
+        if len(raw) >= 7:
+            corrected_fragment = self.single_word_correction(
+                raw,
+                max_rank=MAX_FRAGMENTED_WORD_CORRECTION_RANK,
+            )
+            if corrected_fragment is not None:
+                fragmented = self.correction_candidates(raw)
+                if (
+                    fragmented
+                    and len(preferred_correction_candidate(fragmented)[1].words) >= 3
+                ):
+                    return corrected_fragment
         exact_split = self.best_exact_split(raw)
         if exact_split is not None:
             return self.refine_spaced_candidate(exact_split.words)
+        short_first = self.short_first_word_correction(raw)
         if len(raw) < MIN_CORRECTION_LENGTH:
-            return text
+            return self.refine_spaced_candidate(short_first.words) if short_first else text
 
         candidates = self.correction_candidates(raw)
         if not candidates:
-            return text
-        best_score, best = candidates[0]
-        short_first = self.short_first_word_correction(raw)
+            return self.refine_spaced_candidate(short_first.words) if short_first else text
+        best_score, best = preferred_correction_candidate(candidates)
         if (
             short_first is not None
+            and len(best.words[0]) < 4
             and self.path_score(short_first) + SHORT_FIRST_WORD_REPLACE_MARGIN < best_score
         ):
             return self.refine_spaced_candidate(short_first.words)
@@ -129,6 +145,9 @@ class TextNormalizer:
         return self.normalize_spaced(text, letters_only(text))
 
     def correction_candidates(self, raw: str) -> tuple[tuple[float, SegmentationPath], ...]:
+        cached = self._correction_cache.get(raw)
+        if cached is not None:
+            return cached
         max_edits = 2 if len(raw) >= 7 else 1
         scored: list[tuple[float, SegmentationPath]] = []
         for path in self.segmentations(raw):
@@ -143,7 +162,11 @@ class TextNormalizer:
             if not preserves_edges(raw, path.words):
                 continue
             scored.append((self.path_score(path), path))
-        return tuple(sorted(scored, key=lambda item: item[0]))
+        result = tuple(sorted(scored, key=lambda item: item[0]))
+        if len(self._correction_cache) >= 512:
+            self._correction_cache.clear()
+        self._correction_cache[raw] = result
+        return result
 
     def short_first_word_correction(self, raw: str) -> SegmentationPath | None:
         max_edits = 2 if len(raw) >= 7 else 1
@@ -157,20 +180,37 @@ class TextNormalizer:
                 continue
             if has_rare_short_word(path.words, self.ranks):
                 continue
-            if len(path.words[0]) != SHORT_FIRST_WORD_LENGTH:
+            if not 1 <= len(path.words[0]) <= SHORT_FIRST_WORD_LENGTH:
                 continue
             if self.ranks[path.words[0]] > MAX_SHORT_FIRST_WORD_RANK:
                 continue
-            if not path.words[-1].endswith(raw[-1]):
+            if len(path.words[0]) < SHORT_FIRST_WORD_LENGTH and not raw.startswith(path.words[0]):
+                continue
+            if any(len(word) == 1 for word in path.words[1:]):
+                continue
+            joined = "".join(path.words)
+            preserves_tail = path.words[-1].endswith(raw[-1])
+            completes_tail = len(joined) == len(raw) + 1 and joined.startswith(raw)
+            drops_noisy_tail = (
+                1 <= len(raw) - len(joined) <= 2
+                and joined.endswith(raw[-2])
+                and edit_distance(raw, joined, max_distance=2) <= 2
+            )
+            if not preserves_tail and not completes_tail and not drops_noisy_tail:
                 continue
             score = self.path_score(path)
-            if score <= SHORT_FIRST_WORD_ACCEPT_SCORE:
+            if score <= ACCEPT_SCORE:
                 scored.append((score, path))
         if not scored:
             return None
-        return min(scored, key=short_first_word_score_key)[1]
+        return preferred_correction_candidate(scored)[1]
 
-    def single_word_correction(self, raw: str) -> str | None:
+    def single_word_correction(
+        self,
+        raw: str,
+        *,
+        max_rank: int = MAX_SINGLE_WORD_CORRECTION_RANK,
+    ) -> str | None:
         if not (4 <= len(raw) <= MAX_SINGLE_WORD_CORRECTION_CHARS):
             return None
         if raw in self.word_set:
@@ -182,7 +222,7 @@ class TextNormalizer:
             if (
                 candidate.edits == 1
                 and len(candidate.word) >= 4
-                and self.ranks[candidate.word] <= MAX_SINGLE_WORD_CORRECTION_RANK
+                and self.ranks[candidate.word] <= max_rank
                 and plausible_single_word_alignment(raw, candidate.word)
             )
         ]
@@ -258,6 +298,9 @@ class TextNormalizer:
         return path.edits * 0.35 + lm_cost * 1.3 + rank_cost * 0.025 + len(path.words) * 0.03
 
     def segmentations(self, raw: str) -> tuple[SegmentationPath, ...]:
+        cached = self._segmentation_cache.get(raw)
+        if cached is not None:
+            return cached
         size = len(raw)
         paths: list[list[SegmentationPath]] = [[] for _ in range(size + 1)]
         paths[0] = [SegmentationPath(base_cost=0.0, edits=0, words=())]
@@ -283,7 +326,11 @@ class TextNormalizer:
                     paths[end] = sorted(paths[end], key=lambda item: item.base_cost)[
                         :MAX_PATHS_PER_POSITION
                     ]
-        return tuple(paths[size])
+        result = tuple(paths[size])
+        if len(self._segmentation_cache) >= 512:
+            self._segmentation_cache.clear()
+        self._segmentation_cache[raw] = result
+        return result
 
     def word_candidates(self, source: str) -> tuple[WordCandidate, ...]:
         cached = self._candidate_cache.get(source)
@@ -451,10 +498,15 @@ def should_collapse_split_compound(
     )
 
 
-def short_first_word_score_key(item: tuple[float, SegmentationPath]) -> tuple[float, int, int]:
-    score, path = item
-    short_words = sum(1 for word in path.words if len(word) <= 2)
-    return (score, short_words, len(path.words))
+def preferred_correction_candidate(
+    candidates: Iterable[tuple[float, SegmentationPath]],
+) -> tuple[float, SegmentationPath]:
+    ranked = sorted(candidates, key=lambda item: item[0])
+    best_score = ranked[0][0]
+    competitive = [
+        item for item in ranked if item[0] <= best_score + CORRECTION_COMPLEXITY_MARGIN
+    ]
+    return min(competitive, key=lambda item: (len(item[1].words), item[1].edits, item[0]))
 
 
 def plausible_single_word_alignment(raw: str, word: str) -> bool:

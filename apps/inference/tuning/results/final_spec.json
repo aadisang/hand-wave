@@ -6,11 +6,7 @@
     "beam_width": 50,
     "beam_prune_logp": -10.0,
     "token_min_logp": -5.0,
-    "hotwords": [
-      "aadi",
-      "chad",
-      "shiven"
-    ],
+    "hotwords": [],
     "hotword_weight": 8.0
   },
   "smooth_params": {

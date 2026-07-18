@@ -49,3 +49,45 @@ def test_rejects_unstable_low_evidence_prediction() -> None:
         state = out.state
 
     assert not finalize(state, context(), config).committed
+
+
+def test_rejects_prefix_when_later_predictions_keep_expanding_it() -> None:
+    state = empty_state()
+    config = SmoothConfig(display_confidence=0.05, commit_confidence=0.8)
+
+    for _ in range(8):
+        state = accept_prediction(state, predict("nics", 0.95), context(), 24, 0, config).state
+    for _ in range(6):
+        state = accept_prediction(
+            state,
+            predict("nice to us", 0.1),
+            context(),
+            24,
+            0,
+            config,
+        ).state
+    for _ in range(4):
+        state = accept_prediction(
+            state,
+            predict("nice to meet you", 0.1),
+            context(),
+            24,
+            0,
+            config,
+        ).state
+
+    assert not finalize(state, context(), config).committed
+
+
+def test_keeps_stable_word_when_expansion_is_only_noise() -> None:
+    state = empty_state()
+    config = SmoothConfig(display_confidence=0.05, commit_confidence=0.8)
+
+    for _ in range(8):
+        state = accept_prediction(state, predict("water", 0.95), context(), 24, 0, config).state
+    state = accept_prediction(state, predict("waterloo", 0.1), context(), 24, 0, config).state
+
+    committed = finalize(state, context(), config)
+    assert committed.committed
+    assert committed.display_prediction
+    assert committed.display_prediction.label == "water"

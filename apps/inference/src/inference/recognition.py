@@ -23,7 +23,7 @@ from inference.schemas import (
     RecognizeIn,
     RecognizeOut,
 )
-from inference.text_normalizer import is_uncorrected_oov, normalize_prediction_text
+from inference.text_normalizer import edit_distance, is_uncorrected_oov, normalize_prediction_text
 
 logger = logging.getLogger(__name__)
 
@@ -387,10 +387,15 @@ def finalize(
     selected = select_final(state, config)
     prediction = None
     committed = False
+    incomplete = selected is not None and has_expansion_evidence(state, selected, config)
     if selected:
         prediction = selected.prediction
-        committed = should_commit(selected, count_for_candidate(state, selected), config)
-    if not committed:
+        committed = not incomplete and should_commit(
+            selected,
+            count_for_candidate(state, selected),
+            config,
+        )
+    if not committed and not incomplete:
         majority = majority_candidate(state, config)
         if majority is not None:
             prediction = majority.prediction
@@ -779,6 +784,28 @@ def should_commit(
             config,
         )
     )
+
+
+def has_expansion_evidence(
+    state: RecognitionState,
+    candidate: RecognitionScored,
+    config: SmoothConfig,
+) -> bool:
+    base = clean(candidate.prediction.label).replace(" ", "")
+    if len(base) < 3:
+        return False
+
+    support = 0
+    for item in state.counts or []:
+        expanded = clean(item.text).replace(" ", "")
+        if len(expanded) < len(base) + 2:
+            continue
+        prefix = expanded[: len(base)]
+        if edit_distance(base, prefix, max_distance=1) <= 1:
+            support += item.count
+
+    required = max(config.commit_count, count_for_candidate(state, candidate))
+    return support >= required
 
 
 def is_stable_alternative_candidate(
