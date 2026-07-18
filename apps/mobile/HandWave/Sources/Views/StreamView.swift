@@ -27,6 +27,15 @@ struct StreamView: View {
 }
 
 private struct StreamContent: View {
+  private enum OverlayPresentation: Equatable {
+    case absent
+    case prediction
+    case speaking
+    case framing
+    case backend
+  }
+
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let source: StreamModel.Source
   let phoneSession: AVCaptureSession
   let latestFrame: UIImage?
@@ -40,6 +49,14 @@ private struct StreamContent: View {
   let showsLandmarks: Bool
   let rotateCamera: () async -> Void
   let stop: () async -> Void
+
+  private var overlayPresentation: OverlayPresentation {
+    if speakingText != nil { return .speaking }
+    if current != nil { return .prediction }
+    if framingMessage != nil { return .framing }
+    if backendMessage != nil { return .backend }
+    return .absent
+  }
 
   var body: some View {
     ZStack {
@@ -62,9 +79,17 @@ private struct StreamContent: View {
 
       VStack(spacing: 0) {
         if let speakingText {
-          PredictionOverlay(text: speakingText, isSpeaking: true)
+          PredictionOverlay(
+            text: speakingText,
+            isSpeaking: true,
+            reduceMotion: reduceMotion
+          )
         } else if let current {
-          PredictionOverlay(text: current.text, isSpeaking: false)
+          PredictionOverlay(
+            text: current.text,
+            isSpeaking: false,
+            reduceMotion: reduceMotion
+          )
         } else if let framingMessage {
           FramingHint(message: framingMessage)
         } else if let backendMessage {
@@ -88,8 +113,7 @@ private struct StreamContent: View {
     .background(.stage)
     .toolbar(.hidden, for: .navigationBar)
     .statusBarHidden()
-    .animation(Motion.overlay, value: current?.text)
-    .animation(Motion.overlay, value: speakingText)
+    .animation(Motion.overlay, value: overlayPresentation)
     .animation(Motion.standard, value: isLoading)
   }
 }
@@ -112,15 +136,24 @@ private struct FramingHint: View {
 private struct PredictionOverlay: View {
   let text: String
   let isSpeaking: Bool
+  let reduceMotion: Bool
 
   var body: some View {
+    if reduceMotion {
+      overlay.transition(.opacity)
+    } else {
+      overlay.transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
+    }
+  }
+
+  private var overlay: some View {
     HStack(spacing: Spacing.sm) {
       if isSpeaking {
-        Image(systemName: "speaker.wave.2.fill")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(.textPrimary)
-          .imageScale(.medium)
-          .transition(.scale(scale: 0.86).combined(with: .opacity))
+        if reduceMotion {
+          speakingGlyph.transition(.opacity)
+        } else {
+          speakingGlyph.transition(.scale(scale: 0.94).combined(with: .opacity))
+        }
       }
 
       Text(text)
@@ -134,7 +167,13 @@ private struct PredictionOverlay: View {
     .glassEffect(.regular, in: .capsule)
     .accessibilityElement(children: .combine)
     .accessibilityLabel(isSpeaking ? "\(text), speaking" : text)
-    .transition(.blurReplace.combined(with: .scale(0.98, anchor: .top)))
+  }
+
+  private var speakingGlyph: some View {
+    Image(systemName: "speaker.wave.2.fill")
+      .font(.system(size: 15, weight: .semibold))
+      .foregroundStyle(.textPrimary)
+      .imageScale(.medium)
   }
 }
 
