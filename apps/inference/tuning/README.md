@@ -27,11 +27,5 @@ uv run python tuning/optimize.py eval tuning/results/final_spec.json
 uv run python tuning/analyze_misses.py --alpha 1.6 --beta 2.0
 ```
 
-`results/final_spec.json` records the best parameter set from the 67-trace run:
-53.7% committed exact-match with 1.5% false commits. Shipped values live in the
-contract config.
-
-Key evidence from the 2026-07 tuning run: the accuracy ceiling is set by the
-model's emissions, not this layer — 16/67 recordings never contain the label
-in any beam of any window (any-beam ceiling 79%). Next gains come from model
-retraining / new traces, which this harness can score in seconds.
+`results/final_spec.json` records the selected parameter set. Shipped values
+live in the contract config.

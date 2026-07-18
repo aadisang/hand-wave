@@ -2,6 +2,10 @@
 
 FastAPI inference service for Hand Wave.
 
+The iOS and browser clients use `wss://<host>/v1/stream` with the `handwave.v1` subprotocol. Each
+connection retains its rolling frame window and recognition state; reconnects resynchronize from the
+active window. `POST /v1/recognize` remains available as a fallback.
+
 ## Modal
 
 The Modal app wraps the existing `inference.main:app` ASGI application. It packages the local
@@ -14,7 +18,7 @@ Before deploying, authenticate the Modal CLI:
 uv run --group deploy modal setup
 ```
 
-Run an ephemeral Modal endpoint while developing:
+Develop against an ephemeral Modal endpoint:
 
 ```sh
 moon run inference:modalServe
@@ -26,15 +30,14 @@ Deploy the persistent endpoint:
 moon run inference:modalDeploy
 ```
 
-After deploy, set the web app's `VITE_INFERENCE_URL` to the Modal endpoint printed by the CLI.
+After deploy, set the web app's `VITE_INFERENCE_URL` and the iOS build setting
+`HANDWAVE_INFERENCE_URL` to the Modal endpoint printed by the CLI. The iOS client converts the
+configured `https` URL to `wss` automatically.
 
-### Optional Wikipedia LM
+### Optional Wikipedia language model
 
-The Modal app always mounts the LM Volume so Modal sees the same object graph at deploy time and
-container startup. The default profile still uses the bundled `best.ckpt` and
-`neutral_english_4gram.kenlm` files in the image. The 14 GB `wiki_en_token.arpa.bin` file is
-intentionally not committed. To test it on Modal, seed the Volume once, then deploy with the wiki
-profile:
+The default profile uses the bundled checkpoint and language model. To use the optional Wikipedia
+model, seed the Modal Volume once and deploy with the wiki profile:
 
 ```sh
 cd apps/inference
@@ -50,31 +53,4 @@ the Volume read-only at `/lm` and uses:
 ```sh
 KENLM_MODEL_PATH=/lm/wiki_en_token.arpa.bin
 KENLM_UNIGRAMS_PATH=/lm/wiki_en_token.unigrams.txt
-```
-
-For GitHub Actions deploys, set repository variable `HAND_WAVE_MODAL_LM=wiki` after the Volume is
-seeded. Leave it unset to deploy the default bundled language model.
-
-GitHub Actions deploys the Modal app on pushes to `main` when inference or contract files change.
-The workflow expects these repository secrets:
-
-- `MODAL_TOKEN_ID`
-- `MODAL_TOKEN_SECRET`
-
-Create a Modal service user token from the Modal workspace token settings, then store each value as
-a GitHub Actions secret:
-
-```sh
-gh secret set MODAL_TOKEN_ID --repo sinarck/hand-wave
-gh secret set MODAL_TOKEN_SECRET --repo sinarck/hand-wave
-```
-
-Paste the token ID into the first prompt and the token secret into the second prompt. Modal only
-shows the token secret once when the service user is created.
-
-Verify the secrets exist and trigger a deploy:
-
-```sh
-gh secret list --repo sinarck/hand-wave
-gh workflow run modal-inference.yml --repo sinarck/hand-wave
 ```
