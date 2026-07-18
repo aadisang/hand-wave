@@ -99,7 +99,8 @@ let project = Project(
       ],
       settings: .settings(
         base: [
-          "CODE_SIGN_STYLE": "Automatic"
+          "ASSETCATALOG_COMPILER_APPICON_NAME": "Hand Wave Icon",
+          "CODE_SIGN_STYLE": "Automatic",
         ]
       )
     ),

@@ -1,0 +1,29 @@
+{
+  "fill" : {
+    "solid" : "display-p3:0.14336,0.14356,0.13856,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "HandWave-Foreground.png",
+          "name" : "HandWave-Foreground"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
