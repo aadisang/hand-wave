@@ -84,8 +84,6 @@ jobs:
       - name: Deploy Modal app
         working-directory: apps/inference
         env:
-          HAND_WAVE_MODAL_LM: ${{ vars.HAND_WAVE_MODAL_LM }}
-          HAND_WAVE_MODAL_LM_VOLUME: ${{ vars.HAND_WAVE_MODAL_LM_VOLUME }}
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: uv run --frozen --group deploy modal deploy modal_app.py
