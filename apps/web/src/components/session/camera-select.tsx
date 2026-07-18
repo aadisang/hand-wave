@@ -11,6 +11,7 @@ import { ToolbarSeparator } from "@/components/ui/toolbar";
 
 type Props = {
   cameraId: string | null;
+  onOpenChange?: (open: boolean) => void;
   reserve: boolean;
   setCameraId: (cameraId: string | null) => void;
 };
@@ -38,6 +39,7 @@ let snapshot = emptySnapshot;
 
 export const CameraSelect = memo(function CameraSelect({
   cameraId,
+  onOpenChange,
   reserve,
   setCameraId,
 }: Props) {
@@ -70,7 +72,11 @@ export const CameraSelect = memo(function CameraSelect({
   return (
     <>
       <ToolbarSeparator orientation="vertical" />
-      <Select onValueChange={setCameraId} value={cameraId}>
+      <Select
+        onOpenChange={onOpenChange}
+        onValueChange={setCameraId}
+        value={cameraId}
+      >
         <Tooltip>
           <TooltipTrigger
             render={

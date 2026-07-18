@@ -24,6 +24,7 @@
   --card-foreground: var(--color-neutral-800);
   --destructive: var(--color-red-500);
   --destructive-foreground: var(--color-white);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --foreground: var(--color-neutral-800);
   --input: --alpha(var(--color-black) / 10%);
   --muted: --alpha(var(--color-black) / 4%);
@@ -177,8 +178,8 @@ body {
     pointer-events: none;
     transform: translateY(-0.25rem);
     transition:
-      opacity 150ms ease,
-      transform 150ms ease;
+      opacity 150ms var(--ease-out),
+      transform 150ms var(--ease-out);
   }
 
   .skip-link:focus-visible {
@@ -187,5 +188,12 @@ body {
     transform: translateY(0);
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skip-link,
+    .skip-link:focus-visible {
+      transform: none;
+    }
   }
 }

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 export const Select: typeof SelectPrimitive.Root = SelectPrimitive.Root;
 
 const selectTriggerVariants = cva(
-  "inline-flex w-full min-w-36 select-none items-center justify-between gap-1.5 rounded-lg border border-input bg-background text-left text-sm text-foreground shadow-xs/5 outline-none transition-[background-color,border-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24 data-disabled:pointer-events-none data-disabled:opacity-64 motion-reduce:transition-none dark:bg-input/32 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex w-full min-w-36 select-none items-center justify-between gap-1.5 rounded-lg border border-input bg-background text-left text-sm text-foreground shadow-xs/5 outline-none transition-[background-color,border-color,color,box-shadow] duration-150 ease-[var(--ease-out)] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/24 data-disabled:pointer-events-none data-disabled:opacity-64 motion-reduce:transition-none dark:bg-input/32 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     defaultVariants: {
       size: "sm",
@@ -27,7 +27,7 @@ const selectTriggerVariants = cva(
 );
 
 const selectPopupVariants = cva(
-  "origin-(--transform-origin) text-foreground outline-none transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] data-[ending-style]:scale-95 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none",
+  "origin-(--transform-origin) text-foreground outline-none transition-[opacity,scale] duration-150 ease-[var(--ease-out)] data-[ending-style]:scale-95 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none",
 );
 
 const selectScrollArrowVariants = cva(

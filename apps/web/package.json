@@ -12,6 +12,7 @@
     "@mediapipe/tasks-vision": "^0.10.35",
     "@reactuses/core": "^6.3.1",
     "@t3-oss/env-core": "^0.13.11",
+    "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-router": "^1.170.16",
     "@tanstack/react-start": "^1.168.28",
     "@vercel/analytics": "^2.0.1",

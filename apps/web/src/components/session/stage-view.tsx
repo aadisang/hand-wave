@@ -1,5 +1,5 @@
 import { useFullscreen } from "@reactuses/core";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCaptureSession } from "@/hooks/use-capture-session";
 import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,39 @@ export function Stage() {
     }
   }, [state]);
 
+  // Reveal the controls on pointer activity and fade them back out after a
+  // short lull, so the captions have the stage during a demo.
+  const [controlsRevealed, setControlsRevealed] = useState(true);
+  const hideTimerRef = useRef<number | null>(null);
+  const nextRefreshRef = useRef(0);
+  const bumpControls = useCallback(() => {
+    setControlsRevealed(true);
+
+    const now = performance.now();
+    if (now < nextRefreshRef.current) return;
+
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(
+      () => setControlsRevealed(false),
+      2600,
+    );
+    nextRefreshRef.current = now + 250;
+  }, []);
+  const hideControls = useCallback(() => {
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = null;
+    nextRefreshRef.current = 0;
+    setControlsRevealed(false);
+  }, []);
+  useEffect(
+    () => () => {
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+      nextRefreshRef.current = 0;
+    },
+    [],
+  );
+
   return (
     <div
       ref={stageRef}
@@ -41,6 +74,9 @@ export function Stage() {
         "relative aspect-video w-full overflow-hidden border bg-stage shadow-stage outline outline-1 -outline-offset-1 outline-white/10",
         full ? "rounded-none" : "rounded-2xl",
       )}
+      onPointerDown={bumpControls}
+      onPointerLeave={hideControls}
+      onPointerMove={bumpControls}
     >
       {state.status === "live" || state.status === "starting" ? (
         <video
@@ -78,7 +114,7 @@ export function Stage() {
         </div>
       )}
       {state.status === "live" && (
-        <div className="pointer-events-none absolute right-0 bottom-20 left-0 z-20 flex justify-center px-4 sm:bottom-24 sm:px-8">
+        <div className="pointer-events-none absolute right-0 bottom-16 left-0 z-20 flex justify-center px-4 sm:bottom-20 sm:px-8">
           <PredictionOverlay />
         </div>
       )}
@@ -86,6 +122,7 @@ export function Stage() {
         capture={capture}
         full={full}
         onFull={fullCtrl.toggleFullscreen}
+        revealed={controlsRevealed}
       />
     </div>
   );
