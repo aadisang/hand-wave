@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Sequence
 from os import getenv
 from pathlib import Path
@@ -21,9 +22,13 @@ class CheckpointBackend(ModelBackend):
         from inference.runtime import HandwaveRuntime
 
         self.runtime = HandwaveRuntime(checkpoint_path)
+        self._inference_lock = asyncio.Lock()
 
     async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
-        return decoded_to_predict_out(self.runtime.predict(list(frames)))
+        frame_batch = list(frames)
+        async with self._inference_lock:
+            decoded = await asyncio.to_thread(self.runtime.predict, frame_batch)
+        return decoded_to_predict_out(decoded)
 
 
 def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:

@@ -13,6 +13,7 @@ import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
 const inference = vi.hoisted(() => ({
   recognize: vi.fn<(payload: RecognizeIn) => Promise<RecognizeOut>>(),
+  reset: vi.fn(),
   warm: vi.fn(),
 }));
 
@@ -20,6 +21,7 @@ let clockStepMs = 40;
 
 vi.mock("@/lib/inference/client", () => ({
   recognizeFrames: vi.fn((payload: RecognizeIn) => payload),
+  resetInferenceStream: inference.reset,
   run: vi.fn((payload: RecognizeIn) => inference.recognize(payload)),
   warmInference: inference.warm,
 }));
@@ -31,6 +33,7 @@ describe("stream controller", () => {
     vi.stubGlobal("window", globalThis);
     useDetectionsStore.setState({ currentPrediction: null });
     inference.recognize.mockReset();
+    inference.reset.mockReset();
     inference.warm.mockReset();
 
     let now = 0;

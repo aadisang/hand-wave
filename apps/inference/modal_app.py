@@ -49,7 +49,9 @@ image = (
 app = modal.App(APP_NAME)
 
 
-@app.function(image=image, volumes=volumes, timeout=300)
+# A WebSocket occupies one Modal Function input for the life of the connection.
+# Modal allows up to 24 hours; the iOS client reconnects and resynchronizes if it expires.
+@app.function(image=image, volumes=volumes, timeout=86_400)
 @modal.concurrent(max_inputs=8)
 @modal.asgi_app(label=APP_NAME)
 def fastapi_app():

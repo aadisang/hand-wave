@@ -1,4 +1,9 @@
-import { recognizeFrames, run, warmInference } from "@/lib/inference/client";
+import {
+  recognizeFrames,
+  resetInferenceStream,
+  run,
+  warmInference,
+} from "@/lib/inference/client";
 import {
   acceptedFrameTime,
   frameMotion,
@@ -79,6 +84,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     setPrediction(null);
     resetSegment();
     state = null;
+    resetInferenceStream();
   };
 
   const reset = () => {

@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
 from inference.dependencies import get_backend
 from inference.model import ModelBackend
@@ -12,6 +13,7 @@ from inference.schemas import (
     RecognizeIn,
     RecognizeOut,
 )
+from inference.streaming import PROTOCOL_VERSION, SUBPROTOCOL, RecognitionStream, StreamRequest
 
 router = APIRouter(prefix="/v1", tags=["predictions"])
 
@@ -41,3 +43,61 @@ async def recognize(
         return await recognize_payload(payload, backend)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.websocket("/stream")
+async def stream(websocket: WebSocket) -> None:
+    backend = getattr(websocket.app.state, "backend", None)
+    if backend is None:
+        await websocket.close(code=1013, reason="Predictor is not ready")
+        return
+
+    if SUBPROTOCOL not in websocket.scope.get("subprotocols", []):
+        await websocket.close(code=1002, reason=f"Subprotocol {SUBPROTOCOL} is required")
+        return
+
+    await websocket.accept(subprotocol=SUBPROTOCOL)
+    session = RecognitionStream(backend)
+    try:
+        while True:
+            sequence = 0
+            try:
+                payload = await websocket.receive_json()
+                if isinstance(payload, dict) and isinstance(payload.get("sequence"), int):
+                    sequence = payload["sequence"]
+                request = StreamRequest.model_validate(payload)
+                sequence = request.sequence
+                if request.type == "ping":
+                    await websocket.send_json(
+                        {"type": "pong", "sequence": request.sequence, "protocol": PROTOCOL_VERSION}
+                    )
+                elif request.type == "reset":
+                    session.reset()
+                    await websocket.send_json(
+                        {
+                            "type": "reset",
+                            "sequence": request.sequence,
+                            "protocol": PROTOCOL_VERSION,
+                        }
+                    )
+                else:
+                    result = await session.recognize(request)
+                    await websocket.send_json(
+                        {
+                            "type": "result",
+                            "sequence": request.sequence,
+                            "protocol": PROTOCOL_VERSION,
+                            "result": result.model_dump(mode="json"),
+                        }
+                    )
+            except (ValidationError, ValueError) as exc:
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "sequence": sequence,
+                        "protocol": PROTOCOL_VERSION,
+                        "detail": str(exc),
+                    }
+                )
+    except WebSocketDisconnect:
+        session.reset()

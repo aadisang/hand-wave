@@ -111,3 +111,58 @@ def test_recognize_returns_state_for_finalize(monkeypatch) -> None:
     assert finalize.status_code == 200
     assert finalize.json()["committed"] is True
     assert finalize.json()["display_prediction"]["label"] == "waiting"
+
+
+def test_websocket_stream_accumulates_only_new_frames(monkeypatch) -> None:
+    context = {
+        "idle_frames": 0,
+        "missing_frames": 0,
+        "segment_frames": 10,
+        "motion": 0.2,
+    }
+    with client(monkeypatch) as test_client:
+        with test_client.websocket_connect(
+            "/v1/stream", subprotocols=["handwave.v1"]
+        ) as websocket:
+            websocket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 1,
+                    "frames": [landmark_frame(i) for i in range(10)],
+                    "context": context,
+                }
+            )
+            first = websocket.receive_json()
+            websocket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 2,
+                    "frames": [landmark_frame(i) for i in range(10, 13)],
+                    "context": {**context, "segment_frames": 13},
+                }
+            )
+            second = websocket.receive_json()
+            websocket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 3,
+                    "finalize": True,
+                    "context": {**context, "segment_frames": 13, "endpoint_reason": "idle"},
+                }
+            )
+            finalized = websocket.receive_json()
+            websocket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 4,
+                    "frames": [landmark_frame(i) for i in range(10)],
+                    "context": context,
+                }
+            )
+            next_segment = websocket.receive_json()
+
+    assert first["type"] == "result"
+    assert first["result"]["trace"]["decode"]["buffered_frames"] == 10
+    assert second["result"]["trace"]["decode"]["buffered_frames"] == 13
+    assert finalized["type"] == "result"
+    assert next_segment["result"]["trace"]["decode"]["buffered_frames"] == 10

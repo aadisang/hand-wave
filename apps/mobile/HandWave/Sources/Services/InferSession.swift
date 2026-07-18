@@ -68,7 +68,7 @@ actor InferSession {
     try await client.warmConnection()
   }
 
-  func stop() {
+  func stop() async {
     invalidateRequests()
     eventHandler = nil
     pendingEvent = nil
@@ -76,15 +76,7 @@ actor InferSession {
     hasDisplayedPrediction = false
     recognitionState = nil
     resetSegment()
-  }
-
-  func resetAfterSpokenPartial() {
-    invalidateRequests()
-    pendingError = nil
-    recognitionState = nil
-    resetSegment()
-    queue(hasDisplayedPrediction ? .clear : nil)
-    hasDisplayedPrediction = false
+    await client.resetStream()
   }
 
   func ingest(
@@ -204,6 +196,9 @@ actor InferSession {
     let context = recognitionContext(at: timestampMs, motion: motion)
     inFlight = true
     lastDecodeAt = timestampMs
+    AppLog.inference.debug(
+      "Sending recognition batch frames=\(batch.count) sampled=\(self.sampledFrames)"
+    )
 
     requestTask = Task { [client] in
       do {
