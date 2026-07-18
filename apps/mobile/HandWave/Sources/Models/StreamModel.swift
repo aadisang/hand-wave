@@ -103,6 +103,7 @@ final class StreamModel {
   @ObservationIgnored private var isStopping = false
   @ObservationIgnored private var streamStarted = false
   @ObservationIgnored private var startError: DeviceSessionError?
+  @ObservationIgnored private var datUpdateGeneration: Int?
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -256,7 +257,13 @@ final class StreamModel {
     let states = session.stateStream()
     observeSessionErrors(session, run: run)
 
-    try session.start()
+    do {
+      try session.start()
+    } catch let error {
+      guard case .datAppOnTheGlassesUpdateRequired = error else { throw error }
+      await openDATGlassesAppUpdate(run: run)
+      throw StreamFailure.stopped(error)
+    }
     for await state in states {
       guard isCurrent(run), !Task.isCancelled else { return }
       switch state {
@@ -334,9 +341,25 @@ final class StreamModel {
         guard isCurrent(run), !Task.isCancelled else { return }
         startError = error
         guard error.stopsSession else { continue }
+        if case .datAppOnTheGlassesUpdateRequired = error {
+          await openDATGlassesAppUpdate(run: run)
+        }
         await stop()
         failure = .stopped(error)
       }
+    }
+  }
+
+  private func openDATGlassesAppUpdate(run: Int) async {
+    guard datUpdateGeneration != run else { return }
+    datUpdateGeneration = run
+    do {
+      try await wearables.openDATGlassesAppUpdate()
+      AppLog.stream.notice("Opened DAT glasses app update")
+    } catch {
+      AppLog.stream.error(
+        "Failed to open DAT glasses app update: \(error.localizedDescription, privacy: .private)"
+      )
     }
   }
 
