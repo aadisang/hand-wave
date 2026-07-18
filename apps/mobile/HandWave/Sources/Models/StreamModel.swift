@@ -398,7 +398,7 @@ final class StreamModel {
       }
       current = prediction
     }
-    speech.handle(event) { [weak self] in self?.current }
+    speech.handle(event)
   }
 
   private func isCurrent(_ run: Int) -> Bool {

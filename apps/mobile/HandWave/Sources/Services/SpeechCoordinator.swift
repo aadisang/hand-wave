@@ -3,11 +3,6 @@ import Foundation
 
 @MainActor
 final class SpeechCoordinator {
-  private static let partialDelay: Duration = .milliseconds(450)
-  private static let partialConfidence = 0.6
-
-  private var pendingTask: Task<Void, Never>?
-  private var pendingText: String?
   private var spokenText: String?
   private lazy var engine = SpeechEngine { [weak self] text in
     Task { @MainActor [weak self] in
@@ -21,58 +16,19 @@ final class SpeechCoordinator {
     engine.prewarm()
   }
 
-  func handle(_ event: RecognitionEvent, current: @escaping () -> Prediction?) {
-    switch event {
-    case .clear:
-      cancelPending()
+  func handle(_ event: RecognitionEvent) {
+    if case .clear = event {
       spokenText = nil
-    case .partial(let prediction):
-      schedule(prediction, current: current)
-    case .finalized(let prediction):
-      cancelPending()
-      let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      if text != spokenText, !(spokenText.map { text.hasPrefix($0 + " ") } ?? false) {
-        speak(text)
-      }
+      return
     }
+    guard let text = event.finalizedSpeechText else { return }
+    speak(text)
   }
 
   func reset() {
-    cancelPending()
     spokenText = nil
     engine.reset()
     onSpeakingTextChanged?(nil)
-  }
-
-  private func schedule(_ prediction: Prediction, current: @escaping () -> Prediction?) {
-    let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !text.isEmpty, text != spokenText else { return }
-    guard prediction.confidence >= Self.partialConfidence else {
-      cancelPending()
-      return
-    }
-    if pendingText != text {
-      cancelPending()
-      pendingText = text
-    }
-    guard pendingTask == nil else { return }
-
-    pendingTask = Task { [weak self] in
-      try? await Task.sleep(for: Self.partialDelay)
-      guard !Task.isCancelled, let self else { return }
-      guard let prediction = current(), prediction.confidence >= Self.partialConfidence else {
-        cancelPending()
-        return
-      }
-      let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !text.isEmpty, pendingText == text else {
-        cancelPending()
-        return
-      }
-      pendingTask = nil
-      pendingText = nil
-      speak(text)
-    }
   }
 
   private func speak(_ rawText: String) {
@@ -82,11 +38,6 @@ final class SpeechCoordinator {
     engine.speak(text)
   }
 
-  private func cancelPending() {
-    pendingTask?.cancel()
-    pendingTask = nil
-    pendingText = nil
-  }
 }
 
 private final class SpeechEngine: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {

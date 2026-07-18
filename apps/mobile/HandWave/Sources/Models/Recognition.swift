@@ -15,6 +15,12 @@ enum RecognitionEvent: Equatable, Sendable {
   case clear
   case partial(Prediction)
   case finalized(Prediction)
+
+  var finalizedSpeechText: String? {
+    guard case .finalized(let prediction) = self, prediction.isMeaningful else { return nil }
+    let text = prediction.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return text.isEmpty ? nil : text
+  }
 }
 
 struct RecognitionOutput: Sendable {
