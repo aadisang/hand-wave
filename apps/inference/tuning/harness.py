@@ -9,6 +9,7 @@ using the production recognition code paths.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -231,24 +232,24 @@ def save_case_cache(case: TraceCase, windows: list[CachedWindow], full: CachedWi
 
 
 def load_case_cache(path: Path) -> CachedCase:
-    data = np.load(path, allow_pickle=False)
-    meta = json.loads(str(data["__meta__"]))
-    windows: list[CachedWindow] = []
-    full: CachedWindow | None = None
-    for entry in meta["windows"]:
-        window = CachedWindow(
-            end=int(entry["end"]),
-            emissions=data[entry["tag"]],
-            greedy_text=entry["greedy_text"],
-            blank_ratio=float(entry["blank_ratio"]),
-            tail_blank_ratio=float(entry["tail_blank_ratio"]),
-            tail_blank_frames=int(entry["tail_blank_frames"]),
-            frame_confidence=float(entry["frame_confidence"]),
-        )
-        if entry["tag"] == "full":
-            full = window
-        else:
-            windows.append(window)
+    with np.load(path, allow_pickle=False) as data:
+        meta = json.loads(str(data["__meta__"]))
+        windows: list[CachedWindow] = []
+        full: CachedWindow | None = None
+        for entry in meta["windows"]:
+            window = CachedWindow(
+                end=int(entry["end"]),
+                emissions=data[entry["tag"]],
+                greedy_text=entry["greedy_text"],
+                blank_ratio=float(entry["blank_ratio"]),
+                tail_blank_ratio=float(entry["tail_blank_ratio"]),
+                tail_blank_frames=int(entry["tail_blank_frames"]),
+                frame_confidence=float(entry["frame_confidence"]),
+            )
+            if entry["tag"] == "full":
+                full = window
+            else:
+                windows.append(window)
     if full is None:
         raise ValueError(f"cache missing full-segment window: {path}")
     windows.sort(key=lambda item: item.end)
@@ -263,7 +264,12 @@ def load_case_cache(path: Path) -> CachedCase:
 
 
 def load_all_cached_cases(cache_dir: Path = CACHE_DIR) -> list[CachedCase]:
-    return [load_case_cache(path) for path in sorted(cache_dir.glob("*/*.npz"))]
+    return list(iter_cached_cases(cache_dir))
+
+
+def iter_cached_cases(cache_dir: Path = CACHE_DIR) -> Iterator[CachedCase]:
+    for path in sorted(cache_dir.glob("*/*.npz")):
+        yield load_case_cache(path)
 
 
 @dataclass(frozen=True)
