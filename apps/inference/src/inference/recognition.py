@@ -55,6 +55,7 @@ class SmoothConfig:
     display_clear_motion: float = 0.003
     instant_display_confidence: float = 0.45
     commit_confidence: float = 0.85
+    model_disagreement_commit_confidence: float = 0.85
     short_commit_confidence: float = 0.96
     commit_streak: int = 3
     commit_count: int = 3
@@ -74,6 +75,9 @@ class SmoothConfig:
     majority_commit_min_count: int = 12
     majority_commit_min_share: float = 0.5
     majority_commit_min_chars: int = 3
+    dominant_commit_confidence: float = 0.25
+    dominant_commit_count: int = 20
+    dominant_commit_min_chars: int = 4
     alternative_commit_confidence: float = 0.25
     alternative_commit_count: int = 20
     alternative_commit_min_chars: int = 4
@@ -110,6 +114,13 @@ class SmoothConfig:
             commit_confidence=_env_float(
                 "COMMIT_MIN_CONFIDENCE",
                 _tuning_float("commit_confidence", cls.commit_confidence),
+            ),
+            model_disagreement_commit_confidence=_env_float(
+                "MODEL_DISAGREEMENT_COMMIT_CONFIDENCE",
+                _tuning_float(
+                    "model_disagreement_commit_confidence",
+                    cls.model_disagreement_commit_confidence,
+                ),
             ),
             short_commit_confidence=_env_float(
                 "SHORT_COMMIT_MIN_CONFIDENCE",
@@ -192,6 +203,18 @@ class SmoothConfig:
             majority_commit_min_chars=_env_int(
                 "MAJORITY_COMMIT_MIN_CHARS",
                 _tuning_int("majority_commit_min_chars", cls.majority_commit_min_chars),
+            ),
+            dominant_commit_confidence=_env_float(
+                "DOMINANT_COMMIT_MIN_CONFIDENCE",
+                _tuning_float("dominant_commit_confidence", cls.dominant_commit_confidence),
+            ),
+            dominant_commit_count=_env_int(
+                "DOMINANT_COMMIT_MIN_COUNT",
+                _tuning_int("dominant_commit_count", cls.dominant_commit_count),
+            ),
+            dominant_commit_min_chars=_env_int(
+                "DOMINANT_COMMIT_MIN_CHARS",
+                _tuning_int("dominant_commit_min_chars", cls.dominant_commit_min_chars),
             ),
             alternative_commit_confidence=_env_float(
                 "ALTERNATIVE_COMMIT_MIN_CONFIDENCE",
@@ -371,7 +394,7 @@ def accept_endpoint_prediction(
         ),
         source="endpoint",
         lm_score=response.prediction.lm_score,
-        model_agrees=clean(response.greedy_text) == text,
+        model_agrees=clean(normalize_prediction_text(response.greedy_text)) == text,
         streak=config.commit_streak,
     )
     state.final_candidate = pick_final(state.final_candidate, scored, seen, config)
@@ -446,7 +469,7 @@ def accept_text(
         score=response.prediction.confidence + min(seen, 5) * 0.05 + min(streak, 4) * 0.05,
         source="beam",
         lm_score=response.prediction.lm_score,
-        model_agrees=clean(response.greedy_text) == text,
+        model_agrees=clean(normalize_prediction_text(response.greedy_text)) == text,
         streak=streak,
     )
 
@@ -541,6 +564,26 @@ def ranked_current_candidates(response: PredictOut) -> tuple[tuple[str, Predicti
             prediction if prediction.confidence > best_prediction.confidence else best_prediction,
             min(rank, best_rank),
         )
+    greedy_text = clean(normalize_prediction_text(response.greedy_text))
+    if greedy_text:
+        greedy_prediction = Prediction(
+            label=greedy_text,
+            confidence=response.prediction.confidence,
+            raw_label=clean(response.greedy_text),
+        )
+        current = best_by_text.get(greedy_text)
+        if current is None:
+            best_by_text[greedy_text] = (greedy_prediction, 1)
+        else:
+            best_prediction, best_rank = current
+            best_by_text[greedy_text] = (
+                (
+                    greedy_prediction
+                    if greedy_prediction.confidence > best_prediction.confidence
+                    else best_prediction
+                ),
+                min(1, best_rank),
+            )
     return tuple((text, prediction, rank) for text, (prediction, rank) in best_by_text.items())
 
 
@@ -572,6 +615,7 @@ def alternative_scored(
     seen: int,
     rank: int,
 ) -> RecognitionScored:
+    source = "dominant" if rank == 0 else "alternative"
     return RecognitionScored(
         prediction=Prediction(
             label=text,
@@ -581,9 +625,9 @@ def alternative_scored(
             raw_label=clean(prediction.raw_label or prediction.label),
         ),
         score=prediction.confidence + min(seen, 20) * 0.06 - rank * 0.02,
-        source="alternative",
+        source=source,
         lm_score=prediction.lm_score,
-        model_agrees=clean(response.greedy_text) == text,
+        model_agrees=clean(normalize_prediction_text(response.greedy_text)) == text,
         streak=seen,
     )
 
@@ -596,11 +640,21 @@ def should_remember_alternative_candidate(
 ) -> bool:
     text = candidate.prediction.label
     text_len = len(clean(text).replace(" ", ""))
+    if rank == 0:
+        evidence_gate = (
+            text_len >= config.dominant_commit_min_chars
+            and seen >= config.dominant_commit_count
+            and candidate.prediction.confidence >= config.dominant_commit_confidence
+        )
+    else:
+        evidence_gate = (
+            rank <= 2
+            and text_len >= config.alternative_commit_min_chars
+            and seen >= config.alternative_commit_count
+            and candidate.prediction.confidence >= config.alternative_commit_confidence
+        )
     return (
-        rank == 0
-        and text_len >= config.alternative_commit_min_chars
-        and seen >= config.alternative_commit_count
-        and candidate.prediction.confidence >= config.alternative_commit_confidence
+        evidence_gate
         and not is_uncorrected_oov(
             text,
             min_chars=config.commit_reject_uncorrected_oov_chars,
@@ -764,16 +818,25 @@ def should_commit(
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     confidence = max(
         config.commit_confidence,
+        (
+            config.model_disagreement_commit_confidence
+            if not candidate.model_agrees
+            else config.commit_confidence
+        ),
         config.short_commit_confidence if 0 < text_len <= 3 else config.commit_confidence,
     )
     confidence_gate = candidate.prediction.confidence >= confidence
     stable_gate = is_stable_model_agreed_candidate(candidate, seen, config)
     short_stable_gate = is_stable_short_model_agreed_candidate(candidate, seen, config)
+    dominant_gate = is_stable_dominant_candidate(candidate, seen, config)
     alternative_gate = is_stable_alternative_candidate(candidate, seen, config)
-    return (
+    standard_gate = (
         (confidence_gate or stable_gate or short_stable_gate or alternative_gate)
         and seen >= config.commit_count
         and candidate.streak >= config.commit_streak
+    )
+    return (
+        (standard_gate or dominant_gate)
         and not is_uncorrected_oov(
             candidate.prediction.label,
             min_chars=config.commit_reject_uncorrected_oov_chars,
@@ -783,6 +846,21 @@ def should_commit(
             candidate.prediction.confidence,
             config,
         )
+    )
+
+
+def is_stable_dominant_candidate(
+    candidate: RecognitionScored,
+    seen: int,
+    config: SmoothConfig,
+) -> bool:
+    text_len = len(clean(candidate.prediction.label).replace(" ", ""))
+    return (
+        candidate.source == "dominant"
+        and text_len >= config.dominant_commit_min_chars
+        and seen >= config.dominant_commit_count
+        and candidate.streak >= config.dominant_commit_count
+        and candidate.prediction.confidence >= config.dominant_commit_confidence
     )
 
 
@@ -937,7 +1015,7 @@ def count_for(state: RecognitionState, text: str) -> int:
 
 
 def count_for_candidate(state: RecognitionState, candidate: RecognitionScored) -> int:
-    if candidate.source == "alternative":
+    if candidate.source in {"alternative", "dominant"}:
         return count_in(state.alternative_counts or [], candidate.prediction.label)
     return count_for(state, candidate.prediction.label)
 

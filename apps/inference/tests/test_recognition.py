@@ -91,3 +91,47 @@ def test_keeps_stable_word_when_expansion_is_only_noise() -> None:
     assert committed.committed
     assert committed.display_prediction
     assert committed.display_prediction.label == "water"
+
+
+def test_commits_repeated_normalized_greedy_evidence() -> None:
+    state = empty_state()
+    config = SmoothConfig(
+        display_confidence=0.05,
+        commit_confidence=0.8,
+        commit_count=3,
+        commit_streak=3,
+        alternative_commit_confidence=0.1,
+        alternative_commit_count=3,
+        alternative_commit_min_chars=4,
+    )
+    response = predict("myriam", 0.8).model_copy(update={"greedy_text": "mynam"})
+
+    for _ in range(3):
+        state = accept_prediction(state, response, context(), 24, 0, config).state
+
+    committed = finalize(state, context(), config)
+    assert committed.committed
+    assert committed.display_prediction
+    assert committed.display_prediction.label == "my name"
+
+
+def test_requires_more_confidence_when_acoustic_decode_disagrees() -> None:
+    config = SmoothConfig(
+        display_confidence=0.05,
+        commit_confidence=0.75,
+        model_disagreement_commit_confidence=0.85,
+        commit_count=3,
+        commit_streak=3,
+        majority_commit_min_count=20,
+    )
+    disagreed = empty_state()
+    response = predict("water", 0.8).model_copy(update={"greedy_text": "where"})
+    for _ in range(3):
+        disagreed = accept_prediction(disagreed, response, context(), 24, 0, config).state
+
+    agreed = empty_state()
+    for _ in range(3):
+        agreed = accept_prediction(agreed, predict("water", 0.8), context(), 24, 0, config).state
+
+    assert not finalize(disagreed, context(), config).committed
+    assert finalize(agreed, context(), config).committed

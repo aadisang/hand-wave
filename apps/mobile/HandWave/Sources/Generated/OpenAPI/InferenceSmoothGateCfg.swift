@@ -17,6 +17,7 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
     public var displayClearMotion: Double
     public var instantDisplayConfidence: Double
     public var commitConfidence: Double
+    public var modelDisagreementCommitConfidence: Double
     public var shortCommitConfidence: Double
     public var commitStreak: Int
     public var commitCount: Int
@@ -36,13 +37,16 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
     public var majorityCommitMinCount: Int
     public var majorityCommitMinShare: Double
     public var majorityCommitMinChars: Int
+    public var dominantCommitConfidence: Double
+    public var dominantCommitCount: Int
+    public var dominantCommitMinChars: Int
     public var alternativeCommitConfidence: Double
     public var alternativeCommitCount: Int
     public var alternativeCommitMinChars: Int
     public var alternativeCommitRecentMisses: Int
     public var replaceMargin: Double
 
-    public init(displayConfidence: Double, displayStreak: Int, displayCount: Int, displayClearMisses: Int, displayClearMotion: Double, instantDisplayConfidence: Double, commitConfidence: Double, shortCommitConfidence: Double, commitStreak: Int, commitCount: Int, endpointCommitCount: Int, commitSoftOovMinChars: Int, commitSoftOovConfidence: Double, commitRejectUncorrectedOovChars: Int, stableCommitConfidence: Double, stableCommitCount: Int, stableCommitStreak: Int, stableCommitMinChars: Int, shortStableCommitConfidence: Double, shortStableCommitCount: Int, shortStableCommitStreak: Int, shortStableCommitMinChars: Int, shortStableCommitMaxChars: Int, majorityCommitMinCount: Int, majorityCommitMinShare: Double, majorityCommitMinChars: Int, alternativeCommitConfidence: Double, alternativeCommitCount: Int, alternativeCommitMinChars: Int, alternativeCommitRecentMisses: Int, replaceMargin: Double) {
+    public init(displayConfidence: Double, displayStreak: Int, displayCount: Int, displayClearMisses: Int, displayClearMotion: Double, instantDisplayConfidence: Double, commitConfidence: Double, modelDisagreementCommitConfidence: Double, shortCommitConfidence: Double, commitStreak: Int, commitCount: Int, endpointCommitCount: Int, commitSoftOovMinChars: Int, commitSoftOovConfidence: Double, commitRejectUncorrectedOovChars: Int, stableCommitConfidence: Double, stableCommitCount: Int, stableCommitStreak: Int, stableCommitMinChars: Int, shortStableCommitConfidence: Double, shortStableCommitCount: Int, shortStableCommitStreak: Int, shortStableCommitMinChars: Int, shortStableCommitMaxChars: Int, majorityCommitMinCount: Int, majorityCommitMinShare: Double, majorityCommitMinChars: Int, dominantCommitConfidence: Double, dominantCommitCount: Int, dominantCommitMinChars: Int, alternativeCommitConfidence: Double, alternativeCommitCount: Int, alternativeCommitMinChars: Int, alternativeCommitRecentMisses: Int, replaceMargin: Double) {
         self.displayConfidence = displayConfidence
         self.displayStreak = displayStreak
         self.displayCount = displayCount
@@ -50,6 +54,7 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         self.displayClearMotion = displayClearMotion
         self.instantDisplayConfidence = instantDisplayConfidence
         self.commitConfidence = commitConfidence
+        self.modelDisagreementCommitConfidence = modelDisagreementCommitConfidence
         self.shortCommitConfidence = shortCommitConfidence
         self.commitStreak = commitStreak
         self.commitCount = commitCount
@@ -69,6 +74,9 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         self.majorityCommitMinCount = majorityCommitMinCount
         self.majorityCommitMinShare = majorityCommitMinShare
         self.majorityCommitMinChars = majorityCommitMinChars
+        self.dominantCommitConfidence = dominantCommitConfidence
+        self.dominantCommitCount = dominantCommitCount
+        self.dominantCommitMinChars = dominantCommitMinChars
         self.alternativeCommitConfidence = alternativeCommitConfidence
         self.alternativeCommitCount = alternativeCommitCount
         self.alternativeCommitMinChars = alternativeCommitMinChars
@@ -84,6 +92,7 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         case displayClearMotion
         case instantDisplayConfidence
         case commitConfidence
+        case modelDisagreementCommitConfidence
         case shortCommitConfidence
         case commitStreak
         case commitCount
@@ -103,6 +112,9 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         case majorityCommitMinCount
         case majorityCommitMinShare
         case majorityCommitMinChars
+        case dominantCommitConfidence
+        case dominantCommitCount
+        case dominantCommitMinChars
         case alternativeCommitConfidence
         case alternativeCommitCount
         case alternativeCommitMinChars
@@ -121,6 +133,7 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         try container.encode(displayClearMotion, forKey: .displayClearMotion)
         try container.encode(instantDisplayConfidence, forKey: .instantDisplayConfidence)
         try container.encode(commitConfidence, forKey: .commitConfidence)
+        try container.encode(modelDisagreementCommitConfidence, forKey: .modelDisagreementCommitConfidence)
         try container.encode(shortCommitConfidence, forKey: .shortCommitConfidence)
         try container.encode(commitStreak, forKey: .commitStreak)
         try container.encode(commitCount, forKey: .commitCount)
@@ -140,6 +153,9 @@ public struct InferenceSmoothGateCfg: Sendable, Codable, Hashable {
         try container.encode(majorityCommitMinCount, forKey: .majorityCommitMinCount)
         try container.encode(majorityCommitMinShare, forKey: .majorityCommitMinShare)
         try container.encode(majorityCommitMinChars, forKey: .majorityCommitMinChars)
+        try container.encode(dominantCommitConfidence, forKey: .dominantCommitConfidence)
+        try container.encode(dominantCommitCount, forKey: .dominantCommitCount)
+        try container.encode(dominantCommitMinChars, forKey: .dominantCommitMinChars)
         try container.encode(alternativeCommitConfidence, forKey: .alternativeCommitConfidence)
         try container.encode(alternativeCommitCount, forKey: .alternativeCommitCount)
         try container.encode(alternativeCommitMinChars, forKey: .alternativeCommitMinChars)

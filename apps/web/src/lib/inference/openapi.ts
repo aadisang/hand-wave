@@ -226,6 +226,8 @@ export interface components {
             /** Format: double */
             commitConfidence: number;
             /** Format: double */
+            modelDisagreementCommitConfidence: number;
+            /** Format: double */
             shortCommitConfidence: number;
             /** Format: int32 */
             commitStreak: number;
@@ -263,6 +265,12 @@ export interface components {
             majorityCommitMinShare: number;
             /** Format: int32 */
             majorityCommitMinChars: number;
+            /** Format: double */
+            dominantCommitConfidence: number;
+            /** Format: int32 */
+            dominantCommitCount: number;
+            /** Format: int32 */
+            dominantCommitMinChars: number;
             /** Format: double */
             alternativeCommitConfidence: number;
             /** Format: int32 */

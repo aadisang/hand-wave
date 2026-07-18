@@ -263,6 +263,10 @@ model SmoothGateCfg {
 
   @minValue(0)
   @maxValue(1)
+  modelDisagreementCommitConfidence: float64;
+
+  @minValue(0)
+  @maxValue(1)
   shortCommitConfidence: float64;
 
   @minValue(0)
@@ -322,6 +326,16 @@ model SmoothGateCfg {
 
   @minValue(0)
   majorityCommitMinChars: int32;
+
+  @minValue(0)
+  @maxValue(1)
+  dominantCommitConfidence: float64;
+
+  @minValue(0)
+  dominantCommitCount: int32;
+
+  @minValue(0)
+  dominantCommitMinChars: int32;
 
   @minValue(0)
   @maxValue(1)

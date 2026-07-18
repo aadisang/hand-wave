@@ -37,6 +37,11 @@
             "minimum": 0,
             "maximum": 1
         },
+        "modelDisagreementCommitConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
         "shortCommitConfidence": {
             "type": "number",
             "minimum": 0,
@@ -132,6 +137,21 @@
             "minimum": 0,
             "maximum": 2147483647
         },
+        "dominantCommitConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "dominantCommitCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+        },
+        "dominantCommitMinChars": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+        },
         "alternativeCommitConfidence": {
             "type": "number",
             "minimum": 0,
@@ -164,6 +184,7 @@
         "displayClearMotion",
         "instantDisplayConfidence",
         "commitConfidence",
+        "modelDisagreementCommitConfidence",
         "shortCommitConfidence",
         "commitStreak",
         "commitCount",
@@ -183,6 +204,9 @@
         "majorityCommitMinCount",
         "majorityCommitMinShare",
         "majorityCommitMinChars",
+        "dominantCommitConfidence",
+        "dominantCommitCount",
+        "dominantCommitMinChars",
         "alternativeCommitConfidence",
         "alternativeCommitCount",
         "alternativeCommitMinChars",
