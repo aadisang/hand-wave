@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates apps/inference/src/inference/generated_tunings.py from the
+// Generates apps/inference/src/inference/generated/tunings.py from the
 // "inference" section of packages/contract/config.json. Plain node, no deps.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -15,7 +15,8 @@ const outputPath = join(
   "inference",
   "src",
   "inference",
-  "generated_tunings.py",
+  "generated",
+  "tunings.py",
 );
 
 const config = JSON.parse(readFileSync(configPath, "utf8"));

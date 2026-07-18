@@ -20,7 +20,7 @@ from inference.schemas import LandmarkFrame
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "traces"
 
 # These fixtures assert single-shot full-recording decodes and were recorded
-# against these decoder params; the deployed tunings (generated_tunings) are
+# against these decoder params; the deployed tunings (generated/tunings.py) are
 # optimized for the streaming commit path and may rank single-shot beams
 # differently. Pin the params so this test keeps catching runtime regressions.
 FIXTURE_DECODER_CONFIG = CtcDecoderConfig(

@@ -27,13 +27,13 @@ from inference.text_normalizer import edit_distance, is_uncorrected_oov, normali
 
 logger = logging.getLogger(__name__)
 
-# generated_tunings (codegen from packages/contract/config.json) is the source of
+# generated.tunings (codegen from packages/contract/config.json) is the source of
 # truth for deployed defaults; env vars still override, and the literal dataclass
 # defaults below only apply when constructing SmoothConfig() directly (e.g. tests)
 # or if the generated module is missing.
 _SMOOTH: dict[str, Any]
 try:
-    from inference.generated_tunings import SMOOTH as _SMOOTH
+    from inference.generated.tunings import SMOOTH as _SMOOTH
 except ImportError:  # pragma: no cover - generated module ships with the source tree
     _SMOOTH = {}
 

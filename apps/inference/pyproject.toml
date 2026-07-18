@@ -40,8 +40,7 @@ allow-direct-references = true
 line-length = 100
 target-version = "py311"
 extend-exclude = [
-    "src/inference/generated_schemas.py",
-    "src/inference/generated_tunings.py",
+    "src/inference/generated",
 ]
 
 [tool.ruff.lint]

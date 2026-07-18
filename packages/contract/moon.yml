@@ -67,10 +67,10 @@ tasks:
       - "rm"
       - "-rf"
       - "generated"
-      - "../../apps/web/src/lib/inference/openapi.ts"
+      - "../../apps/web/src/lib/inference/generated/openapi.ts"
       - "../../apps/mobile/HandWave/Sources/Generated/OpenAPI"
-      - "../../apps/inference/src/inference/generated_schemas.py"
-      - "../../apps/inference/src/inference/generated_tunings.py"
+      - "../../apps/inference/src/inference/generated/schemas.py"
+      - "../../apps/inference/src/inference/generated/tunings.py"
     preset: "utility"
 
   compile:
@@ -133,7 +133,7 @@ tasks:
       - "openapi-typescript"
       - "../../packages/contract/generated/openapi/openapi.json"
       - "-o"
-      - "src/lib/inference/openapi.ts"
+      - "src/lib/inference/generated/openapi.ts"
     deps:
       - "compile"
     inputs:
@@ -141,7 +141,7 @@ tasks:
       - "/apps/web/package.json"
       - "/pnpm-lock.yaml"
     outputs:
-      - "/apps/web/src/lib/inference/openapi.ts"
+      - "/apps/web/src/lib/inference/generated/openapi.ts"
 
   generatePython:
     command:
@@ -165,7 +165,7 @@ tasks:
       - "isort"
       - "ruff-format"
       - "--output"
-      - "../../apps/inference/src/inference/generated_schemas.py"
+      - "../../apps/inference/src/inference/generated/schemas.py"
     deps:
       - "compile"
     inputs:
@@ -173,7 +173,7 @@ tasks:
       - "/apps/inference/pyproject.toml"
       - "/apps/inference/uv.lock"
     outputs:
-      - "/apps/inference/src/inference/generated_schemas.py"
+      - "/apps/inference/src/inference/generated/schemas.py"
 
   generateSwift:
     command:
@@ -208,7 +208,7 @@ tasks:
       - "config.json"
       - "scripts/generate-inference-tunings.mjs"
     outputs:
-      - "/apps/inference/src/inference/generated_tunings.py"
+      - "/apps/inference/src/inference/generated/tunings.py"
 
   generate:
     command:

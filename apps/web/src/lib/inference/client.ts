@@ -2,7 +2,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import createClient from "openapi-fetch";
 import { env } from "@/config/env";
-import type { paths } from "@/lib/inference/openapi";
+import type { paths } from "@/lib/inference/generated/openapi";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
 class RequestErr extends Data.TaggedError("RequestErr")<{

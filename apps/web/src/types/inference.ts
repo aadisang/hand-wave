@@ -1,4 +1,4 @@
-import type { components } from "@/lib/inference/openapi";
+import type { components } from "@/lib/inference/generated/openapi";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 
 export type Frame = components["schemas"]["LandmarkFrame"];

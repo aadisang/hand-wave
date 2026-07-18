@@ -12,12 +12,12 @@ import numpy as np
 logging.getLogger("pyctcdecode").setLevel(logging.ERROR)
 from pyctcdecode import build_ctcdecoder  # noqa: E402
 
-# generated_tunings (codegen from packages/contract/config.json) is the source of
+# generated.tunings (codegen from packages/contract/config.json) is the source of
 # truth for deployed defaults; env vars still override, and the hardcoded fallbacks
 # below only apply if the generated module is missing.
 _CTC: dict[str, Any]
 try:
-    from inference.generated_tunings import CTC as _CTC
+    from inference.generated.tunings import CTC as _CTC
 except ImportError:  # pragma: no cover - generated module ships with the source tree
     _CTC = {}
 

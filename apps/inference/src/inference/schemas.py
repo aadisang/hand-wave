@@ -1,4 +1,4 @@
-from inference.generated_schemas import (
+from inference.generated.schemas import (
     DecodeTrace,
     EndpointReason,
     FinalizeTrace,

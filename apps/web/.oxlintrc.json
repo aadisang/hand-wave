@@ -24,7 +24,7 @@
     "dist/**",
     "node_modules/**",
     "src/routeTree.gen.ts",
-    "src/lib/inference/openapi.ts"
+    "src/lib/inference/generated/openapi.ts"
   ],
   "rules": {
     "no-unused-vars": [
