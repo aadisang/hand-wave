@@ -19,4 +19,4 @@ runs:
 
     - name: Generate contract clients
       shell: bash
-      run: pnpm run contract:regen
+      run: env -u CI pnpm run contract:regen
