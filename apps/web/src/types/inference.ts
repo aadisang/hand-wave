@@ -1,7 +1,7 @@
 import type { components } from "@/lib/inference/generated/openapi";
 import type { Prediction as DetectionPrediction } from "@/types/detections";
 
-export type Frame = components["schemas"]["LandmarkFrame"];
+export type Frame = components["schemas"]["LandmarkFrameItem"];
 export type InferOut = components["schemas"]["PredictOut"];
 export type RecognizeIn = components["schemas"]["RecognizeIn"];
 export type RecognizeOut = components["schemas"]["RecognizeOut"];

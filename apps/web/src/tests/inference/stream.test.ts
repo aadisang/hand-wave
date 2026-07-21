@@ -12,6 +12,7 @@ import { useDetectionsStore } from "@/stores/detections-store";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
 const inference = vi.hoisted(() => ({
+  prepare: vi.fn<() => Promise<void>>(),
   recognize: vi.fn<(payload: RecognizeIn) => Promise<RecognizeOut>>(),
   reset: vi.fn(),
   warm: vi.fn(),
@@ -20,10 +21,15 @@ const inference = vi.hoisted(() => ({
 let clockStepMs = 40;
 
 vi.mock("@/lib/inference/client", () => ({
-  recognizeFrames: vi.fn((payload: RecognizeIn) => payload),
   resetInferenceStream: inference.reset,
-  run: vi.fn((payload: RecognizeIn) => inference.recognize(payload)),
+  recognizeFrames: vi.fn((payload: RecognizeIn) =>
+    inference.recognize(payload),
+  ),
   warmInference: inference.warm,
+}));
+
+vi.mock("@/lib/inference/socket", () => ({
+  prepareInferenceStream: inference.prepare,
 }));
 
 describe("stream controller", () => {
@@ -33,6 +39,8 @@ describe("stream controller", () => {
     vi.stubGlobal("window", globalThis);
     useDetectionsStore.setState({ currentPrediction: null });
     inference.recognize.mockReset();
+    inference.prepare.mockReset();
+    inference.prepare.mockResolvedValue();
     inference.reset.mockReset();
     inference.warm.mockReset();
 
@@ -43,14 +51,45 @@ describe("stream controller", () => {
     });
   });
 
-  test("keeps stream timing in human-scale signing windows", () => {
-    const { stream } = cfg;
+  test("keeps the prepared transport open while no hand is visible", () => {
+    const controller = createStreamCtrl();
 
-    expect(stream.min / stream.fps).toBeGreaterThanOrEqual(0.75);
-    expect(stream.idle / stream.fps).toBeGreaterThanOrEqual(0.6);
-    expect(stream.lost / stream.fps).toBeGreaterThanOrEqual(0.35);
-    expect(stream.holdMs).toBeGreaterThanOrEqual(1_000);
-    expect(stream.motion).toBeLessThanOrEqual(0.003);
+    for (let index = 0; index < lost * 2; index += 1) {
+      controller.accept(null);
+    }
+
+    expect(inference.reset).not.toHaveBeenCalled();
+    controller.dispose();
+    expect(inference.reset).toHaveBeenCalledOnce();
+  });
+
+  test("keeps a sign made while the server warms", async () => {
+    const ready = deferred<void>();
+    inference.prepare.mockReturnValue(ready.promise);
+    inference.recognize.mockImplementation(async (payload) => {
+      if (!payload.finalize) await ready.promise;
+      return response("cat", Boolean(payload.finalize));
+    });
+
+    const controller = createStreamCtrl();
+    void controller.start();
+    for (let index = 0; index < minFrames + stride + 4; index += 1) {
+      controller.accept(frame(index * 0.01));
+    }
+    for (let index = 0; index < lost + 2; index += 1) {
+      controller.accept(null);
+    }
+
+    expect(inference.recognize).toHaveBeenCalledTimes(1);
+    ready.resolve();
+    await flushPromises();
+
+    controller.accept(null);
+    await flushPromises();
+
+    expect(inference.recognize).toHaveBeenCalledWith(
+      expect.objectContaining({ finalize: true }),
+    );
   });
 
   test("scales stream timing to the source frame rate", () => {

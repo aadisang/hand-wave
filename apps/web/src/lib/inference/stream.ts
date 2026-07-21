@@ -1,9 +1,5 @@
-import {
-  recognizeFrames,
-  resetInferenceStream,
-  run,
-  warmInference,
-} from "@/lib/inference/client";
+import { recognizeFrames, resetInferenceStream } from "@/lib/inference/client";
+import { prepareInferenceStream } from "@/lib/inference/socket";
 import {
   acceptedFrameTime,
   frameMotion,
@@ -26,6 +22,15 @@ import type {
 import { toDetectionPrediction } from "@/types/inference";
 
 export function createStreamCtrl(frameRate?: number): StreamCtrl {
+  type RequestPhase =
+    | { kind: "idle" }
+    | { kind: "decode"; id: number; epoch: number }
+    | { kind: "finalize"; id: number; epoch: number };
+  type PendingFinalize = {
+    context: RecognitionContext;
+    frames: Frame[];
+    epoch: number;
+  };
   const {
     holdMs,
     idleMs,
@@ -37,10 +42,11 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     strideMs,
   } = streamTiming(frameRate);
   const finalHoldMs = holdMs * 2;
-  const staleDecodeMs = holdMs * 2;
   let frames: Frame[] = [];
   let seen = 0;
-  let inFlight = false;
+  let requestPhase: RequestPhase = { kind: "idle" };
+  let requestID = 0;
+  let pendingFinalize: PendingFinalize | null = null;
   let last: Frame | null = null;
   let segmentStartedAt = 0;
   let idleStartedAt = 0;
@@ -79,29 +85,33 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     lost = 0;
   };
 
-  const resetLive = () => {
+  const resetRecognition = () => {
     clearHold();
     setPrediction(null);
     resetSegment();
     state = null;
-    resetInferenceStream();
   };
 
   const reset = () => {
     epoch += 1;
-    inFlight = false;
+    requestPhase = { kind: "idle" };
+    pendingFinalize = null;
     ended = false;
-    resetLive();
+    resetRecognition();
+    resetInferenceStream();
   };
 
   const start = () => {
-    void warmInference();
+    void prepareInferenceStream().catch(() => undefined);
   };
 
   const dispose = () => {
     disposed = true;
     epoch += 1;
-    resetLive();
+    requestPhase = { kind: "idle" };
+    pendingFinalize = null;
+    resetRecognition();
+    resetInferenceStream();
   };
 
   const updateMotion = (frame: Frame, acceptedAt: number) => {
@@ -144,38 +154,27 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
   });
 
   const finalize = (endpointReason: EndpointReason) => {
-    const activeState = state;
     const context = endpointContext(endpointReason);
     const finalFrames = frames.slice();
 
     clearHold();
     ended = true;
-    epoch += 1;
-    state = null;
     resetSegment();
-    if (!activeState) {
-      setPrediction(null);
-      return;
-    }
-    const finalEpoch = epoch;
-    void finalizeRemote(activeState, context, finalFrames, finalEpoch);
+    pendingFinalize = { context, frames: finalFrames, epoch };
+    if (requestPhase.kind === "idle") startFinalization();
   };
 
   const decode = async (batch: Frame[], idleFrames: number) => {
     const batchEpoch = epoch;
-    const startedAt = performance.now();
-    inFlight = true;
+    const id = ++requestID;
+    requestPhase = { kind: "decode", id, epoch: batchEpoch };
     try {
-      const result = await run(
-        recognizeFrames({
-          frames: batch,
-          state,
-          context: decodeContext(idleFrames),
-        }),
-      );
-      if (batchEpoch !== epoch) return;
-      if (performance.now() - startedAt > staleDecodeMs) return;
-
+      const result = await recognizeFrames({
+        frames: batch,
+        state,
+        context: decodeContext(idleFrames),
+      });
+      if (!isActiveRequest("decode", id, batchEpoch)) return;
       state = result.state;
       if (result.trace.prediction) {
         pushPredictTrace(result.trace.prediction, {
@@ -193,34 +192,66 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
       if (displayPrediction) setPrediction(displayPrediction);
       if (result.trace.decode) pushDecodeTrace(result.trace.decode);
     } catch {
-      if (batchEpoch === epoch) resetLive();
-    } finally {
-      inFlight = false;
+      if (isActiveRequest("decode", id, batchEpoch)) {
+        requestPhase = { kind: "idle" };
+        pendingFinalize = null;
+        resetRecognition();
+      }
+      return;
     }
+    if (!isActiveRequest("decode", id, batchEpoch)) return;
+    requestPhase = { kind: "idle" };
+    if (pendingFinalize) startFinalization();
+  };
+
+  const isActiveRequest = (
+    kind: "decode" | "finalize",
+    id: number,
+    requestEpoch: number,
+  ) =>
+    requestPhase.kind === kind &&
+    requestPhase.id === id &&
+    requestPhase.epoch === requestEpoch &&
+    epoch === requestEpoch;
+
+  const startFinalization = () => {
+    const pending = pendingFinalize;
+    pendingFinalize = null;
+    if (!pending || pending.epoch !== epoch) return;
+    const activeState = state;
+    state = null;
+    if (!activeState) {
+      setPrediction(null);
+      return;
+    }
+    const id = ++requestID;
+    requestPhase = { kind: "finalize", id, epoch: pending.epoch };
+    void finalizeRemote(activeState, pending, id);
   };
 
   const finalizeRemote = async (
-    state: RecognitionState,
-    context: RecognitionContext,
-    frames: Frame[],
-    finalEpoch: number,
+    activeState: RecognitionState,
+    pending: PendingFinalize,
+    id: number,
   ) => {
     let result: RecognizeOut;
     try {
-      result = await run(
-        recognizeFrames({
-          frames,
-          state,
-          context,
-          finalize: true,
-        }),
-      );
+      result = await recognizeFrames({
+        frames: pending.frames,
+        state: activeState,
+        context: pending.context,
+        finalize: true,
+      });
     } catch {
-      if (!disposed && finalEpoch === epoch) resetLive();
+      if (!disposed && isActiveRequest("finalize", id, pending.epoch)) {
+        requestPhase = { kind: "idle" };
+        resetRecognition();
+      }
       return;
     }
 
-    if (disposed || finalEpoch !== epoch) return;
+    if (disposed || !isActiveRequest("finalize", id, pending.epoch)) return;
+    requestPhase = { kind: "idle" };
     const prediction = toDetectionPrediction(
       result.display_prediction,
       0,
@@ -240,8 +271,8 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     if (ended) return;
     const now = performance.now();
     const tooShort = !segmentStartedAt || now - segmentStartedAt < minMs;
-    if (!moved || (tooShort && !state && !inFlight)) {
-      resetLive();
+    if (!moved || (tooShort && !state && requestPhase.kind === "idle")) {
+      resetRecognition();
       return;
     }
 
@@ -250,7 +281,6 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     missingStartedAt ||= now;
     idleStartedAt ||= now;
     if (now - missingStartedAt >= lostMs || now - idleStartedAt >= idleMs) {
-      if (inFlight) return;
       finalize("landmark-lost");
     }
   };
@@ -282,7 +312,9 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
       return;
     }
     if (acceptedAt - segmentStartedAt < minMs) return;
-    if (acceptedAt - lastDecodeAt < strideMs || inFlight) return;
+    if (acceptedAt - lastDecodeAt < strideMs || requestPhase.kind !== "idle") {
+      return;
+    }
 
     lastDecodeAt = acceptedAt;
     void decode(frames.slice(), idle);

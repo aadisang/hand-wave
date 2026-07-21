@@ -1,5 +1,6 @@
 import { useFullscreen } from "@reactuses/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useAutoHideControls } from "@/hooks/use-auto-hide-controls";
 import { useCaptureSession } from "@/hooks/use-capture-session";
 import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
@@ -19,10 +20,11 @@ export function Stage() {
   const [full, fullCtrl] = useFullscreen(stageRef);
   const drawLandmarks = useLandmarksStore((s) => s.draw);
   const inferenceBoundary = useDevStore((s) => s.boundary);
+  const controls = useAutoHideControls();
 
   const { state } = capture;
   const isLive = state.status === "live";
-  const onLandmarksFrame = useInfer(
+  const inference = useInfer(
     isLive ? state.frameRate : null,
     inferenceBoundary,
   );
@@ -34,39 +36,6 @@ export function Stage() {
     }
   }, [state]);
 
-  // Reveal the controls on pointer activity and fade them back out after a
-  // short lull, so the captions have the stage during a demo.
-  const [controlsRevealed, setControlsRevealed] = useState(true);
-  const hideTimerRef = useRef<number | null>(null);
-  const nextRefreshRef = useRef(0);
-  const bumpControls = useCallback(() => {
-    setControlsRevealed(true);
-
-    const now = performance.now();
-    if (now < nextRefreshRef.current) return;
-
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = window.setTimeout(
-      () => setControlsRevealed(false),
-      2600,
-    );
-    nextRefreshRef.current = now + 250;
-  }, []);
-  const hideControls = useCallback(() => {
-    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = null;
-    nextRefreshRef.current = 0;
-    setControlsRevealed(false);
-  }, []);
-  useEffect(
-    () => () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-      nextRefreshRef.current = 0;
-    },
-    [],
-  );
-
   return (
     <div
       ref={stageRef}
@@ -74,9 +43,9 @@ export function Stage() {
         "relative aspect-video w-full overflow-hidden border bg-stage shadow-stage outline outline-1 -outline-offset-1 outline-white/10",
         full ? "rounded-none" : "rounded-2xl",
       )}
-      onPointerDown={bumpControls}
-      onPointerLeave={hideControls}
-      onPointerMove={bumpControls}
+      onPointerDown={controls.reveal}
+      onPointerLeave={controls.hide}
+      onPointerMove={controls.reveal}
     >
       {state.status === "live" || state.status === "starting" ? (
         <video
@@ -101,16 +70,32 @@ export function Stage() {
         <LandmarksOverlay
           captureKind={state.kind}
           draw={drawLandmarks}
-          onFrame={onLandmarksFrame}
+          onFrame={inference.accept}
           videoRef={videoRef}
         />
       )}
       <div className="pointer-events-none absolute top-4 left-4 z-20 max-w-dev-panel">
         <DevPanel live={isLive} />
       </div>
-      {state.status === "live" && (
+      {state.status === "live" && inference.status === "ready" && (
         <div className="pointer-events-none absolute top-4 right-4 z-20 flex h-2 items-center">
           <StatusDot />
+        </div>
+      )}
+      {state.status === "live" && inference.status !== "ready" && (
+        <div
+          aria-live="polite"
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-stage/55"
+        >
+          <div className="flex items-center gap-2.5 rounded-full bg-black/55 px-4 py-2.5 text-sm text-white shadow-sm backdrop-blur-md">
+            <span
+              aria-hidden
+              className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white"
+            />
+            {inference.status === "error"
+              ? "Still connecting…"
+              : "Starting recognition…"}
+          </div>
         </div>
       )}
       {state.status === "live" && (
@@ -122,7 +107,7 @@ export function Stage() {
         capture={capture}
         full={full}
         onFull={fullCtrl.toggleFullscreen}
-        revealed={controlsRevealed}
+        revealed={controls.revealed}
       />
     </div>
   );

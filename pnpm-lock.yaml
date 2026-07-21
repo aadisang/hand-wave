@@ -60,9 +60,6 @@ importers:
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
-      effect:
-        specifier: ^3.21.2
-        version: 3.21.2
       lucide-react:
         specifier: ^1.24.0
         version: 1.24.0(react@19.2.7)
@@ -72,6 +69,9 @@ importers:
       openapi-fetch:
         specifier: ^0.17.0
         version: 0.17.0
+      partysocket:
+        specifier: ^1.3.0
+        version: 1.3.0(react@19.2.7)
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -1829,9 +1829,6 @@ packages:
   easy-table@1.1.0:
     resolution: {integrity: sha512-oq33hWOSSnl2Hoh00tZWaIPi1ievrD9aFG82/IgjlycAnW9hHx5PkJiXpxPsgEE+H7BsbVQXFVFST8TEXS6/pA==}
 
-  effect@3.21.2:
-    resolution: {integrity: sha512-rXd2FGDM8KdjSIrc+mqEELo7ScW7xTVxEf1iInmPSpIde9/nyGuFM710cjTo7/EreGXiUX2MOonPpprbz2XHCg==}
-
   electron-to-chromium@1.5.344:
     resolution: {integrity: sha512-4MxfbmNDm+KPh066EZy+eUnkcDPcZ35wNmOWzFuh/ijvHsve6kbLTLURy88uCNK5FbpN+yk2nQY6BYh1GEt+wg==}
 
@@ -1915,16 +1912,15 @@ packages:
     resolution: {integrity: sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==}
     engines: {node: '>=0.10.0'}
 
+  event-target-polyfill@0.0.4:
+    resolution: {integrity: sha512-Gs6RLjzlLRdT8X9ZipJdIZI/Y6/HhRLyq9RdDlCsnpxr/+Nn6bU2EFGuC94GjxqhM+Nmij2Vcq98yoHrU8uNFQ==}
+
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
   exsolve@1.0.8:
     resolution: {integrity: sha512-LmDxfWXwcTArk8fUEnOfSZpHOJ6zOMUJKOtFLFqJLoKJetuQG874Uc7/Kki7zFLzYybmZhp1M7+98pfMqeX8yA==}
-
-  fast-check@3.23.2:
-    resolution: {integrity: sha512-h5+1OzzfCC3Ef7VbtKdcv7zsstUQwUDlYpUTvjeUsJAssPgLn7QzbboPtL5ro04Mq0rPOsMzl7q5hIbRs2wD1A==}
-    engines: {node: '>=8.0.0'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -2486,6 +2482,14 @@ packages:
     resolution: {integrity: sha512-ybiGyvspI+fAoRQbIPRddCcSTV9/LsJbf0e/S85VLowVGzRmokfneg2kwVW/KU5rOXrPSbF1qAKPMgNTqqROQQ==}
     engines: {node: '>=18'}
 
+  partysocket@1.3.0:
+    resolution: {integrity: sha512-1zToNyolZFK/7nuAw/K2bZrNzFqaZyRoCEkS+9vG6WSC5ikrN6qWRe96q6ImU51uptz2r+dAwSkwhJVdQi4LiA==}
+    peerDependencies:
+      react: '>=17'
+    peerDependenciesMeta:
+      react:
+        optional: true
+
   path-is-absolute@1.0.1:
     resolution: {integrity: sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==}
     engines: {node: '>=0.10.0'}
@@ -2531,9 +2535,6 @@ packages:
   proxy-from-env@2.1.0:
     resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
     engines: {node: '>=10'}
-
-  pure-rand@6.1.0:
-    resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
 
   quickjs-wasi@2.2.0:
     resolution: {integrity: sha512-zQxXmQMrEoD3S+jQdYsloq4qAuaxKFHZj6hHqOYGwB2iQZH+q9e/lf5zQPXCKOk0WJuAjzRFbO4KwHIp2D05Iw==}
@@ -4579,11 +4580,6 @@ snapshots:
     optionalDependencies:
       wcwidth: 1.0.1
 
-  effect@3.21.2:
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      fast-check: 3.23.2
-
   electron-to-chromium@1.5.344: {}
 
   emoji-regex@10.6.0: {}
@@ -4645,13 +4641,11 @@ snapshots:
 
   esutils@2.0.3: {}
 
+  event-target-polyfill@0.0.4: {}
+
   expect-type@1.4.0: {}
 
   exsolve@1.0.8: {}
-
-  fast-check@3.23.2:
-    dependencies:
-      pure-rand: 6.1.0
 
   fast-deep-equal@3.1.3: {}
 
@@ -5173,6 +5167,12 @@ snapshots:
       index-to-position: 1.2.0
       type-fest: 4.41.0
 
+  partysocket@1.3.0(react@19.2.7):
+    dependencies:
+      event-target-polyfill: 0.0.4
+    optionalDependencies:
+      react: 19.2.7
+
   path-is-absolute@1.0.1: {}
 
   path-scurry@2.0.2:
@@ -5214,8 +5214,6 @@ snapshots:
       - supports-color
 
   proxy-from-env@2.1.0: {}
-
-  pure-rand@6.1.0: {}
 
   quickjs-wasi@2.2.0: {}
 
