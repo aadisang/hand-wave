@@ -12,10 +12,11 @@
     "./schemas/*": "./generated/json-schema/*.json"
   },
   "devDependencies": {
-    "@openapitools/openapi-generator-cli": "^2.34.0",
-    "@typespec/compiler": "^1.12.0",
-    "@typespec/http": "^1.12.0",
+    "@openapitools/openapi-generator-cli": "^2.39.1",
+    "@typespec/compiler": "^1.14.0",
+    "@typespec/http": "^1.14.0",
     "@typespec/json-schema": "^1.14.0",
+    "@typespec/openapi": "^1.14.0",
     "@typespec/openapi3": "^1.14.0",
     "ajv-cli": "^5.0.0",
     "oxfmt": "^0.59.0"

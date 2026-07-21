@@ -15,6 +15,9 @@
     "test": "moon run :test",
     "typecheck": "moon run :typecheck"
   },
+  "devDependencies": {
+    "@moonrepo/cli": "2.3.5"
+  },
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -23,15 +26,19 @@
       "esbuild"
     ],
     "overrides": {
+      "brace-expansion@<1.1.16": "1.1.16",
+      "brace-expansion@>=2.0.0 <2.1.2": "2.1.2",
+      "fast-uri@>=3.0.0 <3.1.3": "3.1.3",
       "fast-json-patch@<3.1.1": ">=3.1.1",
       "brace-expansion@>=5.0.0 <5.0.6": ">=5.0.6",
-      "shell-quote@>=1.1.0 <=1.8.3": ">=1.8.4",
+      "js-yaml@>=4.0.0 <4.3.0": "4.3.0",
+      "shell-quote@>=1.1.0 <1.9.0": "1.9.0",
       "esbuild@>=0.27.3 <0.28.1": ">=0.28.1",
       "form-data@>=4.0.0 <4.0.6": ">=4.0.6",
       "tar@<=7.5.15": ">=7.5.16",
       "@babel/core@<=7.29.0": "7.29.6",
-      "ajv-cli>js-yaml": "4.2.0",
-      "@redocly/openapi-core>js-yaml": "4.2.0"
+      "ajv-cli>js-yaml": "4.3.0",
+      "@redocly/openapi-core>js-yaml": "4.3.0"
     }
   }
 }
