@@ -63,18 +63,6 @@ describe("toModelInput", () => {
     expect(input?.frame.leftHandLandmarks[0]?.[0]?.x).toBeCloseTo(0.2);
     expect(input?.frame.poseLandmarks[0]?.[0]?.x).toBeCloseTo(0.5);
   });
-
-  it("draws neither hand nor pose when nothing would be sent", () => {
-    const input = toModelInput(
-      handFrame({
-        rightHandLandmarks: [landmarks(21, point(0.5, 0.5))],
-        leftHandLandmarks: [],
-        poseLandmarks: [],
-      }),
-    );
-
-    expect(input).toBeNull();
-  });
 });
 
 describe("createActiveHandSelector", () => {

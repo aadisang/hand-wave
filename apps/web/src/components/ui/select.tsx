@@ -110,7 +110,7 @@ export function SelectValue({
   );
 }
 
-export function SelectPopup({
+export function SelectContent({
   className,
   children,
   side = "bottom",
@@ -206,5 +206,3 @@ export function SelectItem({
     </SelectPrimitive.Item>
   );
 }
-
-export { SelectPopup as SelectContent };

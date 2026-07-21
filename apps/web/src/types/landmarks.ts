@@ -25,6 +25,7 @@ export type LandmarkDetectionResult = {
 
 export type LandmarkDetectorApi = {
   warm: () => Promise<void>;
+  reset: () => void;
   detect: (
     request: LandmarkDetectionRequest,
   ) => Promise<LandmarkDetectionResult>;

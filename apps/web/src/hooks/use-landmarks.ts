@@ -15,11 +15,20 @@ function load() {
     { type: "module" },
   );
   const detector = wrap<LandmarkDetectorApi>(worker);
-  return detector.warm().then(() => detector);
+  return detector.warm().then(
+    () => detector,
+    (error) => {
+      worker.terminate();
+      throw error;
+    },
+  );
 }
 
 export function preloadLandmarker() {
-  ready ??= load();
+  ready ??= load().catch((error) => {
+    ready = null;
+    throw error;
+  });
   return ready;
 }
 
@@ -53,6 +62,7 @@ export function useHandLandmarks(
           instance = loaded;
           rafId = requestAnimationFrame(waitForVideo);
         })
+        .catch(() => undefined)
         .finally(() => {
           loading = false;
         });
@@ -107,6 +117,7 @@ export function useHandLandmarks(
 
     return () => {
       cancelled = true;
+      void instance?.reset();
       if (rafId) cancelAnimationFrame(rafId);
       if (videoFrameId && frameCallbackVideo) {
         frameCallbackVideo.cancelVideoFrameCallback(videoFrameId);

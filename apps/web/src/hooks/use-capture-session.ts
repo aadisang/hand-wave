@@ -51,8 +51,12 @@ async function openStream(request: CaptureRequest) {
         : { facingMode: "user" }),
     },
   });
-
-  return { stream, frameRate: await requestHighestFrameRate(stream) };
+  try {
+    return { stream, frameRate: await requestHighestFrameRate(stream) };
+  } catch (error) {
+    stopStream(stream);
+    throw error;
+  }
 }
 
 function captureErrorMessage(kind: CaptureKind, error: unknown) {
@@ -71,25 +75,31 @@ function captureErrorMessage(kind: CaptureKind, error: unknown) {
 }
 
 export function useCaptureSession(): CaptureSession {
-  const [request, setRequest] = useState<CaptureRequest | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [frameRate, setFrameRate] = useState<number | null>(null);
+  type CaptureMachine =
+    | { intent: null; phase: "idle" }
+    | { intent: null; phase: "error"; message: string }
+    | { intent: CaptureRequest; phase: "starting" }
+    | {
+        intent: CaptureRequest;
+        phase: "live";
+        stream: MediaStream;
+        frameRate: number;
+      };
+
+  const [machine, setMachine] = useState<CaptureMachine>({
+    intent: null,
+    phase: "idle",
+  });
   const [cameraId, setCameraIdState] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const intent = machine.intent;
 
   useEffect(() => {
-    if (!request) {
-      setStream(null);
-      setFrameRate(null);
-      return;
-    }
+    if (!intent) return;
 
     let cancelled = false;
     let active: MediaStream | null = null;
 
-    setStream(null);
-    setFrameRate(null);
-    void openStream(request)
+    void openStream(intent)
       .then((next) => {
         if (cancelled) {
           stopStream(next.stream);
@@ -97,11 +107,18 @@ export function useCaptureSession(): CaptureSession {
         }
 
         active = next.stream;
-        setError(null);
-        setStream(next.stream);
-        setFrameRate(next.frameRate);
+        setMachine((current) =>
+          current.intent === intent
+            ? {
+                intent,
+                phase: "live",
+                stream: next.stream,
+                frameRate: next.frameRate,
+              }
+            : current,
+        );
 
-        if (request.kind === "camera" && request.cameraId === null) {
+        if (intent.kind === "camera" && intent.cameraId === null) {
           const resolvedCameraId = next.stream
             .getVideoTracks()[0]
             .getSettings().deviceId;
@@ -109,13 +126,16 @@ export function useCaptureSession(): CaptureSession {
         }
 
         next.stream.getVideoTracks().forEach((track) => {
-          track.onended = () => setRequest(null);
+          track.onended = () => setMachine({ intent: null, phase: "idle" });
         });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setRequest(null);
-        setError(captureErrorMessage(request.kind, err));
+        setMachine({
+          intent: null,
+          phase: "error",
+          message: captureErrorMessage(intent.kind, err),
+        });
       });
 
     return () => {
@@ -125,37 +145,49 @@ export function useCaptureSession(): CaptureSession {
       });
       if (active) stopStream(active);
     };
-  }, [request]);
+  }, [intent]);
 
   const start = useCallback(
     (kind: CaptureKind) => {
-      setError(null);
-      setRequest(kind === "camera" ? { kind, cameraId } : { kind });
+      setMachine({
+        intent: kind === "camera" ? { kind, cameraId } : { kind },
+        phase: "starting",
+      });
     },
     [cameraId],
   );
 
   const stop = useCallback(() => {
-    setRequest(null);
-    setError(null);
+    setMachine({ intent: null, phase: "idle" });
   }, []);
 
   const setCameraId = useCallback((next: string | null) => {
     setCameraIdState(next);
-    setRequest((current) =>
-      current?.kind === "camera" ? { ...current, cameraId: next } : current,
+    setMachine((current) =>
+      current.intent?.kind === "camera"
+        ? {
+            intent: { ...current.intent, cameraId: next },
+            phase: "starting",
+          }
+        : current,
     );
   }, []);
 
   const state = useMemo<CaptureState>(() => {
-    if (!request) {
-      return error ? { status: "error", message: error } : { status: "idle" };
+    if (machine.phase === "idle") return { status: "idle" };
+    if (machine.phase === "error") {
+      return { status: "error", message: machine.message };
     }
-
-    return stream && frameRate
-      ? { status: "live", ...request, frameRate, stream }
-      : { status: "starting", ...request };
-  }, [error, frameRate, request, stream]);
+    if (machine.phase === "starting") {
+      return { status: "starting", ...machine.intent };
+    }
+    return {
+      status: "live",
+      ...machine.intent,
+      frameRate: machine.frameRate,
+      stream: machine.stream,
+    };
+  }, [machine]);
 
   return useMemo(
     () => ({ state, cameraId, start, stop, setCameraId }),

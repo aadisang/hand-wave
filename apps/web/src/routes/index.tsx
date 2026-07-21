@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   useEffect(() => {
-    void preloadLandmarker();
+    void preloadLandmarker().catch(() => undefined);
     void warmInference();
   }, []);
 

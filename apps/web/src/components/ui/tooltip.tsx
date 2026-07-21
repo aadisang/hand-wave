@@ -10,8 +10,6 @@ export const TooltipProvider: typeof TooltipPrimitive.Provider =
   TooltipPrimitive.Provider;
 export const TooltipTrigger: typeof TooltipPrimitive.Trigger =
   TooltipPrimitive.Trigger;
-export const TooltipCreateHandle = TooltipPrimitive.createHandle;
-
 const tooltipPopupVariants = cva(
   "max-w-64 origin-(--transform-origin) rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground shadow-lg/5 outline-none transition-[opacity,scale] duration-125 ease-[var(--ease-out)] data-[ending-style]:scale-95 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 data-[instant]:transition-none motion-reduce:transition-none",
 );

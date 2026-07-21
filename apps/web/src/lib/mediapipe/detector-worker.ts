@@ -42,6 +42,7 @@ const trackers = load();
 async function load() {
   filterConsole();
   const fileset = await FilesetResolver.forVisionTasks(wasmPath);
+  await installModuleFactory(fileset.wasmLoaderPath);
   const hand = await createHand(fileset);
   const pose = await createPose(fileset);
   const canvas = new OffscreenCanvas(1, 1);
@@ -54,7 +55,6 @@ async function load() {
 }
 
 async function createHand(fileset: WasmFileset) {
-  await installModuleFactory(fileset.wasmLoaderPath);
   return HandLandmarker.createFromOptions(withInstalledLoader(fileset), {
     baseOptions: { modelAssetPath: handModelUrl, delegate: "GPU" },
     runningMode: "VIDEO",
@@ -66,7 +66,6 @@ async function createHand(fileset: WasmFileset) {
 }
 
 async function createPose(fileset: WasmFileset) {
-  await installModuleFactory(fileset.wasmLoaderPath);
   return PoseLandmarker.createFromOptions(withInstalledLoader(fileset), {
     baseOptions: { modelAssetPath: poseModelUrl, delegate: "GPU" },
     runningMode: "VIDEO",
@@ -127,10 +126,11 @@ function detect(
   const leftHandLandmarks: HandFrame["leftHandLandmarks"] = [];
 
   hand.landmarks.forEach((landmarks, index) => {
-    const category = anatomicalHand(
-      hand.handedness[index][0].categoryName as HandSide,
-      captureKind,
+    const detectedSide = parseHandSide(
+      hand.handedness[index]?.[0]?.categoryName,
     );
+    if (!detectedSide) return;
+    const category = anatomicalHand(detectedSide, captureKind);
     if (category === "Left") {
       leftHandLandmarks.push(cloneLandmarkSet(landmarks));
     } else {
@@ -143,6 +143,10 @@ function detect(
     leftHandLandmarks,
     poseLandmarks: state.poseLandmarks,
   };
+}
+
+function parseHandSide(value: string | undefined): HandSide | null {
+  return value === "Left" || value === "Right" ? value : null;
 }
 
 function anatomicalHand(category: HandSide, captureKind: CaptureKind) {
@@ -201,6 +205,11 @@ const api: LandmarkDetectorApi = {
     } finally {
       request.image.close();
     }
+  },
+  reset() {
+    state.poseLandmarks = [];
+    state.poseAt = 0;
+    smoother.reset();
   },
 };
 

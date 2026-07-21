@@ -116,19 +116,23 @@ function useCameraDevices() {
 
 function subscribe(onStoreChange: () => void) {
   listeners.add(onStoreChange);
-  void refresh();
+  requestRefresh();
 
   const timers = [
-    window.setTimeout(refresh, 250),
-    window.setTimeout(refresh, 1_000),
+    window.setTimeout(requestRefresh, 250),
+    window.setTimeout(requestRefresh, 1_000),
   ];
-  navigator.mediaDevices.addEventListener("devicechange", refresh);
+  navigator.mediaDevices.addEventListener("devicechange", requestRefresh);
 
   return () => {
     listeners.delete(onStoreChange);
     timers.forEach(window.clearTimeout);
-    navigator.mediaDevices.removeEventListener("devicechange", refresh);
+    navigator.mediaDevices.removeEventListener("devicechange", requestRefresh);
   };
+}
+
+function requestRefresh() {
+  void refresh().catch(() => undefined);
 }
 
 function getSnapshot() {

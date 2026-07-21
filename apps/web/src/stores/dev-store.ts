@@ -24,6 +24,8 @@ function clearPendingPanelUpdate() {
   pendingFrame = null;
   pendingInferenceMs = 0;
   pendingFps = null;
+  lastAt = 0;
+  lastPanelAt = 0;
 }
 
 export const useDevStore = create<DevState>((set) => ({
