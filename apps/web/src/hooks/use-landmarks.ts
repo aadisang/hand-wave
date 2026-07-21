@@ -27,6 +27,7 @@ function load() {
 export function preloadLandmarker() {
   ready ??= load().catch((error) => {
     ready = null;
+    console.error("Could not load MediaPipe landmark detection", error);
     throw error;
   });
   return ready;

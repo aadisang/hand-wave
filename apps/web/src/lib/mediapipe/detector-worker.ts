@@ -42,7 +42,6 @@ const trackers = load();
 async function load() {
   filterConsole();
   const fileset = await FilesetResolver.forVisionTasks(wasmPath);
-  await installModuleFactory(fileset.wasmLoaderPath);
   const hand = await createHand(fileset);
   const pose = await createPose(fileset);
   const canvas = new OffscreenCanvas(1, 1);
@@ -55,6 +54,7 @@ async function load() {
 }
 
 async function createHand(fileset: WasmFileset) {
+  await installModuleFactory(fileset.wasmLoaderPath);
   return HandLandmarker.createFromOptions(withInstalledLoader(fileset), {
     baseOptions: { modelAssetPath: handModelUrl, delegate: "GPU" },
     runningMode: "VIDEO",
@@ -66,6 +66,7 @@ async function createHand(fileset: WasmFileset) {
 }
 
 async function createPose(fileset: WasmFileset) {
+  await installModuleFactory(fileset.wasmLoaderPath);
   return PoseLandmarker.createFromOptions(withInstalledLoader(fileset), {
     baseOptions: { modelAssetPath: poseModelUrl, delegate: "GPU" },
     runningMode: "VIDEO",
