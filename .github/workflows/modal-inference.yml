@@ -5,9 +5,12 @@ on:
     branches:
       - main
     paths:
+      - ".github/actions/setup-contract/**"
       - ".github/workflows/modal-inference.yml"
       - "apps/inference/**"
+      - "package.json"
       - "packages/contract/**"
+      - "pnpm-lock.yaml"
   workflow_dispatch:
 
 concurrency:
@@ -59,6 +62,9 @@ jobs:
             fi
           done
 
+      - name: Set up contract
+        uses: ./.github/actions/setup-contract
+
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
@@ -73,6 +79,10 @@ jobs:
       - name: Sync deploy environment
         working-directory: apps/inference
         run: uv sync --frozen --group deploy
+
+      - name: Verify inference imports
+        working-directory: apps/inference
+        run: uv run --frozen --group deploy python -c 'from inference.main import app'
 
       - name: Verify Modal auth
         working-directory: apps/inference
