@@ -25,6 +25,8 @@ actor LandmarkDetector {
   private var lastTimestampMs = 0
   private var handLandmarker: HandLandmarker?
   private var poseLandmarker: PoseLandmarker?
+  private var handPreparation: Task<Void, Error>?
+  private var posePreparation: Task<Void, Error>?
   private var activeHandSelector = ActiveHandSelector()
   private var recentLandmarks = RecentLandmarks()
   private var lastSelectedHand: HandSide?
@@ -42,7 +44,23 @@ actor LandmarkDetector {
 
   private func prepareHand() async throws {
     if handLandmarker != nil { return }
+    if let handPreparation {
+      try await handPreparation.value
+      return
+    }
 
+    let task = Task { try await self.buildHandLandmarker() }
+    handPreparation = task
+    do {
+      try await task.value
+      handPreparation = nil
+    } catch {
+      handPreparation = nil
+      throw error
+    }
+  }
+
+  private func buildHandLandmarker() async throws {
     let handPath = try await MediaPipeModelStore.path(
       resource: "hand_landmarker",
       fileName: "hand_landmarker.task",
@@ -63,30 +81,45 @@ actor LandmarkDetector {
   }
 
   private func preparePose() async throws {
-    if poseLandmarker == nil {
-      let posePath = try await MediaPipeModelStore.path(
-        resource: "pose_landmarker_lite",
-        fileName: "pose_landmarker_lite.task",
-        remoteURL: URL(
-          string:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
-        )!
-      )
-
-      let poseOptions = PoseLandmarkerOptions()
-      poseOptions.baseOptions.modelAssetPath = posePath
-      poseOptions.runningMode = .video
-      poseOptions.numPoses = 1
-      poseOptions.minPoseDetectionConfidence = 0.5
-      poseOptions.minPosePresenceConfidence = 0.5
-      poseOptions.minTrackingConfidence = 0.5
-      poseLandmarker = try PoseLandmarker(options: poseOptions)
+    if poseLandmarker != nil { return }
+    if let posePreparation {
+      try await posePreparation.value
+      return
     }
+
+    let task = Task { try await self.buildPoseLandmarker() }
+    posePreparation = task
+    do {
+      try await task.value
+      posePreparation = nil
+    } catch {
+      posePreparation = nil
+      throw error
+    }
+  }
+
+  private func buildPoseLandmarker() async throws {
+    let posePath = try await MediaPipeModelStore.path(
+      resource: "pose_landmarker_lite",
+      fileName: "pose_landmarker_lite.task",
+      remoteURL: URL(
+        string:
+          "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+      )!
+    )
+
+    let poseOptions = PoseLandmarkerOptions()
+    poseOptions.baseOptions.modelAssetPath = posePath
+    poseOptions.runningMode = .video
+    poseOptions.numPoses = 1
+    poseOptions.minPoseDetectionConfidence = 0.5
+    poseOptions.minPosePresenceConfidence = 0.5
+    poseOptions.minTrackingConfidence = 0.5
+    poseLandmarker = try PoseLandmarker(options: poseOptions)
   }
 
   func detect(
     sampleBuffer: CMSampleBuffer,
-    timestampMs rawTimestampMs: Int,
     poseMode: PoseMode
   ) async throws -> DetectResult {
     try await prepare(poseMode: poseMode)
@@ -98,7 +131,11 @@ actor LandmarkDetector {
       throw DetectorError.invalidImage
     }
 
-    let timestampMs = max(rawTimestampMs, lastTimestampMs + 1)
+    // Camera and wearable presentation times use different timelines and can
+    // restart after an app pause. MediaPipe video mode requires one strictly
+    // increasing timeline for the full life of each landmarker instance.
+    let uptimeMs = Int((ProcessInfo.processInfo.systemUptime * 1_000).rounded(.down))
+    let timestampMs = max(uptimeMs, lastTimestampMs + 1)
     lastTimestampMs = timestampMs
 
     let handResult = try handLandmarker.detect(
@@ -130,12 +167,12 @@ actor LandmarkDetector {
         timestampMs: timestampMs,
         recentLandmarks: recentLandmarks
       ),
-      overlayFrame: frame
+      overlayFrame: frame,
+      timestampMs: timestampMs
     )
   }
 
   func resetSelection() {
-    lastTimestampMs = 0
     activeHandSelector.reset()
     recentLandmarks.reset()
     lastSelectedHand = nil

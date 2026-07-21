@@ -134,6 +134,9 @@ final class PhoneCamera: NSObject, @unchecked Sendable {
     session.beginConfiguration()
     defer { session.commitConfiguration() }
     session.sessionPreset = .inputPriority
+    // Add the shared output before touching the working input. If output setup
+    // fails, the prior camera stays intact.
+    try configureOutput()
     if let previousInput {
       session.removeInput(previousInput)
     }
@@ -145,7 +148,6 @@ final class PhoneCamera: NSObject, @unchecked Sendable {
     }
     session.addInput(nextInput)
 
-    try configureOutput()
     configure(output.connection(with: .video), for: position)
     input = nextInput
     self.position = position

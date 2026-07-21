@@ -19,7 +19,6 @@ extension InferAPI {
 actor InferClient: InferAPI {
   private static let productionURL = URL(string: "https://handwave.sh")!
   private static let localURL = URL(string: "http://localhost:8000")!
-  private static let protocolVersion = 1
   private static let retryDelay: TimeInterval = 5
   private static let handshakeTimeout: Duration = .seconds(15)
   private static let inferenceTimeout: Duration = .seconds(3)
@@ -29,6 +28,9 @@ actor InferClient: InferAPI {
   private let webSocketSession: URLSession
   private var webSocket: URLSessionWebSocketTask?
   private var webSocketURL: URL?
+  private var connectionTask: Task<Result<Void, InferenceFailure>, Never>?
+  private var connectionGeneration = 0
+  private var isWebSocketReady = false
   private var sequence = 0
   private var lastSentTimestampMs: Int?
   private var needsResync = true
@@ -103,9 +105,10 @@ actor InferClient: InferAPI {
       after: lastSentTimestampMs,
       requiresResync: needsResync
     )
-    let request = StreamRequest(
-      type: "recognize",
+    let request = InferenceStreamRecognizeRequest(
       sequence: sequence,
+      _protocol: 1,
+      type: .recognize,
       frames: delta.map(\.inferenceFeatures),
       state: needsResync ? state : nil,
       context: context,
@@ -116,11 +119,14 @@ actor InferClient: InferAPI {
     guard response.sequence == sequence else {
       throw .unexpected("Out-of-order inference stream response.")
     }
-    guard response.protocolVersion == Self.protocolVersion else {
-      throw .unexpected("Unsupported inference stream protocol.")
-    }
-    guard response.type == "result", let result = response.result else {
-      throw .unexpected(response.detail ?? "Invalid inference stream response.")
+    let result: InferenceRecognizeOut
+    switch response {
+    case .result(let payload):
+      result = payload.result
+    case .error(let payload):
+      throw .unexpected(payload.detail)
+    case .pong, .reset:
+      throw .unexpected("Invalid inference stream response.")
     }
     if finalize {
       lastSentTimestampMs = nil
@@ -159,7 +165,29 @@ actor InferClient: InferAPI {
   }
 
   private func connectWebSocket() async throws(InferenceFailure) {
-    if webSocket != nil { return }
+    if isWebSocketReady { return }
+    if let connectionTask {
+      return try await finishConnection(connectionTask, generation: connectionGeneration)
+    }
+
+    connectionGeneration &+= 1
+    let generation = connectionGeneration
+    let task = Task { [weak self] () -> Result<Void, InferenceFailure> in
+      guard let self else { return .failure(.cancelled) }
+      do {
+        try await self.openWebSocket()
+        return .success(())
+      } catch let failure as InferenceFailure {
+        return .failure(failure)
+      } catch {
+        return .failure(.unexpected(error.localizedDescription))
+      }
+    }
+    connectionTask = task
+    try await finishConnection(task, generation: generation)
+  }
+
+  private func openWebSocket() async throws(InferenceFailure) {
     guard let baseURL = baseURLs.first(where: \.isUsableBackend),
       let url = baseURL.webSocketURL(path: "/v1/stream")
     else {
@@ -173,17 +201,35 @@ actor InferClient: InferAPI {
     task.resume()
 
     sequence &+= 1
-    try await sendWebSocket(StreamRequest(type: "ping", sequence: sequence))
+    try await sendWebSocket(
+      InferenceStreamPingRequest(sequence: sequence, _protocol: 1, type: .ping)
+    )
     let response = try await receiveWebSocket(timeout: Self.handshakeTimeout)
-    guard response.type == "pong", response.sequence == sequence,
-      response.protocolVersion == Self.protocolVersion
-    else {
+    guard case .pong = response, response.sequence == sequence else {
       throw .unexpected("Inference stream handshake failed.")
     }
     AppLog.inference.notice("Inference WebSocket connected")
   }
 
-  private func sendWebSocket(_ request: StreamRequest) async throws(InferenceFailure) {
+  private func finishConnection(
+    _ task: Task<Result<Void, InferenceFailure>, Never>,
+    generation: Int
+  ) async throws(InferenceFailure) {
+    let result = await task.value
+    guard generation == connectionGeneration else { throw .cancelled }
+    connectionTask = nil
+    switch result {
+    case .success:
+      isWebSocketReady = true
+    case .failure(let failure):
+      closeWebSocket()
+      throw failure
+    }
+  }
+
+  private func sendWebSocket<Request: Encodable>(
+    _ request: Request
+  ) async throws(InferenceFailure) {
     guard let webSocket, let url = webSocketURL else { throw .missingBaseURL }
     do {
       let data = try JSONEncoder().encode(request)
@@ -200,7 +246,7 @@ actor InferClient: InferAPI {
 
   private func receiveWebSocket(
     timeout: Duration
-  ) async throws(InferenceFailure) -> StreamResponse {
+  ) async throws(InferenceFailure) -> StreamResponsePayload {
     guard let webSocket, let url = webSocketURL else { throw .missingBaseURL }
     let message: URLSessionWebSocketTask.Message
     do {
@@ -230,13 +276,17 @@ actor InferClient: InferAPI {
     @unknown default: throw .unexpected("Unknown WebSocket message type.")
     }
     do {
-      return try JSONDecoder().decode(StreamResponse.self, from: data)
+      return try StreamResponsePayload.decode(from: data)
     } catch {
       throw .decodeResponseFailed(url, error.localizedDescription)
     }
   }
 
   private func closeWebSocket() {
+    connectionGeneration &+= 1
+    connectionTask?.cancel()
+    connectionTask = nil
+    isWebSocketReady = false
     webSocket?.cancel(with: .goingAway, reason: nil)
     webSocket = nil
     webSocketURL = nil
@@ -302,9 +352,9 @@ actor InferClient: InferAPI {
     let configured = (Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String)
       .flatMap { $0.contains("$(") ? nil : URL(string: $0) }
     #if DEBUG
-      return [configured ?? localURL]
+    return [configured ?? localURL]
     #else
-      return [configured ?? productionURL]
+    return [configured ?? productionURL]
     #endif
   }
 
@@ -327,51 +377,6 @@ actor InferClient: InferAPI {
 
 private struct WebSocketResponseTimeout: Error {}
 
-private struct StreamRequest: Encodable {
-  let type: String
-  let sequence: Int
-  let protocolVersion: Int
-  let frames: [InferenceLandmarkFrame]
-  let state: InferenceRecognitionState?
-  let context: InferenceRecognitionContext?
-  let finalize: Bool
-
-  init(
-    type: String,
-    sequence: Int,
-    frames: [InferenceLandmarkFrame] = [],
-    state: InferenceRecognitionState? = nil,
-    context: InferenceRecognitionContext? = nil,
-    finalize: Bool = false
-  ) {
-    self.type = type
-    self.sequence = sequence
-    self.protocolVersion = 1
-    self.frames = frames
-    self.state = state
-    self.context = context
-    self.finalize = finalize
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case type, sequence, frames, state, context, finalize
-    case protocolVersion = "protocol"
-  }
-}
-
-private struct StreamResponse: Decodable {
-  let type: String
-  let sequence: Int
-  let protocolVersion: Int
-  let result: InferenceRecognizeOut?
-  let detail: String?
-
-  enum CodingKeys: String, CodingKey {
-    case type, sequence, result, detail
-    case protocolVersion = "protocol"
-  }
-}
-
 extension InferenceFailure {
   fileprivate var canRetry: Bool {
     switch self {
@@ -390,9 +395,9 @@ extension URL {
     guard let host = host(percentEncoded: false)?.lowercased() else { return true }
     let loopback = host == "localhost" || host == "::1" || host.hasPrefix("127.")
     #if targetEnvironment(simulator)
-      return true
+    return true
     #else
-      return !loopback
+    return !loopback
     #endif
   }
 

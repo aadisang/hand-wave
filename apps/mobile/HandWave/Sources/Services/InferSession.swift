@@ -26,6 +26,26 @@ private struct StreamTiming: Sendable {
 actor InferSession {
   typealias EventHandler = @Sendable (RecognitionEvent) async -> Void
 
+  private enum RequestPhase: Sendable {
+    case idle
+    case decoding(id: Int, epoch: Int)
+    case finalizing(id: Int, epoch: Int)
+
+    var isBusy: Bool {
+      if case .idle = self { return false }
+      return true
+    }
+
+    func matches(id: Int, epoch: Int) -> Bool {
+      switch self {
+      case .idle: false
+      case .decoding(let activeID, let activeEpoch),
+        .finalizing(let activeID, let activeEpoch):
+        activeID == id && activeEpoch == epoch
+      }
+    }
+  }
+
   private struct Endpoint: Sendable {
     let frames: [LandmarkFrame]
     let context: InferenceRecognitionContext
@@ -46,7 +66,7 @@ actor InferSession {
   private var hasMoved = false
   private var hasEnded = false
   private var hasDisplayedPrediction = false
-  private var inFlight = false
+  private var requestPhase: RequestPhase = .idle
   private var pendingEndpoint: Endpoint?
   private var pendingEvent: RecognitionEvent?
   private var pendingError: InferenceFailure?
@@ -130,7 +150,7 @@ actor InferSession {
       return nil
     }
     guard sampledFrames >= InferCfg.Stream.min else { return nil }
-    guard !inFlight else { return nil }
+    guard !requestPhase.isBusy else { return nil }
     if let lastDecodeAt,
       duration(since: lastDecodeAt, at: timestampMs) < timing.decodeIntervalMs
     {
@@ -194,7 +214,7 @@ actor InferSession {
     let batch = frames
     let state = recognitionState
     let context = recognitionContext(at: timestampMs, motion: motion)
-    inFlight = true
+    requestPhase = .decoding(id: id, epoch: requestEpoch)
     lastDecodeAt = timestampMs
     AppLog.inference.debug(
       "Sending recognition batch frames=\(batch.count) sampled=\(self.sampledFrames)"
@@ -223,8 +243,8 @@ actor InferSession {
     id: Int,
     epoch requestEpoch: Int
   ) async {
-    guard id == requestID, requestEpoch == epoch else { return }
-    inFlight = false
+    guard requestPhase.matches(id: id, epoch: requestEpoch), requestEpoch == epoch else { return }
+    requestPhase = .idle
     requestTask = nil
     recognitionState = response.state
     await deliver(event(from: response))
@@ -243,7 +263,7 @@ actor InferSession {
       frames: frames,
       context: endpointContext(reason, at: timestampMs)
     )
-    guard !inFlight else {
+    guard !requestPhase.isBusy else {
       pendingEndpoint = endpoint
       return
     }
@@ -261,7 +281,7 @@ actor InferSession {
     requestID &+= 1
     let id = requestID
     let requestEpoch = epoch
-    inFlight = true
+    requestPhase = .finalizing(id: id, epoch: requestEpoch)
 
     requestTask = Task { [client] in
       do {
@@ -286,8 +306,8 @@ actor InferSession {
     id: Int,
     epoch requestEpoch: Int
   ) async {
-    guard id == requestID, requestEpoch == epoch else { return }
-    inFlight = false
+    guard requestPhase.matches(id: id, epoch: requestEpoch), requestEpoch == epoch else { return }
+    requestPhase = .idle
     requestTask = nil
     recognitionState = nil
 
@@ -307,8 +327,8 @@ actor InferSession {
   }
 
   private func fail(_ failure: InferenceFailure, id: Int, epoch requestEpoch: Int) {
-    guard id == requestID, requestEpoch == epoch else { return }
-    inFlight = false
+    guard requestPhase.matches(id: id, epoch: requestEpoch), requestEpoch == epoch else { return }
+    requestPhase = .idle
     requestTask = nil
     pendingError = failure
     if hasEnded {
@@ -347,21 +367,12 @@ actor InferSession {
     pendingEvent = event
   }
 
-  private func beginNextSegment() {
-    invalidateRequests()
-    recognitionState = nil
-    let shouldClear = hasDisplayedPrediction
-    hasDisplayedPrediction = false
-    resetSegment()
-    queue(shouldClear ? .clear : nil)
-  }
-
   private func invalidateRequests() {
     epoch &+= 1
     requestID &+= 1
     requestTask?.cancel()
     requestTask = nil
-    inFlight = false
+    requestPhase = .idle
     pendingEndpoint = nil
     deferredFrames.removeAll(keepingCapacity: true)
     endingFrame = nil

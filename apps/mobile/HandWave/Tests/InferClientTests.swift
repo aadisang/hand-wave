@@ -31,6 +31,23 @@ struct InferClientTests {
     )
   }
 
+  @Test
+  func encodesTheVersionedStreamEnvelope() throws {
+    let request = InferenceStreamPingRequest(
+      sequence: 7,
+      _protocol: 1,
+      type: .ping
+    )
+
+    let object = try #require(
+      JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+    )
+
+    #expect(object["type"] as? String == "ping")
+    #expect(object["sequence"] as? Int == 7)
+    #expect(object["protocol"] as? Int == 1)
+  }
+
   private static func frame(at timestampMs: Int) -> LandmarkFrame {
     LandmarkFrame(
       landmarks: (0..<54).map { _ in LandmarkPoint(x: 0, y: 0, z: nil) },

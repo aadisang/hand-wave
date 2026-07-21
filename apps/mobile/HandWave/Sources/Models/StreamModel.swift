@@ -73,9 +73,14 @@ final class StreamModel {
     var title: String { self == .glasses ? "Glasses" : "Phone" }
   }
 
+  private enum Lifecycle: Sendable {
+    case idle
+    case connecting(Source)
+    case streaming(Source)
+  }
+
   var source: Source = .glasses
-  private(set) var status: Status = .idle
-  private(set) var activeSource: Source?
+  private var lifecycle: Lifecycle = .idle
   private(set) var hasActiveDevice = false
   private(set) var latestFrame: UIImage?
   private(set) var overlayFrame = HandLandmarksFrame.empty
@@ -111,6 +116,19 @@ final class StreamModel {
     speech.onSpeakingTextChanged = { [weak self] in self?.speakingText = $0 }
   }
 
+  var status: Status {
+    switch lifecycle {
+    case .idle: .idle
+    case .connecting: .connecting
+    case .streaming: .streaming
+    }
+  }
+  var activeSource: Source? {
+    switch lifecycle {
+    case .idle: nil
+    case .connecting(let source), .streaming(let source): source
+    }
+  }
   var isStreaming: Bool { status == .streaming }
   var isActive: Bool { status != .idle }
   var phoneSession: AVCaptureSession { phoneCamera.session }
@@ -135,8 +153,7 @@ final class StreamModel {
     failure = nil
     generation &+= 1
     let run = generation
-    activeSource = source
-    status = .connecting
+    lifecycle = .connecting(source)
     isPreparingLandmarks = true
 
     do {
@@ -204,8 +221,7 @@ final class StreamModel {
     framingMessage = nil
     backendMessage = nil
     speech.reset()
-    activeSource = nil
-    status = .idle
+    lifecycle = .idle
     isStopping = false
     AppLog.stream.notice("Stream stopped")
   }
@@ -238,7 +254,7 @@ final class StreamModel {
       await phoneCamera.stop()
       return
     }
-    status = .streaming
+    lifecycle = .streaming(.phone)
     AppLog.stream.notice("Phone stream started")
 
     frameTask = Task { [weak self] in
@@ -295,12 +311,12 @@ final class StreamModel {
         switch state {
         case .streaming:
           streamStarted = true
-          status = .streaming
+          lifecycle = .streaming(.glasses)
         case .stopped where streamStarted:
           await stop()
         case .waitingForDevice, .starting, .paused, .stopping:
           streamStarted = true
-          status = .connecting
+          lifecycle = .connecting(.glasses)
         case .stopped:
           break
         }
@@ -376,7 +392,8 @@ final class StreamModel {
         default: "Backend warming up"
         }
       } ?? nil
-    let nextFramingMessage = output.needsPose
+    let nextFramingMessage =
+      output.needsPose
       ? "Stand back."
       : nil
     if framingMessage != nextFramingMessage {

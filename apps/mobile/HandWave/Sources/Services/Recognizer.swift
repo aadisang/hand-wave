@@ -1,14 +1,22 @@
-import CoreMedia
 import Foundation
 
 actor Recognizer {
   private static let retryDelay: Duration = .seconds(5)
+  private static let bufferedFrameLimit = 256
+
+  private struct BufferedFrame: Sendable {
+    let frame: LandmarkFrame?
+    let timestampMs: Int
+  }
 
   private let detector: LandmarkDetector
   private let inference: InferSession
   private var isInferenceReady = false
   private var backendFailure: InferenceFailure?
   private var warmupTask: Task<Void, Never>?
+  private var eventHandler: InferSession.EventHandler?
+  private var bufferedFrames: [BufferedFrame] = []
+  private var isReplaying = false
   private var generation = 0
 
   init(
@@ -30,6 +38,7 @@ actor Recognizer {
     generation &+= 1
     let startGeneration = generation
     await inference.setEventHandler(onEvent)
+    eventHandler = onEvent
     try await prepare(poseMode: poseMode)
     guard generation == startGeneration else { throw CancellationError() }
     startWarmup(generation: startGeneration)
@@ -47,17 +56,16 @@ actor Recognizer {
       poseMode = .required
     }
 
-    let timestamp = Self.timestampMs(for: cameraFrame.sampleBuffer)
     let detection = try await detector.detect(
       sampleBuffer: cameraFrame.sampleBuffer,
-      timestampMs: timestamp,
       poseMode: poseMode
     )
     try Task.checkCancellation()
     let result: (event: RecognitionEvent?, failure: InferenceFailure?)
-    if isInferenceReady {
-      result = await ingest(detection.inferenceFrame, at: timestamp)
+    if isInferenceReady, !isReplaying {
+      result = await ingest(detection.inferenceFrame, at: detection.timestampMs)
     } else {
+      buffer(detection.inferenceFrame, at: detection.timestampMs)
       startWarmup(generation: generation)
       result = (nil, backendFailure)
     }
@@ -78,7 +86,10 @@ actor Recognizer {
     warmupTask?.cancel()
     warmupTask = nil
     isInferenceReady = false
+    isReplaying = false
     backendFailure = nil
+    eventHandler = nil
+    bufferedFrames.removeAll(keepingCapacity: true)
     await detector.resetSelection()
     await inference.stop()
   }
@@ -110,11 +121,16 @@ actor Recognizer {
       do {
         try await inference.start()
         guard generation == expectedGeneration, !Task.isCancelled else { break }
+        isReplaying = true
+        try await replayBufferedFrames(generation: expectedGeneration)
+        guard generation == expectedGeneration, !Task.isCancelled else { break }
+        isReplaying = false
         isInferenceReady = true
         backendFailure = nil
         AppLog.inference.notice("Inference backend ready")
       } catch {
         guard generation == expectedGeneration, !Task.isCancelled else { break }
+        isReplaying = false
         record(error)
         try? await Task.sleep(for: Self.retryDelay)
       }
@@ -131,11 +147,29 @@ actor Recognizer {
       "Inference unavailable: \(failure.localizedDescription, privacy: .private)")
   }
 
-  private static func timestampMs(for sampleBuffer: CMSampleBuffer) -> Int {
-    let time = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-    guard time.isValid, time.seconds.isFinite else {
-      return Int(Date().timeIntervalSince1970 * 1_000)
+  private func buffer(_ frame: LandmarkFrame?, at timestampMs: Int) {
+    bufferedFrames.append(BufferedFrame(frame: frame, timestampMs: timestampMs))
+    if bufferedFrames.count > Self.bufferedFrameLimit {
+      bufferedFrames.removeFirst(bufferedFrames.count - Self.bufferedFrameLimit)
     }
-    return Int((time.seconds * 1_000).rounded())
+  }
+
+  private func replayBufferedFrames(
+    generation expectedGeneration: Int
+  ) async throws(InferenceFailure) {
+    while generation == expectedGeneration, !Task.isCancelled, !bufferedFrames.isEmpty {
+      let buffered = bufferedFrames.removeFirst()
+      do {
+        if let event = try await inference.ingest(
+          buffered.frame,
+          at: buffered.timestampMs
+        ) {
+          await eventHandler?(event)
+        }
+      } catch let failure {
+        bufferedFrames.insert(buffered, at: 0)
+        throw failure
+      }
+    }
   }
 }

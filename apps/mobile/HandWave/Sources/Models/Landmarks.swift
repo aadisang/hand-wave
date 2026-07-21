@@ -15,7 +15,7 @@ struct LandmarkFrame: Equatable, Sendable {
     self.timestampMs = timestampMs
   }
 
-  var inferenceFeatures: InferenceLandmarkFrame {
+  var inferenceFeatures: InferenceLandmarkFrameItem {
     landmarks.flatMap { [$0.x, $0.y, $0.z ?? 0] }
   }
 }
@@ -48,4 +48,5 @@ struct HandLandmarksFrame: Equatable, Sendable {
 struct DetectResult: Equatable, Sendable {
   let inferenceFrame: LandmarkFrame?
   let overlayFrame: HandLandmarksFrame
+  let timestampMs: Int
 }
