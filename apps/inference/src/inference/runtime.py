@@ -99,11 +99,11 @@ class HandwaveRuntime:
             self.decoder,
             emissions,
             self.beam_width,
-            beam_prune_logp=getattr(self, "beam_prune_logp", -10.0),
-            token_min_logp=getattr(self, "token_min_logp", -5.0),
-            confidence_temperature=getattr(self, "confidence_temperature", 1.2),
-            hotwords=getattr(self, "hotwords", ()),
-            hotword_weight=getattr(self, "hotword_weight", 10.0),
+            beam_prune_logp=self.beam_prune_logp,
+            token_min_logp=self.token_min_logp,
+            confidence_temperature=self.confidence_temperature,
+            hotwords=self.hotwords,
+            hotword_weight=self.hotword_weight,
         )
 
 

@@ -13,7 +13,16 @@ from inference.schemas import (
     RecognizeIn,
     RecognizeOut,
 )
-from inference.streaming import PROTOCOL_VERSION, SUBPROTOCOL, RecognitionStream, StreamRequest
+from inference.streaming import (
+    PROTOCOL_VERSION,
+    SUBPROTOCOL,
+    ErrorResponse,
+    PongResponse,
+    RecognitionStream,
+    ResetResponse,
+    ResultResponse,
+    parse_stream_request,
+)
 
 router = APIRouter(prefix="/v1", tags=["predictions"])
 
@@ -65,39 +74,33 @@ async def stream(websocket: WebSocket) -> None:
                 payload = await websocket.receive_json()
                 if isinstance(payload, dict) and isinstance(payload.get("sequence"), int):
                     sequence = payload["sequence"]
-                request = StreamRequest.model_validate(payload)
+                request = parse_stream_request(payload)
                 sequence = request.sequence
                 if request.type == "ping":
-                    await websocket.send_json(
-                        {"type": "pong", "sequence": request.sequence, "protocol": PROTOCOL_VERSION}
+                    response = PongResponse(
+                        sequence=request.sequence,
+                        protocol=PROTOCOL_VERSION,
                     )
                 elif request.type == "reset":
                     session.reset()
-                    await websocket.send_json(
-                        {
-                            "type": "reset",
-                            "sequence": request.sequence,
-                            "protocol": PROTOCOL_VERSION,
-                        }
+                    response = ResetResponse(
+                        sequence=request.sequence,
+                        protocol=PROTOCOL_VERSION,
                     )
                 else:
                     result = await session.recognize(request)
-                    await websocket.send_json(
-                        {
-                            "type": "result",
-                            "sequence": request.sequence,
-                            "protocol": PROTOCOL_VERSION,
-                            "result": result.model_dump(mode="json"),
-                        }
+                    response = ResultResponse(
+                        sequence=request.sequence,
+                        protocol=PROTOCOL_VERSION,
+                        result=result,
                     )
+                await websocket.send_json(response.model_dump(mode="json"))
             except (ValidationError, ValueError) as exc:
-                await websocket.send_json(
-                    {
-                        "type": "error",
-                        "sequence": sequence,
-                        "protocol": PROTOCOL_VERSION,
-                        "detail": str(exc),
-                    }
+                response = ErrorResponse(
+                    sequence=sequence,
+                    protocol=PROTOCOL_VERSION,
+                    detail=str(exc),
                 )
+                await websocket.send_json(response.model_dump(mode="json"))
     except WebSocketDisconnect:
         session.reset()

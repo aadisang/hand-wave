@@ -49,6 +49,11 @@ def test_decode_alternatives_come_directly_from_beam_search() -> None:
         ],
     )
     runtime.beam_width = 50
+    runtime.beam_prune_logp = -10
+    runtime.token_min_logp = -5
+    runtime.confidence_temperature = 1.2
+    runtime.hotwords = ()
+    runtime.hotword_weight = 10
 
     alternatives = runtime._decode(np.zeros((1, 1), dtype=np.float32))
 

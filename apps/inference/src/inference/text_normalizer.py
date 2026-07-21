@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from math import inf, log1p
+from os import getenv
 from typing import TYPE_CHECKING
 
 from inference.ctc import DEFAULT_KENLM_MODEL_PATH, DEFAULT_UNIGRAMS_PATH, load_unigrams
@@ -84,10 +85,7 @@ class TextNormalizer:
             )
             if corrected_fragment is not None:
                 fragmented = self.correction_candidates(raw)
-                if (
-                    fragmented
-                    and len(preferred_correction_candidate(fragmented)[1].words) >= 3
-                ):
+                if fragmented and len(preferred_correction_candidate(fragmented)[1].words) >= 3:
                     return corrected_fragment
         exact_split = self.best_exact_split(raw)
         if exact_split is not None:
@@ -363,10 +361,13 @@ class TextNormalizer:
 
 @lru_cache(maxsize=1)
 def default_normalizer() -> TextNormalizer | None:
-    try:
-        return TextNormalizer()
-    except (ImportError, OSError, ValueError):
+    if getenv("TEXT_NORMALIZER_MODE", "required").lower() == "disabled":
         return None
+    return TextNormalizer()
+
+
+def initialize_text_normalizer() -> None:
+    default_normalizer()
 
 
 def normalize_prediction_text(text: str) -> str:
@@ -503,9 +504,7 @@ def preferred_correction_candidate(
 ) -> tuple[float, SegmentationPath]:
     ranked = sorted(candidates, key=lambda item: item[0])
     best_score = ranked[0][0]
-    competitive = [
-        item for item in ranked if item[0] <= best_score + CORRECTION_COMPLEXITY_MARGIN
-    ]
+    competitive = [item for item in ranked if item[0] <= best_score + CORRECTION_COMPLEXITY_MARGIN]
     return min(competitive, key=lambda item: (len(item[1].words), item[1].edits, item[0]))
 
 

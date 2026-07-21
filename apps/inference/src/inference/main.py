@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from inference.model import load_backend
 from inference.routers import predictions
+from inference.text_normalizer import initialize_text_normalizer
 
 
 def cors_origins() -> list[str]:
@@ -18,6 +19,7 @@ def cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    initialize_text_normalizer()
     backend = load_backend()
     app.state.backend = backend
     yield

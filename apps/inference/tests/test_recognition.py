@@ -27,7 +27,12 @@ def predict(label: str, confidence: float) -> PredictOut:
 
 def test_commits_stable_repeated_prediction() -> None:
     state = empty_state()
-    config = SmoothConfig(display_confidence=0.05, commit_confidence=0.12)
+    config = SmoothConfig(
+        display_confidence=0.05,
+        commit_confidence=0.12,
+        commit_count=3,
+        commit_streak=3,
+    )
 
     for _ in range(3):
         out = accept_prediction(state, predict("water", 0.3), context(), 24, 0, config)

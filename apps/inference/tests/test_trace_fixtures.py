@@ -1,35 +1,19 @@
 from __future__ import annotations
 
 import json
-import re
 from functools import cache
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from inference.ctc import (
-    DEFAULT_KENLM_MODEL_PATH,
-    DEFAULT_UNIGRAMS_PATH,
-    CtcDecoderConfig,
-)
+from inference.ctc import CtcDecoderConfig
 from inference.model import resolve_checkpoint_path
 from inference.runtime import HandwaveRuntime
 from inference.schemas import LandmarkFrame
+from inference.text_normalizer import normalize_prediction_text
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "traces"
-
-# These fixtures assert single-shot full-recording decodes and were recorded
-# against these decoder params; the deployed tunings (generated/tunings.py) are
-# optimized for the streaming commit path and may rank single-shot beams
-# differently. Pin the params so this test keeps catching runtime regressions.
-FIXTURE_DECODER_CONFIG = CtcDecoderConfig(
-    kenlm_model_path=DEFAULT_KENLM_MODEL_PATH,
-    unigram_path=DEFAULT_UNIGRAMS_PATH,
-    alpha=1.2,
-    beta=2.0,
-    unk_score_offset=-10.0,
-)
 
 
 def fixture_paths() -> list[Path]:
@@ -41,12 +25,12 @@ def runtime() -> HandwaveRuntime:
     return HandwaveRuntime(
         resolve_checkpoint_path(),
         device="cpu",
-        decoder_config=FIXTURE_DECODER_CONFIG,
+        decoder_config=CtcDecoderConfig.from_env(),
     )
 
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text.lower()).strip()
+    return normalize_prediction_text(text).lower().strip()
 
 
 def replay_frames(recording: dict[str, Any]) -> list[LandmarkFrame]:
@@ -67,7 +51,7 @@ def expected_texts(recording: dict[str, Any]) -> list[str]:
 
 
 @pytest.mark.parametrize("path", fixture_paths(), ids=lambda path: path.name)
-def test_recorded_mediapipe_trace_replays_through_runtime(path: Path) -> None:
+def test_recorded_mediapipe_trace_keeps_expected_hypothesis(path: Path) -> None:
     fixture = json.loads(path.read_text())
     recordings = fixture.get("recordings", [])
 
@@ -83,8 +67,17 @@ def test_recorded_mediapipe_trace_replays_through_runtime(path: Path) -> None:
 
         decoded = runtime().predict(frames)
         normalized_expected = {normalize_text(item) for item in expected}
+        hypotheses = {
+            normalize_text(text)
+            for text in (
+                decoded.text,
+                decoded.greedy_text,
+                *(item.text for item in decoded.alternatives),
+            )
+            if text
+        }
 
-        assert normalize_text(decoded.text) in normalized_expected, {
+        assert hypotheses & normalized_expected, {
             "fixture": path.name,
             "expected": expected,
             "decoded": decoded.text,

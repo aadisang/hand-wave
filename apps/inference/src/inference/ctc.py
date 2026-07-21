@@ -5,36 +5,14 @@ import logging
 from dataclasses import dataclass
 from os import getenv
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 
 import numpy as np
 
+from inference.generated.tunings import CTC
+
 logging.getLogger("pyctcdecode").setLevel(logging.ERROR)
 from pyctcdecode import build_ctcdecoder  # noqa: E402
-
-# generated.tunings (codegen from packages/contract/config.json) is the source of
-# truth for deployed defaults; env vars still override, and the hardcoded fallbacks
-# below only apply if the generated module is missing.
-_CTC: dict[str, Any]
-try:
-    from inference.generated.tunings import CTC as _CTC
-except ImportError:  # pragma: no cover - generated module ships with the source tree
-    _CTC = {}
-
-
-def _tuning_float(key: str, fallback: float) -> float:
-    return float(_CTC.get(key, fallback))
-
-
-def _tuning_int(key: str, fallback: int) -> int:
-    return int(_CTC.get(key, fallback))
-
-
-def _tuning_words(key: str) -> tuple[str, ...]:
-    value = _CTC.get(key, ())
-    if isinstance(value, str):
-        value = value.split(",")
-    return tuple(word.strip().lower() for word in value if str(word).strip())
 
 
 def _env_words(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
@@ -58,12 +36,12 @@ class CtcDecoderConfig:
     alpha: float
     beta: float
     unk_score_offset: float
-    beam_width: int = 50
-    beam_prune_logp: float = -10.0
-    token_min_logp: float = -5.0
-    confidence_temperature: float = 1.2
-    hotwords: tuple[str, ...] = ()
-    hotword_weight: float = 10.0
+    beam_width: int = CTC.beam_width
+    beam_prune_logp: float = CTC.beam_prune_logp
+    token_min_logp: float = CTC.token_min_logp
+    confidence_temperature: float = CTC.confidence_temperature
+    hotwords: tuple[str, ...] = CTC.hotwords
+    hotword_weight: float = CTC.hotword_weight
 
     @classmethod
     def from_env(cls) -> CtcDecoderConfig:
@@ -71,29 +49,29 @@ class CtcDecoderConfig:
         return cls(
             kenlm_model_path=model_path,
             unigram_path=_env_path("KENLM_UNIGRAMS_PATH", DEFAULT_UNIGRAMS_PATH),
-            alpha=_env_float("CTC_ALPHA", _tuning_float("alpha", 1.2)),
-            beta=_env_float("CTC_BETA", _tuning_float("beta", 2.0)),
+            alpha=_env_float("CTC_ALPHA", CTC.alpha),
+            beta=_env_float("CTC_BETA", CTC.beta),
             unk_score_offset=_env_float(
                 "CTC_UNK_SCORE_OFFSET",
-                _tuning_float("unk_score_offset", -10.0),
+                CTC.unk_score_offset,
             ),
-            beam_width=_env_int("CTC_BEAM_WIDTH", _tuning_int("beam_width", cls.beam_width)),
+            beam_width=_env_int("CTC_BEAM_WIDTH", CTC.beam_width),
             beam_prune_logp=_env_float(
                 "CTC_BEAM_PRUNE_LOGP",
-                _tuning_float("beam_prune_logp", cls.beam_prune_logp),
+                CTC.beam_prune_logp,
             ),
             token_min_logp=_env_float(
                 "CTC_TOKEN_MIN_LOGP",
-                _tuning_float("token_min_logp", cls.token_min_logp),
+                CTC.token_min_logp,
             ),
             confidence_temperature=_env_float(
                 "CTC_CONFIDENCE_TEMPERATURE",
-                _tuning_float("confidence_temperature", cls.confidence_temperature),
+                CTC.confidence_temperature,
             ),
-            hotwords=_env_words("CTC_HOTWORDS", _tuning_words("hotwords")),
+            hotwords=_env_words("CTC_HOTWORDS", CTC.hotwords),
             hotword_weight=_env_float(
                 "CTC_HOTWORD_WEIGHT",
-                _tuning_float("hotword_weight", cls.hotword_weight),
+                CTC.hotword_weight,
             ),
         )
 

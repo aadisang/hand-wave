@@ -3,13 +3,14 @@ from inference.generated.schemas import (
     EndpointReason,
     FinalizeTrace,
     HealthOut,
-    LandmarkFrame,
+    LandmarkFrameItem,
     PredictIn,
     Prediction,
     PredictOut,
     RecognitionContext,
     RecognitionCount,
     RecognitionScored,
+    RecognitionSource,
     RecognitionState,
     RecognitionTrace,
     RecognizeIn,
@@ -18,6 +19,7 @@ from inference.generated.schemas import (
 )
 
 N_FEATURES = 162
+LandmarkFrame = LandmarkFrameItem
 __all__ = [
     "LandmarkFrame",
     "N_FEATURES",
@@ -31,6 +33,7 @@ __all__ = [
     "RecognitionContext",
     "RecognitionCount",
     "RecognitionScored",
+    "RecognitionSource",
     "RecognitionState",
     "RecognitionTrace",
     "RecognizeIn",

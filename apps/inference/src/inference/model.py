@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from pathlib import Path
 
@@ -22,12 +23,22 @@ class CheckpointBackend(ModelBackend):
         from inference.runtime import HandwaveRuntime
 
         self.runtime = HandwaveRuntime(checkpoint_path)
-        self._inference_lock = asyncio.Lock()
+        # Cancellation cannot stop native model work once it has entered a
+        # thread. A single-worker executor keeps the runtime serial even when
+        # the task awaiting an older prediction gets cancelled.
+        self._inference_executor = ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="handwave-inference",
+        )
 
     async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
         frame_batch = list(frames)
-        async with self._inference_lock:
-            decoded = await asyncio.to_thread(self.runtime.predict, frame_batch)
+        loop = asyncio.get_running_loop()
+        decoded = await loop.run_in_executor(
+            self._inference_executor,
+            self.runtime.predict,
+            frame_batch,
+        )
         return decoded_to_predict_out(decoded)
 
 
