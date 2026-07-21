@@ -222,6 +222,22 @@ tasks:
     options:
       cache: false
 
+  generatedCheck:
+    command:
+      - "sh"
+      - "-c"
+      - >-
+        status=$(git status --porcelain --untracked-files=all --
+        ':(top)packages/contract/generated'
+        ':(top)apps/web/src/lib/inference/generated'
+        ':(top)apps/mobile/HandWave/Sources/Generated/OpenAPI'
+        ':(top)apps/inference/src/inference/generated');
+        test -z "$status" || { printf '%s\n' "$status"; exit 1; }
+    deps:
+      - "generate"
+    options:
+      cache: false
+
   test:
     command:
       - "pnpm"
