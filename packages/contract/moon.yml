@@ -227,14 +227,13 @@ tasks:
       - "sh"
       - "-c"
       - >-
-        status=$(git status --porcelain --untracked-files=all --
+        tracked=$(git ls-files --
         ':(top)packages/contract/generated'
         ':(top)apps/web/src/lib/inference/generated'
         ':(top)apps/mobile/HandWave/Sources/Generated/OpenAPI'
-        ':(top)apps/inference/src/inference/generated');
-        test -z "$status" || { printf '%s\n' "$status"; exit 1; }
-    deps:
-      - "generate"
+        ':(top)apps/inference/src/inference/generated/schemas.py'
+        ':(top)apps/inference/src/inference/generated/tunings.py');
+        test -z "$tracked" || { printf '%s\n' "$tracked"; exit 1; }
     options:
       cache: false
 

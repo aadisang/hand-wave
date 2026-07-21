@@ -35,7 +35,12 @@ __pycache__/
 
 *.log
 
-apps/mobile/HandWave/Sources/Generated/OpenAPI/.openapi-generator/
+# Rebuilt from packages/contract/main.tsp and config.json.
+packages/contract/generated/
+apps/web/src/lib/inference/generated/
+apps/mobile/HandWave/Sources/Generated/OpenAPI/
+apps/inference/src/inference/generated/schemas.py
+apps/inference/src/inference/generated/tunings.py
 
 .moon/cache/
 .moon/docker/
