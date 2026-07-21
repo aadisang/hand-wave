@@ -6,11 +6,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.8 /uv /uvx /bin/
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential cmake \
     && rm -rf /var/lib/apt/lists/*
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY models ./models
 COPY src ./src
 
-RUN uv sync --no-dev
+RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
