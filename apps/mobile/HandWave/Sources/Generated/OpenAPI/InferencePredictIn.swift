@@ -10,9 +10,9 @@ import Foundation
 
 public struct InferencePredictIn: Sendable, Codable, Hashable {
 
-    public var frames: [InferenceLandmarkFrame]
+    public var frames: [InferenceLandmarkFrameItem]
 
-    public init(frames: [InferenceLandmarkFrame]) {
+    public init(frames: [InferenceLandmarkFrameItem]) {
         self.frames = frames
     }
 

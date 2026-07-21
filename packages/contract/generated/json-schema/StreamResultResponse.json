@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamResultResponse.json",
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "const": "result"
+        },
+        "result": {
+            "$ref": "https://hand-wave.local/schemas/RecognizeOut.json"
+        }
+    },
+    "required": [
+        "type",
+        "result"
+    ],
+    "allOf": [
+        {
+            "$ref": "https://hand-wave.local/schemas/StreamEnvelope.json"
+        }
+    ]
+}

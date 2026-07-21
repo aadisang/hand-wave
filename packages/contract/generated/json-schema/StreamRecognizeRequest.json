@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamRecognizeRequest.json",
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "const": "recognize"
+        },
+        "frames": {
+            "type": "array",
+            "items": {
+                "$ref": "https://hand-wave.local/schemas/LandmarkFrame.json"
+            },
+            "maxItems": 192
+        },
+        "state": {
+            "anyOf": [
+                {
+                    "$ref": "https://hand-wave.local/schemas/RecognitionState.json"
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
+        "context": {
+            "$ref": "https://hand-wave.local/schemas/RecognitionContext.json"
+        },
+        "finalize": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "type",
+        "context"
+    ],
+    "allOf": [
+        {
+            "$ref": "https://hand-wave.local/schemas/StreamEnvelope.json"
+        }
+    ]
+}

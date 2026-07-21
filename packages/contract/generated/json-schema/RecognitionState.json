@@ -38,12 +38,12 @@
         },
         "selected_streak": {
             "type": "integer",
-            "minimum": -2147483648,
+            "minimum": 0,
             "maximum": 2147483647
         },
         "display_misses": {
             "type": "integer",
-            "minimum": -2147483648,
+            "minimum": 0,
             "maximum": 2147483647
         },
         "counts": {
@@ -66,16 +66,9 @@
             ]
         },
         "alternative_misses": {
-            "anyOf": [
-                {
-                    "type": "integer",
-                    "minimum": -2147483648,
-                    "maximum": 2147483647
-                },
-                {
-                    "type": "null"
-                }
-            ]
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
         }
     },
     "required": [

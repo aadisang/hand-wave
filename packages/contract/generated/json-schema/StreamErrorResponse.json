@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamErrorResponse.json",
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "const": "error"
+        },
+        "detail": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "type",
+        "detail"
+    ],
+    "allOf": [
+        {
+            "$ref": "https://hand-wave.local/schemas/StreamEnvelope.json"
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/RecognitionSource.json",
+    "type": "string",
+    "enum": [
+        "endpoint",
+        "beam",
+        "dominant",
+        "alternative",
+        "majority"
+    ]
+}

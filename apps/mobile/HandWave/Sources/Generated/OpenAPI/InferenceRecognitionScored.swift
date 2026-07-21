@@ -12,12 +12,12 @@ public struct InferenceRecognitionScored: Sendable, Codable, Hashable {
 
     public var prediction: InferencePrediction
     public var score: Double
-    public var source: String
+    public var source: InferenceRecognitionSource
     public var lmScore: Double?
     public var modelAgrees: Bool
     public var streak: Int
 
-    public init(prediction: InferencePrediction, score: Double, source: String, lmScore: Double? = nil, modelAgrees: Bool, streak: Int) {
+    public init(prediction: InferencePrediction, score: Double, source: InferenceRecognitionSource, lmScore: Double? = nil, modelAgrees: Bool, streak: Int) {
         self.prediction = prediction
         self.score = score
         self.source = source

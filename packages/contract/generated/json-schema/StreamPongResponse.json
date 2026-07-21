@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://hand-wave.local/schemas/StreamPongResponse.json",
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "const": "pong"
+        }
+    },
+    "required": [
+        "type"
+    ],
+    "allOf": [
+        {
+            "$ref": "https://hand-wave.local/schemas/StreamEnvelope.json"
+        }
+    ]
+}

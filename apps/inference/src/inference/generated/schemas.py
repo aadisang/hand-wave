@@ -51,12 +51,12 @@ class HealthOut(BaseModel):
     ok: bool
 
 
-class LandmarkFrame(RootModel[list[float]]):
+class LandmarkFrameItem(RootModel[list[float]]):
     root: Annotated[list[float], Field(max_length=162, min_length=162)]
 
 
 class PredictIn(BaseModel):
-    frames: Annotated[list[LandmarkFrame], Field(max_length=512, min_length=1)]
+    frames: Annotated[list[LandmarkFrameItem], Field(max_length=512, min_length=1)]
 
 
 class Prediction(BaseModel):
@@ -77,35 +77,15 @@ class RecognitionContext(BaseModel):
 
 class RecognitionCount(BaseModel):
     text: str
-    count: int
+    count: Annotated[int, Field(ge=0)]
 
 
-class RecognitionScored(BaseModel):
-    prediction: Prediction
-    score: float
-    source: str
-    lm_score: float | None = None
-    model_agrees: bool
-    streak: int
-
-
-class RecognitionState(BaseModel):
-    display: RecognitionScored | None = None
-    final_candidate: RecognitionScored | None = None
-    alternative_candidate: RecognitionScored | None = None
-    selected_text: str
-    selected_streak: int
-    display_misses: int
-    counts: list[RecognitionCount]
-    alternative_counts: list[RecognitionCount] | None = None
-    alternative_misses: int | None = None
-
-
-class RecognizeIn(BaseModel):
-    frames: Annotated[list[LandmarkFrame] | None, Field(max_length=512)] = None
-    state: RecognitionState | None = None
-    context: RecognitionContext
-    finalize: bool | None = None
+class RecognitionSource(Enum):
+    endpoint = "endpoint"
+    beam = "beam"
+    dominant = "dominant"
+    alternative = "alternative"
+    majority = "majority"
 
 
 class SmoothCfg(BaseModel):
@@ -174,6 +154,56 @@ class StreamCfg(BaseModel):
     motion: Annotated[float, Field(ge=0.0)]
 
 
+class StreamEnvelope(BaseModel):
+    sequence: Annotated[int, Field(ge=0)]
+    protocol: Annotated[int, Field(ge=1, le=1)]
+
+
+class Type(Enum):
+    error = "error"
+
+
+class StreamErrorResponse(StreamEnvelope):
+    type: Type
+    detail: str
+
+
+class Type1(Enum):
+    ping = "ping"
+
+
+class StreamPingRequest(StreamEnvelope):
+    type: Type1
+
+
+class Type2(Enum):
+    pong = "pong"
+
+
+class StreamPongResponse(StreamEnvelope):
+    type: Type2
+
+
+class Type3(Enum):
+    recognize = "recognize"
+
+
+class Type4(Enum):
+    reset = "reset"
+
+
+class StreamResetRequest(StreamEnvelope):
+    type: Type4
+
+
+class StreamResetResponse(StreamEnvelope):
+    type: Type4
+
+
+class Type6(Enum):
+    result = "result"
+
+
 class InferenceCfg(BaseModel):
     ctc: CtcCfg
     smooth: SmoothGateCfg
@@ -195,10 +225,38 @@ class PredictOut(BaseModel):
     stable_text: str
 
 
+class RecognitionScored(BaseModel):
+    prediction: Prediction
+    score: float
+    source: RecognitionSource
+    lm_score: float | None = None
+    model_agrees: bool
+    streak: Annotated[int, Field(ge=0)]
+
+
+class RecognitionState(BaseModel):
+    display: RecognitionScored | None = None
+    final_candidate: RecognitionScored | None = None
+    alternative_candidate: RecognitionScored | None = None
+    selected_text: str
+    selected_streak: Annotated[int, Field(ge=0)]
+    display_misses: Annotated[int, Field(ge=0)]
+    counts: list[RecognitionCount]
+    alternative_counts: list[RecognitionCount] | None = None
+    alternative_misses: Annotated[int | None, Field(ge=0)] = None
+
+
 class RecognitionTrace(BaseModel):
     prediction: PredictOut | None = None
     decode: DecodeTrace | None = None
     finalize: FinalizeTrace | None = None
+
+
+class RecognizeIn(BaseModel):
+    frames: Annotated[list[LandmarkFrameItem] | None, Field(max_length=512)] = None
+    state: RecognitionState | None = None
+    context: RecognitionContext
+    finalize: bool | None = None
 
 
 class RecognizeOut(BaseModel):
@@ -208,8 +266,31 @@ class RecognizeOut(BaseModel):
     trace: RecognitionTrace
 
 
+class StreamRecognizeRequest(StreamEnvelope):
+    type: Type3
+    frames: Annotated[list[LandmarkFrameItem] | None, Field(max_length=192)] = None
+    state: RecognitionState | None = None
+    context: RecognitionContext
+    finalize: bool | None = None
+
+
+class StreamRequest(RootModel[StreamPingRequest | StreamResetRequest | StreamRecognizeRequest]):
+    root: StreamPingRequest | StreamResetRequest | StreamRecognizeRequest
+
+
+class StreamResultResponse(StreamEnvelope):
+    type: Type6
+    result: RecognizeOut
+
+
 class Config(BaseModel):
     decode: DecodeCfg
     stream: StreamCfg
     mp: MpCfg
     inference: InferenceCfg
+
+
+class StreamResponse(
+    RootModel[StreamPongResponse | StreamResetResponse | StreamResultResponse | StreamErrorResponse]
+):
+    root: StreamPongResponse | StreamResetResponse | StreamResultResponse | StreamErrorResponse

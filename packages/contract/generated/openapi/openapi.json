@@ -275,7 +275,7 @@
           }
         }
       },
-      "LandmarkFrame": {
+      "LandmarkFrameItem": {
         "type": "array",
         "items": {
           "type": "number",
@@ -304,7 +304,7 @@
           "frames": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/LandmarkFrame"
+              "$ref": "#/components/schemas/LandmarkFrameItem"
             },
             "minItems": 1,
             "maxItems": 512
@@ -470,7 +470,8 @@
           },
           "count": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -492,7 +493,7 @@
             "format": "double"
           },
           "source": {
-            "type": "string"
+            "$ref": "#/components/schemas/RecognitionSource"
           },
           "lm_score": {
             "anyOf": [
@@ -510,9 +511,20 @@
           },
           "streak": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 0
           }
         }
+      },
+      "RecognitionSource": {
+        "type": "string",
+        "enum": [
+          "endpoint",
+          "beam",
+          "dominant",
+          "alternative",
+          "majority"
+        ]
       },
       "RecognitionState": {
         "type": "object",
@@ -558,11 +570,13 @@
           },
           "selected_streak": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 0
           },
           "display_misses": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "minimum": 0
           },
           "counts": {
             "type": "array",
@@ -584,15 +598,9 @@
             ]
           },
           "alternative_misses": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "format": "int32"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -640,7 +648,7 @@
           "frames": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/LandmarkFrame"
+              "$ref": "#/components/schemas/LandmarkFrameItem"
             },
             "maxItems": 512
           },
@@ -1033,6 +1041,220 @@
             "minimum": 0
           }
         }
+      },
+      "StreamEnvelope": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "protocol"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "protocol": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 1
+          }
+        }
+      },
+      "StreamErrorResponse": {
+        "type": "object",
+        "required": [
+          "type",
+          "detail"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamPingRequest": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "ping"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamPongResponse": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "pong"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamRecognizeRequest": {
+        "type": "object",
+        "required": [
+          "type",
+          "context"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "recognize"
+            ]
+          },
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandmarkFrameItem"
+            },
+            "maxItems": 192
+          },
+          "state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecognitionState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context": {
+            "$ref": "#/components/schemas/RecognitionContext"
+          },
+          "finalize": {
+            "type": "boolean"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamRequest": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StreamPingRequest"
+          },
+          {
+            "$ref": "#/components/schemas/StreamResetRequest"
+          },
+          {
+            "$ref": "#/components/schemas/StreamRecognizeRequest"
+          }
+        ]
+      },
+      "StreamResetRequest": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "reset"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamResetResponse": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "reset"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
+      },
+      "StreamResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StreamPongResponse"
+          },
+          {
+            "$ref": "#/components/schemas/StreamResetResponse"
+          },
+          {
+            "$ref": "#/components/schemas/StreamResultResponse"
+          },
+          {
+            "$ref": "#/components/schemas/StreamErrorResponse"
+          }
+        ]
+      },
+      "StreamResultResponse": {
+        "type": "object",
+        "required": [
+          "type",
+          "result"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "result"
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/RecognizeOut"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/StreamEnvelope"
+          }
+        ]
       }
     }
   },

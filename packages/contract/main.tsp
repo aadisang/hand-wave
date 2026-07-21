@@ -63,17 +63,29 @@ model HealthOut {
   ok: boolean;
 }
 
+enum RecognitionSource {
+  endpoint: "endpoint",
+  beam: "beam",
+  dominant: "dominant",
+  alternative: "alternative",
+  majority: "majority",
+}
+
 model RecognitionScored {
   prediction: Prediction;
   score: float64;
-  source: string;
+  source: RecognitionSource;
   lm_score?: float64 | null;
   model_agrees: boolean;
+
+  @minValue(0)
   streak: int32;
 }
 
 model RecognitionCount {
   text: string;
+
+  @minValue(0)
   count: int32;
 }
 
@@ -82,11 +94,17 @@ model RecognitionState {
   final_candidate?: RecognitionScored | null;
   alternative_candidate?: RecognitionScored | null;
   selected_text: string;
+
+  @minValue(0)
   selected_streak: int32;
+
+  @minValue(0)
   display_misses: int32;
   counts: RecognitionCount[];
   alternative_counts?: RecognitionCount[] | null;
-  alternative_misses?: int32 | null;
+
+  @minValue(0)
+  alternative_misses?: int32;
 }
 
 enum EndpointReason {
@@ -147,6 +165,65 @@ model RecognizeOut {
   display_prediction?: Prediction | null;
   committed: boolean;
   trace: RecognitionTrace;
+}
+
+model StreamEnvelope {
+  @minValue(0)
+  sequence: int32;
+
+  @minValue(1)
+  @maxValue(1)
+  protocol: int32;
+}
+
+model StreamPingRequest extends StreamEnvelope {
+  type: "ping";
+}
+
+model StreamResetRequest extends StreamEnvelope {
+  type: "reset";
+}
+
+model StreamRecognizeRequest extends StreamEnvelope {
+  type: "recognize";
+
+  @maxItems(192)
+  frames?: LandmarkFrame[];
+
+  state?: RecognitionState | null;
+  context: RecognitionContext;
+  finalize?: boolean;
+}
+
+union StreamRequest {
+  ping: StreamPingRequest,
+  reset: StreamResetRequest,
+  recognize: StreamRecognizeRequest,
+}
+
+model StreamPongResponse extends StreamEnvelope {
+  type: "pong";
+}
+
+model StreamResetResponse extends StreamEnvelope {
+  type: "reset";
+}
+
+model StreamResultResponse extends StreamEnvelope {
+  type: "result";
+  result: RecognizeOut;
+}
+
+model StreamErrorResponse extends StreamEnvelope {
+  type: "error";
+  detail: string;
+}
+
+union StreamResponse {
+  pong: StreamPongResponse,
+  reset: StreamResetResponse,
+  result: StreamResultResponse,
+  error: StreamErrorResponse,
 }
 
 @jsonSchema("config.schema.json")

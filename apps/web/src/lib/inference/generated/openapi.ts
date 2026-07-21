@@ -115,12 +115,12 @@ export interface components {
             ctc: components["schemas"]["CtcCfg"];
             smooth: components["schemas"]["SmoothGateCfg"];
         };
-        LandmarkFrame: number[];
+        LandmarkFrameItem: number[];
         MpCfg: {
             smooth: components["schemas"]["SmoothSet"];
         };
         PredictIn: {
-            frames: components["schemas"]["LandmarkFrame"][];
+            frames: components["schemas"]["LandmarkFrameItem"][];
         };
         PredictOut: {
             prediction: components["schemas"]["Prediction"];
@@ -164,12 +164,14 @@ export interface components {
             prediction: components["schemas"]["Prediction"];
             /** Format: double */
             score: number;
-            source: string;
+            source: components["schemas"]["RecognitionSource"];
             lm_score?: number | null;
             model_agrees: boolean;
             /** Format: int32 */
             streak: number;
         };
+        /** @enum {string} */
+        RecognitionSource: "endpoint" | "beam" | "dominant" | "alternative" | "majority";
         RecognitionState: {
             display?: components["schemas"]["RecognitionScored"] | null;
             final_candidate?: components["schemas"]["RecognitionScored"] | null;
@@ -181,7 +183,8 @@ export interface components {
             display_misses: number;
             counts: components["schemas"]["RecognitionCount"][];
             alternative_counts?: components["schemas"]["RecognitionCount"][] | null;
-            alternative_misses?: number | null;
+            /** Format: int32 */
+            alternative_misses?: number;
         };
         RecognitionTrace: {
             prediction?: components["schemas"]["PredictOut"] | null;
@@ -189,7 +192,7 @@ export interface components {
             finalize?: components["schemas"]["FinalizeTrace"] | null;
         };
         RecognizeIn: {
-            frames?: components["schemas"]["LandmarkFrame"][];
+            frames?: components["schemas"]["LandmarkFrameItem"][];
             state?: components["schemas"]["RecognitionState"] | null;
             context: components["schemas"]["RecognitionContext"];
             finalize?: boolean;
@@ -309,6 +312,48 @@ export interface components {
             /** Format: double */
             motion: number;
         };
+        StreamEnvelope: {
+            /** Format: int32 */
+            sequence: number;
+            /** Format: int32 */
+            protocol: number;
+        };
+        StreamErrorResponse: {
+            /** @enum {string} */
+            type: "error";
+            detail: string;
+        } & components["schemas"]["StreamEnvelope"];
+        StreamPingRequest: {
+            /** @enum {string} */
+            type: "ping";
+        } & components["schemas"]["StreamEnvelope"];
+        StreamPongResponse: {
+            /** @enum {string} */
+            type: "pong";
+        } & components["schemas"]["StreamEnvelope"];
+        StreamRecognizeRequest: {
+            /** @enum {string} */
+            type: "recognize";
+            frames?: components["schemas"]["LandmarkFrameItem"][];
+            state?: components["schemas"]["RecognitionState"] | null;
+            context: components["schemas"]["RecognitionContext"];
+            finalize?: boolean;
+        } & components["schemas"]["StreamEnvelope"];
+        StreamRequest: components["schemas"]["StreamPingRequest"] | components["schemas"]["StreamResetRequest"] | components["schemas"]["StreamRecognizeRequest"];
+        StreamResetRequest: {
+            /** @enum {string} */
+            type: "reset";
+        } & components["schemas"]["StreamEnvelope"];
+        StreamResetResponse: {
+            /** @enum {string} */
+            type: "reset";
+        } & components["schemas"]["StreamEnvelope"];
+        StreamResponse: components["schemas"]["StreamPongResponse"] | components["schemas"]["StreamResetResponse"] | components["schemas"]["StreamResultResponse"] | components["schemas"]["StreamErrorResponse"];
+        StreamResultResponse: {
+            /** @enum {string} */
+            type: "result";
+            result: components["schemas"]["RecognizeOut"];
+        } & components["schemas"]["StreamEnvelope"];
     };
     responses: never;
     parameters: never;

@@ -2,52 +2,60 @@
 # Source of truth: the "inference" section of packages/contract/config.json.
 # Regenerate with: moon run contract:generateTunings
 
-CTC: dict[str, object] = {
-    "alpha": 1.6,
-    "beta": 2,
-    "unk_score_offset": -10,
-    "beam_width": 50,
-    "beam_prune_logp": -10,
-    "token_min_logp": -5,
-    "confidence_temperature": 2.279,
-    "hotwords": (),
-    "hotword_weight": 8,
-}
+from dataclasses import dataclass
 
-SMOOTH: dict[str, object] = {
-    "display_confidence": 0.101,
-    "display_streak": 1,
-    "display_count": 1,
-    "display_clear_misses": 1,
-    "display_clear_motion": 0.003,
-    "instant_display_confidence": 0.721,
-    "commit_confidence": 0.65,
-    "model_disagreement_commit_confidence": 0.875,
-    "short_commit_confidence": 0.921,
-    "commit_streak": 3,
-    "commit_count": 7,
-    "endpoint_commit_count": 1,
-    "commit_soft_oov_min_chars": 7,
-    "commit_soft_oov_confidence": 0.765,
-    "commit_reject_uncorrected_oov_chars": 8,
-    "stable_commit_confidence": 0.7,
-    "stable_commit_count": 10,
-    "stable_commit_streak": 8,
-    "stable_commit_min_chars": 3,
-    "short_stable_commit_confidence": 0.594,
-    "short_stable_commit_count": 15,
-    "short_stable_commit_streak": 14,
-    "short_stable_commit_min_chars": 2,
-    "short_stable_commit_max_chars": 3,
-    "majority_commit_min_count": 26,
-    "majority_commit_min_share": 0.73,
-    "majority_commit_min_chars": 2,
-    "dominant_commit_confidence": 0.178,
-    "dominant_commit_count": 20,
-    "dominant_commit_min_chars": 4,
-    "alternative_commit_confidence": 0.25,
-    "alternative_commit_count": 12,
-    "alternative_commit_min_chars": 4,
-    "alternative_commit_recent_misses": 6,
-    "replace_margin": -0.041,
-}
+@dataclass(frozen=True)
+class CtcTunings:
+    alpha: float = 1.6
+    beta: int = 2
+    unk_score_offset: int = -10
+    beam_width: int = 50
+    beam_prune_logp: int = -10
+    token_min_logp: int = -5
+    confidence_temperature: float = 2.279
+    hotwords: tuple[str, ...] = ()
+    hotword_weight: int = 8
+
+
+CTC = CtcTunings()
+
+@dataclass(frozen=True)
+class SmoothTunings:
+    display_confidence: float = 0.101
+    display_streak: int = 1
+    display_count: int = 1
+    display_clear_misses: int = 1
+    display_clear_motion: float = 0.003
+    instant_display_confidence: float = 0.721
+    commit_confidence: float = 0.65
+    model_disagreement_commit_confidence: float = 0.875
+    short_commit_confidence: float = 0.921
+    commit_streak: int = 3
+    commit_count: int = 7
+    endpoint_commit_count: int = 1
+    commit_soft_oov_min_chars: int = 7
+    commit_soft_oov_confidence: float = 0.765
+    commit_reject_uncorrected_oov_chars: int = 8
+    stable_commit_confidence: float = 0.7
+    stable_commit_count: int = 10
+    stable_commit_streak: int = 8
+    stable_commit_min_chars: int = 3
+    short_stable_commit_confidence: float = 0.594
+    short_stable_commit_count: int = 15
+    short_stable_commit_streak: int = 14
+    short_stable_commit_min_chars: int = 2
+    short_stable_commit_max_chars: int = 3
+    majority_commit_min_count: int = 26
+    majority_commit_min_share: float = 0.73
+    majority_commit_min_chars: int = 2
+    dominant_commit_confidence: float = 0.178
+    dominant_commit_count: int = 20
+    dominant_commit_min_chars: int = 4
+    alternative_commit_confidence: float = 0.25
+    alternative_commit_count: int = 12
+    alternative_commit_min_chars: int = 4
+    alternative_commit_recent_misses: int = 6
+    replace_margin: float = -0.041
+
+
+SMOOTH = SmoothTunings()
