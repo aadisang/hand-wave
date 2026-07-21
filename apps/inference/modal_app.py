@@ -24,7 +24,7 @@ app = modal.App(APP_NAME)
 
 # A WebSocket occupies one Modal Function input for the life of the connection.
 # Modal allows up to 24 hours; the iOS client reconnects and resynchronizes if it expires.
-@app.function(image=image, timeout=86_400, min_containers=1)
+@app.function(image=image, timeout=86_400)
 # Each socket is mostly idle, but model work is serial inside a container.
 # Scale near one active socket per model while allowing short connection bursts.
 @modal.concurrent(max_inputs=8, target_inputs=1)
