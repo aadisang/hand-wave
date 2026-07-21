@@ -1,6 +1,7 @@
 // Copy this file to HandWave.xcconfig to override local build settings.
 // HandWave.xcconfig is optional and gitignored.
 
+// Used by Release builds. Debug builds always use Developer Mode credentials.
 META_APP_ID = REPLACE_WITH_META_APP_ID
 CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
 DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID

@@ -4,7 +4,10 @@ import SwiftUI
 enum AppFont {
   static func register() {
     for face in ["Satoshi-Regular", "Satoshi-SemiBold"] {
-      let url = Bundle.main.url(forResource: face, withExtension: "ttf")!
+      guard let url = Bundle.main.url(forResource: face, withExtension: "ttf") else {
+        AppLog.app.fault("Bundled font missing: \(face, privacy: .public)")
+        continue
+      }
       CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
     }
   }

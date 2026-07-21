@@ -2,3 +2,8 @@
 HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
 
 #include? "HandWave.xcconfig"
+
+// Local builds register through Meta AI Developer Mode. Keep production
+// credentials confined to Release.xcconfig and its release channel.
+META_APP_ID = 0
+CLIENT_TOKEN =
