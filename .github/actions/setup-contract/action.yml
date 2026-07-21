@@ -1,5 +1,5 @@
 name: Set up contract
-description: Install the pinned JavaScript tools and generate contract clients
+description: Install the pinned contract tools and generate contract clients
 
 runs:
   using: composite
@@ -8,6 +8,17 @@ runs:
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 22
+
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      with:
+        python-version-file: apps/inference/.python-version
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      with:
+        enable-cache: true
+        cache-dependency-glob: apps/inference/uv.lock
 
     - name: Set up pnpm
       shell: bash
