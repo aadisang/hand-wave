@@ -3,18 +3,24 @@ name: iOS
 on:
   pull_request:
     paths:
+      - ".github/actions/setup-contract/**"
       - ".github/workflows/ios.yml"
       - ".github/workflows/testflight.yml"
       - "apps/mobile/**"
+      - "package.json"
       - "packages/contract/**"
+      - "pnpm-lock.yaml"
   push:
     branches:
       - main
     paths:
+      - ".github/actions/setup-contract/**"
       - ".github/workflows/ios.yml"
       - ".github/workflows/testflight.yml"
       - "apps/mobile/**"
+      - "package.json"
       - "packages/contract/**"
+      - "pnpm-lock.yaml"
   workflow_dispatch:
 
 concurrency:
@@ -36,6 +42,9 @@ jobs:
 
       - name: Set up Tuist
         uses: ./.github/actions/setup-tuist
+
+      - name: Set up contract
+        uses: ./.github/actions/setup-contract
 
       - name: Generate workspace
         working-directory: apps/mobile

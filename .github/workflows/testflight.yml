@@ -48,6 +48,9 @@ jobs:
       - name: Set up Tuist
         uses: ./.github/actions/setup-tuist
 
+      - name: Set up contract
+        uses: ./.github/actions/setup-contract
+
       - name: Generate workspace
         working-directory: apps/mobile
         env:
@@ -91,6 +94,9 @@ jobs:
 
       - name: Set up Tuist
         uses: ./.github/actions/setup-tuist
+
+      - name: Set up contract
+        uses: ./.github/actions/setup-contract
 
       - name: Generate workspace
         working-directory: apps/mobile
