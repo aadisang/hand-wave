@@ -41,3 +41,4 @@ apps/mobile/HandWave/Sources/Generated/OpenAPI/.openapi-generator/
 .moon/docker/
 .vercel
 .lazyweb/
+.codex/
