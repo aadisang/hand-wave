@@ -62,6 +62,20 @@ describe("MediaPipe detector worker", () => {
     expect(mocks.created).toEqual(["hand", "pose"]);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps handedness for mirrored camera input", async () => {
+    const { anatomicalHand } = await import("@/lib/mediapipe/detector-worker");
+
+    expect(anatomicalHand("Right", "camera")).toBe("Right");
+    expect(anatomicalHand("Left", "camera")).toBe("Left");
+  });
+
+  it("swaps handedness for unmirrored screen input", async () => {
+    const { anatomicalHand } = await import("@/lib/mediapipe/detector-worker");
+
+    expect(anatomicalHand("Right", "screen")).toBe("Left");
+    expect(anatomicalHand("Left", "screen")).toBe("Right");
+  });
 });
 
 function consumeModuleFactory(task: string) {

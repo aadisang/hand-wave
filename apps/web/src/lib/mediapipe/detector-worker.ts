@@ -150,8 +150,8 @@ function parseHandSide(value: string | undefined): HandSide | null {
   return value === "Left" || value === "Right" ? value : null;
 }
 
-function anatomicalHand(category: HandSide, captureKind: CaptureKind) {
-  if (captureKind === "screen") return category;
+export function anatomicalHand(category: HandSide, captureKind: CaptureKind) {
+  if (captureKind === "camera") return category;
   if (category === "Left") return "Right";
   return "Left";
 }
