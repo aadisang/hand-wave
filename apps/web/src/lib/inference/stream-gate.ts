@@ -26,14 +26,9 @@ export function streamTiming() {
   };
 }
 
-export const { holdMs, idle, lost, minFrames, motionMin, stride } =
-  streamTiming();
-
 export function interpolateFrame(from: Frame, to: Frame, progress: number) {
   const amount = Math.min(1, Math.max(0, progress));
-  return from.map(
-    (value, index) => value + ((to[index] ?? value) - value) * amount,
-  );
+  return from.map((value, index) => value + (to[index] - value) * amount);
 }
 
 export function frameMotion(previous: Frame | null, current: Frame) {

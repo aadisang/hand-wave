@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
-import {
-  interpolateFrame,
-  lost,
-  minFrames,
-  streamTiming,
-  stride,
-} from "@/lib/inference/stream-gate";
+import { interpolateFrame, streamTiming } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
+
+const { lost, minFrames, stride } = streamTiming();
 
 const inference = vi.hoisted(() => ({
   prepare: vi.fn<() => Promise<void>>(),

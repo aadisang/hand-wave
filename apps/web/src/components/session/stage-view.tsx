@@ -24,10 +24,7 @@ export function Stage() {
 
   const { state } = capture;
   const isLive = state.status === "live";
-  const inference = useInfer(
-    isLive ? state.frameRate : null,
-    inferenceBoundary,
-  );
+  const inference = useInfer(isLive, inferenceBoundary);
 
   useEffect(() => {
     if (videoRef.current) {

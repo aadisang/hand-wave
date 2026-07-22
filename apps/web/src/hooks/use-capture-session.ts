@@ -19,19 +19,19 @@ function reportedFrameRate(stream: MediaStream, fallback = cfg.stream.fps) {
   return stream.getVideoTracks()[0]?.getSettings().frameRate ?? fallback;
 }
 
-async function requestHighestFrameRate(stream: MediaStream) {
+async function applyPreferredFrameRate(stream: MediaStream) {
   const [track] = stream.getVideoTracks();
   const maxFrameRate = track?.getCapabilities().frameRate?.max;
+  const frameRate = Math.min(
+    preferredFrameRate,
+    maxFrameRate ?? cfg.stream.fps,
+  );
   if (maxFrameRate) {
-    const frameRate = Math.min(preferredFrameRate, maxFrameRate);
     await track.applyConstraints({
       frameRate: { ideal: frameRate, max: frameRate },
     });
   }
-  return reportedFrameRate(
-    stream,
-    Math.min(preferredFrameRate, maxFrameRate ?? cfg.stream.fps),
-  );
+  return reportedFrameRate(stream, frameRate);
 }
 
 async function openStream(request: CaptureRequest) {
@@ -56,7 +56,7 @@ async function openStream(request: CaptureRequest) {
     },
   });
   try {
-    return { stream, frameRate: await requestHighestFrameRate(stream) };
+    return { stream, frameRate: await applyPreferredFrameRate(stream) };
   } catch (error) {
     stopStream(stream);
     throw error;
