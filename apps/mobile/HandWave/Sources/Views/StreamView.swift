@@ -64,8 +64,12 @@ private struct StreamContent: View {
         Color.stage
         PreviewPane(source: source, phoneSession: phoneSession, frame: latestFrame)
         if showsLandmarks {
-          LandmarkOverlay(frame: overlayFrame, showsPose: showsPoseLandmarks)
-            .transition(.opacity)
+          LandmarkOverlay(
+            frame: overlayFrame,
+            showsPose: showsPoseLandmarks,
+            previewMode: source == .phone ? .fill : .fit
+          )
+          .transition(.opacity)
         }
         if isLoading {
           ProgressView()

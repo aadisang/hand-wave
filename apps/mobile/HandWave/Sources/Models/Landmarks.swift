@@ -6,6 +6,11 @@ struct LandmarkPoint: Equatable, Sendable {
   let z: Double?
 }
 
+struct LandmarkImageSize: Equatable, Sendable {
+  let width: Double
+  let height: Double
+}
+
 struct LandmarkFrame: Equatable, Sendable {
   let landmarks: [LandmarkPoint]
   let timestampMs: Int
@@ -24,15 +29,18 @@ struct HandLandmarksFrame: Equatable, Sendable {
   let rightHandLandmarks: [[LandmarkPoint]]
   let leftHandLandmarks: [[LandmarkPoint]]
   let poseLandmarks: [[LandmarkPoint]]
+  let imageSize: LandmarkImageSize?
 
   init(
     rightHandLandmarks: [[LandmarkPoint]],
     leftHandLandmarks: [[LandmarkPoint]],
-    poseLandmarks: [[LandmarkPoint]] = []
+    poseLandmarks: [[LandmarkPoint]] = [],
+    imageSize: LandmarkImageSize? = nil
   ) {
     self.rightHandLandmarks = rightHandLandmarks
     self.leftHandLandmarks = leftHandLandmarks
     self.poseLandmarks = poseLandmarks
+    self.imageSize = imageSize
   }
 
   static let empty = Self(

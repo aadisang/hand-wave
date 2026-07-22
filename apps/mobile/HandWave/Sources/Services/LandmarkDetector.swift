@@ -127,9 +127,16 @@ actor LandmarkDetector {
       throw DetectorError.modelUnavailable("landmarker")
     }
     let mediaPipeBuffer = try imageBufferConverter.bgraSampleBuffer(from: sampleBuffer)
-    guard let image = try? MPImage(sampleBuffer: mediaPipeBuffer) else {
+    guard
+      let imageBuffer = CMSampleBufferGetImageBuffer(mediaPipeBuffer),
+      let image = try? MPImage(sampleBuffer: mediaPipeBuffer)
+    else {
       throw DetectorError.invalidImage
     }
+    let imageSize = LandmarkImageSize(
+      width: Double(CVPixelBufferGetWidth(imageBuffer)),
+      height: Double(CVPixelBufferGetHeight(imageBuffer))
+    )
 
     // Camera and wearable presentation times use different timelines and can
     // restart after an app pause. MediaPipe video mode requires one strictly
@@ -151,7 +158,8 @@ actor LandmarkDetector {
     let frame = HandLandmarksFrame(
       rightHandLandmarks: rightHands(from: handResult),
       leftHandLandmarks: leftHands(from: handResult),
-      poseLandmarks: pose.map { [$0] } ?? []
+      poseLandmarks: pose.map { [$0] } ?? [],
+      imageSize: imageSize
     )
     let selectedHand = activeHandSelector.select(frame)
     if let selectedHand {

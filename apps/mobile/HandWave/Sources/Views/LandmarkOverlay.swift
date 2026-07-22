@@ -3,6 +3,7 @@ import SwiftUI
 struct LandmarkOverlay: View {
   let frame: HandLandmarksFrame
   let showsPose: Bool
+  let previewMode: LandmarkPreviewMode
 
   private enum Style {
     static let posePoint = Color(hex: 0x60A5FA).opacity(0.9)
@@ -94,9 +95,11 @@ struct LandmarkOverlay: View {
   }
 
   private func cgPoint(_ point: LandmarkPoint, in size: CGSize) -> CGPoint {
-    CGPoint(
-      x: CGFloat(min(max(point.x, 0), 1)) * size.width,
-      y: CGFloat(min(max(point.y, 0), 1)) * size.height
+    LandmarkProjection.point(
+      point,
+      imageSize: frame.imageSize,
+      viewportSize: size,
+      previewMode: previewMode
     )
   }
 
