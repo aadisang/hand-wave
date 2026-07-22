@@ -32,6 +32,34 @@ struct InferClientTests {
   }
 
   @Test
+  func detectsWhenTheServerCursorFallsOutOfTheWindow() {
+    let frames = [84, 126].map { Self.frame(at: $0) }
+
+    #expect(
+      InferClient.cursorWasLost(in: frames, after: 42, requiresResync: false)
+    )
+    #expect(
+      !InferClient.cursorWasLost(in: frames, after: 84, requiresResync: false)
+    )
+    #expect(
+      !InferClient.cursorWasLost(in: frames, after: 42, requiresResync: true)
+    )
+  }
+
+  @Test
+  func waitsAfterAConnectionFailureAndClearsAfterSuccess() {
+    let now = Date(timeIntervalSinceReferenceDate: 1_000)
+    var backoff = InferenceConnectionBackoff()
+
+    backoff.recordFailure(at: now)
+    #expect(backoff.remainingDelay(at: now) == 5)
+    #expect(backoff.remainingDelay(at: now.addingTimeInterval(2)) == 3)
+
+    backoff.clear()
+    #expect(backoff.remainingDelay(at: now) == 0)
+  }
+
+  @Test
   func encodesTheVersionedStreamEnvelope() throws {
     let request = InferenceStreamPingRequest(
       sequence: 7,

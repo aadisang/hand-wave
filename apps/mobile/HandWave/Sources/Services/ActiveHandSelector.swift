@@ -2,6 +2,7 @@ import Foundation
 
 struct ActiveHandSelector {
   private var active: HandSide?
+  private var locked = false
   private var previousLeft: [LandmarkPoint]?
   private var previousRight: [LandmarkPoint]?
 
@@ -14,6 +15,26 @@ struct ActiveHandSelector {
     }
 
     let selected = selectActiveHand(right: right, left: left)
+    if let selected {
+      let selectedMotion =
+        selected == .right
+        ? Self.motion(
+          previous: previousRight,
+          current: right ?? []
+        )
+        : Self.motion(
+          previous: previousLeft,
+          current: left ?? []
+        )
+      if selectedMotion > 0.015 {
+        locked = true
+      }
+    }
+    if let active,
+      (active == .right ? right : left) == nil
+    {
+      locked = false
+    }
     active = selected
     previousRight = right
     previousLeft = left
@@ -22,6 +43,7 @@ struct ActiveHandSelector {
 
   mutating func reset() {
     active = nil
+    locked = false
     previousLeft = nil
     previousRight = nil
   }
@@ -35,6 +57,10 @@ struct ActiveHandSelector {
 
     let rightMotion = Self.motion(previous: previousRight, current: right)
     let leftMotion = Self.motion(previous: previousLeft, current: left)
+
+    if locked, let active {
+      return active
+    }
 
     if let active {
       let other: HandSide = active == .right ? .left : .right

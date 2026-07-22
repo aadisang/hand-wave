@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
 import {
-  effectiveFrameRate,
+  interpolateFrame,
   lost,
   minFrames,
   streamTiming,
@@ -14,6 +14,7 @@ import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 const inference = vi.hoisted(() => ({
   prepare: vi.fn<() => Promise<void>>(),
   recognize: vi.fn<(payload: RecognizeIn) => Promise<RecognizeOut>>(),
+  resetSession: vi.fn<() => Promise<void>>(),
   reset: vi.fn(),
   warm: vi.fn(),
 }));
@@ -21,15 +22,13 @@ const inference = vi.hoisted(() => ({
 let clockStepMs = 40;
 
 vi.mock("@/lib/inference/client", () => ({
-  resetInferenceStream: inference.reset,
+  clearInferenceSession: inference.resetSession,
+  closeInferenceStream: inference.reset,
+  prepareInferenceStream: inference.prepare,
   recognizeFrames: vi.fn((payload: RecognizeIn) =>
     inference.recognize(payload),
   ),
   warmInference: inference.warm,
-}));
-
-vi.mock("@/lib/inference/socket", () => ({
-  prepareInferenceStream: inference.prepare,
 }));
 
 describe("stream controller", () => {
@@ -41,6 +40,8 @@ describe("stream controller", () => {
     inference.recognize.mockReset();
     inference.prepare.mockReset();
     inference.prepare.mockResolvedValue();
+    inference.resetSession.mockReset();
+    inference.resetSession.mockResolvedValue();
     inference.reset.mockReset();
     inference.warm.mockReset();
 
@@ -61,6 +62,17 @@ describe("stream controller", () => {
     expect(inference.reset).not.toHaveBeenCalled();
     controller.dispose();
     expect(inference.reset).toHaveBeenCalledOnce();
+  });
+
+  test("resets server state without closing the transport after a frame stall", () => {
+    const controller = createStreamCtrl();
+    clockStepMs = 100;
+    controller.accept(frame(0));
+    clockStepMs = streamTiming().stallMs + 1;
+    controller.accept(frame(0.1));
+
+    expect(inference.resetSession).toHaveBeenCalledOnce();
+    expect(inference.reset).not.toHaveBeenCalled();
   });
 
   test("keeps a sign made while the server warms", async () => {
@@ -92,30 +104,39 @@ describe("stream controller", () => {
     );
   });
 
-  test("scales stream timing to the source frame rate", () => {
-    const timing = streamTiming(cfg.stream.fps * 2);
+  test("keeps model timing on the trained 24 FPS grid", () => {
+    const timing = streamTiming();
 
-    expect(timing.minFrames).toBe(cfg.stream.min * 2);
-    expect(timing.idle).toBe(cfg.stream.idle * 2);
-    expect(timing.lost).toBe(cfg.stream.lost * 2);
-    expect(timing.stride).toBe(cfg.stream.stride * 2);
-    expect(timing.maxFrames).toBe(cfg.decode.window * 2);
+    expect(timing.minFrames).toBe(cfg.stream.min);
+    expect(timing.idle).toBe(cfg.stream.idle);
+    expect(timing.lost).toBe(cfg.stream.lost);
+    expect(timing.stride).toBe(cfg.stream.stride);
+    expect(timing.maxFrames).toBe(cfg.decode.window);
+    expect(timing.sampleMs).toBeCloseTo(1_000 / cfg.stream.fps);
   });
 
-  test("caps absurd reported frame rates", () => {
-    expect(effectiveFrameRate(240)).toBe(60);
+  test("interpolates source frames onto the model grid", () => {
+    expect(interpolateFrame([0, 2], [2, 6], 0.5)).toEqual([1, 4]);
+  });
 
-    const timing = streamTiming(240);
-    const scale = 60 / cfg.stream.fps;
-    expect(timing.minFrames).toBe(Math.ceil(cfg.stream.min * scale));
-    expect(timing.stride).toBe(Math.ceil(cfg.stream.stride * scale));
+  test("builds the same model window from 24 and 60 FPS input", () => {
+    inference.recognize.mockResolvedValue(response("cat", false));
+
+    const at24 = firstDecodeAtRate(24);
+    inference.recognize.mockClear();
+    const at60 = firstDecodeAtRate(60);
+
+    expect(at60).toHaveLength(at24.length);
+    for (let index = 0; index < at24.length; index += 1) {
+      expect(at60[index]?.[0]).toBeCloseTo(at24[index]?.[0] ?? 0, 3);
+    }
   });
 
   test("decodes low fps input on human time", () => {
     clockStepMs = 100;
     inference.recognize.mockResolvedValue(response("cat", false));
 
-    const controller = createStreamCtrl(60);
+    const controller = createStreamCtrl();
     for (
       let index = 0;
       inference.recognize.mock.calls.length === 0;
@@ -229,6 +250,23 @@ function frame(offset: number): Frame {
     { length: 162 },
     (_, index) => Math.round((offset + index * 0.001) * 10_000) / 10_000,
   );
+}
+
+function firstDecodeAtRate(frameRate: number) {
+  let now = 0;
+  const step = 1_000 / frameRate;
+  vi.mocked(performance.now).mockImplementation(() => {
+    now += step;
+    return now;
+  });
+  const controller = createStreamCtrl();
+  for (let index = 0; inference.recognize.mock.calls.length === 0; index += 1) {
+    controller.accept(frame(index / frameRate));
+    expect(index).toBeLessThan(frameRate * 2);
+  }
+  const payload = inference.recognize.mock.calls[0]?.[0];
+  controller.dispose();
+  return payload?.frames ?? [];
 }
 
 function deferred<T>() {

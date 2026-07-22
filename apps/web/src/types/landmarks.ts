@@ -1,6 +1,5 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { OneEuroFilter } from "1eurofilter";
-import type { CaptureKind } from "./capture";
 
 export type HandSide = "Left" | "Right";
 
@@ -15,7 +14,6 @@ export type FrameSink = (frame: HandFrame, inferenceMs: number) => void;
 export type LandmarkDetectionRequest = {
   image: ImageBitmap;
   timestamp: number;
-  captureKind: CaptureKind;
 };
 
 export type LandmarkDetectionResult = {

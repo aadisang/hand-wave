@@ -2,35 +2,25 @@ import { cfg } from "@hand-wave/contract";
 import type { Frame } from "@/types/inference";
 
 export const { window: maxFrames } = cfg.decode;
-const maxWireFrames = 512;
-const maxInferenceFrameRate = 60;
 const frameMs = 1_000 / cfg.stream.fps;
-
-export function effectiveFrameRate(frameRate = cfg.stream.fps) {
-  return Math.min(Math.max(frameRate, cfg.stream.fps), maxInferenceFrameRate);
-}
 
 function scaledMs(value: number) {
   return value * frameMs;
 }
 
-function scaledFrames(value: number, frameRate: number) {
-  return Math.max(1, Math.ceil((value * frameRate) / cfg.stream.fps));
-}
-
-export function streamTiming(frameRate = cfg.stream.fps) {
-  const fps = effectiveFrameRate(frameRate);
+export function streamTiming() {
   return {
     holdMs: cfg.stream.holdMs,
-    idle: scaledFrames(cfg.stream.idle, fps),
+    idle: cfg.stream.idle,
     idleMs: scaledMs(cfg.stream.idle),
-    lost: scaledFrames(cfg.stream.lost, fps),
+    lost: cfg.stream.lost,
     lostMs: scaledMs(cfg.stream.lost),
-    maxFrames: Math.min(maxWireFrames, scaledFrames(cfg.decode.window, fps)),
-    minFrames: scaledFrames(cfg.stream.min, fps),
+    maxFrames: cfg.decode.window,
+    minFrames: cfg.stream.min,
     minMs: scaledMs(cfg.stream.min),
     motionMin: cfg.stream.motion,
-    stride: scaledFrames(cfg.stream.stride, fps),
+    sampleMs: frameMs,
+    stride: cfg.stream.stride,
     strideMs: scaledMs(cfg.stream.stride),
     stallMs: cfg.stream.holdMs / 2,
   };
@@ -39,13 +29,11 @@ export function streamTiming(frameRate = cfg.stream.fps) {
 export const { holdMs, idle, lost, minFrames, motionMin, stride } =
   streamTiming();
 
-export function acceptedFrameTime(
-  lastAcceptedFrameMs: number,
-  frameRate = cfg.stream.fps,
-) {
-  const timestampMs = performance.now();
-  const minFrameMs = 1_000 / effectiveFrameRate(frameRate);
-  return timestampMs - lastAcceptedFrameMs < minFrameMs ? null : timestampMs;
+export function interpolateFrame(from: Frame, to: Frame, progress: number) {
+  const amount = Math.min(1, Math.max(0, progress));
+  return from.map(
+    (value, index) => value + ((to[index] ?? value) - value) * amount,
+  );
 }
 
 export function frameMotion(previous: Frame | null, current: Frame) {

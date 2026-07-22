@@ -34,6 +34,34 @@ struct ActiveHandSelectorTests {
     #expect(selected == .left)
   }
 
+  @Test
+  func keepsOneHandAfterThatHandStartsThePhrase() {
+    var selector = ActiveHandSelector()
+    _ = selector.select(
+      HandLandmarksFrame(
+        rightHandLandmarks: [Self.hand(offset: 0)],
+        leftHandLandmarks: [Self.hand(offset: 0)]
+      )
+    )
+    #expect(
+      selector.select(
+        HandLandmarksFrame(
+          rightHandLandmarks: [Self.hand(offset: 0.04)],
+          leftHandLandmarks: [Self.hand(offset: 0)]
+        )
+      ) == .right
+    )
+
+    #expect(
+      selector.select(
+        HandLandmarksFrame(
+          rightHandLandmarks: [Self.hand(offset: 0.05)],
+          leftHandLandmarks: [Self.hand(offset: 0.2)]
+        )
+      ) == .right
+    )
+  }
+
   private static func hand(offset: Double) -> [LandmarkPoint] {
     (0..<21).map { index in
       LandmarkPoint(

@@ -3,11 +3,6 @@ import Foundation
 import MediaPipeTasksVision
 
 actor LandmarkDetector {
-  enum PoseMode: Sendable {
-    case fallback
-    case required
-  }
-
   enum DetectorError: Error, LocalizedError {
     case modelUnavailable(String)
     case invalidImage
@@ -32,14 +27,15 @@ actor LandmarkDetector {
   private var lastSelectedHand: HandSide?
   private var recentPose: [LandmarkPoint]?
   private var recentPoseAt = 0
+  private var lastPoseDetectionAt = 0
+  private var lastInputMirrored: Bool?
   private let imageBufferConverter = PixelBufferConverter()
+  private static let poseSampleMs = 1_000 / 12
   private static let poseReuseMs = 500
 
-  func prepare(poseMode: PoseMode) async throws {
+  func prepare() async throws {
     try await prepareHand()
-    if poseMode == .required {
-      try await preparePose()
-    }
+    try await preparePose()
   }
 
   private func prepareHand() async throws {
@@ -120,9 +116,9 @@ actor LandmarkDetector {
 
   func detect(
     sampleBuffer: CMSampleBuffer,
-    poseMode: PoseMode
+    isMirrored: Bool
   ) async throws -> DetectResult {
-    try await prepare(poseMode: poseMode)
+    try await prepare()
     guard let handLandmarker else {
       throw DetectorError.modelUnavailable("landmarker")
     }
@@ -144,6 +140,10 @@ actor LandmarkDetector {
     let uptimeMs = Int((ProcessInfo.processInfo.systemUptime * 1_000).rounded(.down))
     let timestampMs = max(uptimeMs, lastTimestampMs + 1)
     lastTimestampMs = timestampMs
+    if lastInputMirrored != isMirrored {
+      resetSelection()
+      lastInputMirrored = isMirrored
+    }
 
     let handResult = try handLandmarker.detect(
       videoFrame: image,
@@ -151,31 +151,38 @@ actor LandmarkDetector {
     )
     let pose = try await detectPose(
       in: image,
-      timestampMs: timestampMs,
-      mode: poseMode
+      timestampMs: timestampMs
     )
 
-    let frame = HandLandmarksFrame(
-      rightHandLandmarks: rightHands(from: handResult),
-      leftHandLandmarks: leftHands(from: handResult),
+    let rightHands = hands(from: handResult, side: .right, isMirrored: isMirrored)
+    let leftHands = hands(from: handResult, side: .left, isMirrored: isMirrored)
+    let overlayFrame = HandLandmarksFrame(
+      rightHandLandmarks: rightHands,
+      leftHandLandmarks: leftHands,
       poseLandmarks: pose.map { [$0] } ?? [],
       imageSize: imageSize
     )
-    let selectedHand = activeHandSelector.select(frame)
+    let modelPose = pose.map { Self.modelPoints($0, isMirrored: isMirrored) }
+    let modelFrame = HandLandmarksFrame(
+      rightHandLandmarks: rightHands.map { Self.modelPoints($0, isMirrored: isMirrored) },
+      leftHandLandmarks: leftHands.map { Self.modelPoints($0, isMirrored: isMirrored) },
+      poseLandmarks: modelPose.map { [$0] } ?? [],
+      imageSize: imageSize
+    )
+    let selectedHand = activeHandSelector.select(modelFrame)
     if let selectedHand {
       lastSelectedHand = selectedHand
     }
-    recentLandmarks.remember(frame, timestampMs: timestampMs)
+    recentLandmarks.remember(modelFrame, timestampMs: timestampMs)
     return DetectResult(
       inferenceFrame: LandmarkSelection.toInferenceFrame(
-        frame,
-        pose: pose,
-        poseMode: poseMode,
+        modelFrame,
+        pose: modelPose,
         selectedHand: selectedHand ?? lastSelectedHand,
         timestampMs: timestampMs,
         recentLandmarks: recentLandmarks
       ),
-      overlayFrame: frame,
+      overlayFrame: overlayFrame,
       timestampMs: timestampMs
     )
   }
@@ -186,27 +193,24 @@ actor LandmarkDetector {
     lastSelectedHand = nil
     recentPose = nil
     recentPoseAt = 0
-  }
-
-  private func rightHands(from result: HandLandmarkerResult) -> [[LandmarkPoint]] {
-    hands(from: result, matching: "Right")
-  }
-
-  private func leftHands(from result: HandLandmarkerResult) -> [[LandmarkPoint]] {
-    hands(from: result, matching: "Left")
+    lastPoseDetectionAt = 0
   }
 
   private func detectPose(
     in image: MPImage,
-    timestampMs: Int,
-    mode: PoseMode
+    timestampMs: Int
   ) async throws -> [LandmarkPoint]? {
-    guard mode == .required else { return nil }
+    if lastPoseDetectionAt > 0,
+      timestampMs - lastPoseDetectionAt < Self.poseSampleMs
+    {
+      return recentPose
+    }
     try await preparePose()
     guard let poseLandmarker else {
       throw DetectorError.modelUnavailable("pose landmarker")
     }
 
+    lastPoseDetectionAt = timestampMs
     return poseLandmarks(
       from: try poseLandmarker.detect(
         videoFrame: image,
@@ -236,14 +240,37 @@ actor LandmarkDetector {
 
   private func hands(
     from result: HandLandmarkerResult,
-    matching handedness: String
+    side: HandSide,
+    isMirrored: Bool
   ) -> [[LandmarkPoint]] {
     result.landmarks.enumerated().compactMap { index, landmarks in
       let category = result.handedness[safe: index]?.first?.categoryName
-      guard category == handedness || (handedness == "Right" && category == nil) else {
+      let detectedSide = Self.handSide(category: category, isMirrored: isMirrored)
+      guard detectedSide == side || (side == .right && category == nil) else {
         return nil
       }
       return landmarks.map(LandmarkPoint.init)
+    }
+  }
+
+  static func handSide(category: String?, isMirrored: Bool) -> HandSide? {
+    let detected: HandSide?
+    switch category {
+    case "Right": detected = .right
+    case "Left": detected = .left
+    default: detected = nil
+    }
+    guard let detected, !isMirrored else { return detected }
+    return detected == .right ? .left : .right
+  }
+
+  static func modelPoints(
+    _ points: [LandmarkPoint],
+    isMirrored: Bool
+  ) -> [LandmarkPoint] {
+    guard isMirrored else { return points }
+    return points.map { point in
+      LandmarkPoint(x: 1 - point.x, y: point.y, z: point.z)
     }
   }
 

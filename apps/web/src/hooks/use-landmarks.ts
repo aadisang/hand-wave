@@ -82,7 +82,7 @@ export function useHandLandmarks(
           return;
         }
         const result = await loaded.detect(
-          transfer({ image, timestamp, captureKind }, [image]),
+          transfer({ image, timestamp }, [image]),
         );
         if (!cancelled) emitFrame(result.frame, result.inferenceMs);
       } finally {

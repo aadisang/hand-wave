@@ -253,6 +253,11 @@ extension PhoneCamera: AVCaptureVideoDataOutputSampleBufferDelegate {
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    frameContinuation?.yield(CameraFrame(sampleBuffer: sampleBuffer))
+    frameContinuation?.yield(
+      CameraFrame(
+        sampleBuffer: sampleBuffer,
+        isMirrored: connection.isVideoMirrored
+      )
+    )
   }
 }

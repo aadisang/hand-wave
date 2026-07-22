@@ -118,6 +118,37 @@ describe("createActiveHandSelector", () => {
       ),
     ).toBe("Left");
   });
+
+  it("keeps one hand after that hand starts the phrase", () => {
+    const selector = createActiveHandSelector();
+
+    selector.select(
+      handFrame({
+        rightHandLandmarks: [handAt(0.7, 0.4)],
+        leftHandLandmarks: [handAt(0.2, 0.4)],
+        poseLandmarks: [pose()],
+      }),
+    );
+    expect(
+      selector.select(
+        handFrame({
+          rightHandLandmarks: [handAt(0.74, 0.4)],
+          leftHandLandmarks: [handAt(0.2, 0.4)],
+          poseLandmarks: [pose()],
+        }),
+      ),
+    ).toBe("Right");
+
+    expect(
+      selector.select(
+        handFrame({
+          rightHandLandmarks: [handAt(0.75, 0.4)],
+          leftHandLandmarks: [handAt(0.35, 0.4)],
+          poseLandmarks: [pose()],
+        }),
+      ),
+    ).toBe("Right");
+  });
 });
 
 function handFrame(frame: HandFrame) {

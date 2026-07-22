@@ -11,7 +11,7 @@ const stopStream = (stream: MediaStream) => {
   stream.getTracks().forEach((track) => track.stop());
 };
 
-const preferredFrameRate = 240;
+const preferredFrameRate = 60;
 const cameraFrameRate = { ideal: preferredFrameRate, max: preferredFrameRate };
 const screenFrameRate = { ideal: cfg.stream.fps, max: cfg.stream.fps };
 
@@ -23,11 +23,15 @@ async function requestHighestFrameRate(stream: MediaStream) {
   const [track] = stream.getVideoTracks();
   const maxFrameRate = track?.getCapabilities().frameRate?.max;
   if (maxFrameRate) {
+    const frameRate = Math.min(preferredFrameRate, maxFrameRate);
     await track.applyConstraints({
-      frameRate: { ideal: maxFrameRate, max: maxFrameRate },
+      frameRate: { ideal: frameRate, max: frameRate },
     });
   }
-  return reportedFrameRate(stream, maxFrameRate ?? cfg.stream.fps);
+  return reportedFrameRate(
+    stream,
+    Math.min(preferredFrameRate, maxFrameRate ?? cfg.stream.fps),
+  );
 }
 
 async function openStream(request: CaptureRequest) {

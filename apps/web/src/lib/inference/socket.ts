@@ -62,7 +62,19 @@ export class InferenceSocket {
     return result;
   }
 
-  reset() {
+  clearRecognition(timeoutMs: number): Promise<void> {
+    const generation = this.generation;
+    const result = this.requestQueue.then(() =>
+      this.clearRecognitionNow(timeoutMs, generation),
+    );
+    this.requestQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  close() {
     this.generation += 1;
     const owner = this.owner;
     this.owner = null;
@@ -90,6 +102,11 @@ export class InferenceSocket {
       this.lastSentFrame,
       this.needsResync,
     );
+    const cursorLost =
+      resync && !this.needsResync && this.lastSentFrame !== null;
+    if (cursorLost) {
+      await this.resetOwner(owner, timeoutMs);
+    }
     const response = await this.exchange(
       owner,
       {
@@ -117,6 +134,38 @@ export class InferenceSocket {
     this.needsResync = false;
     this.lastSentFrame = payload.finalize ? null : (frames.at(-1) ?? null);
     return response.result;
+  }
+
+  private async clearRecognitionNow(timeoutMs: number, generation: number) {
+    if (generation !== this.generation) return;
+    this.lastSentFrame = null;
+    this.needsResync = true;
+
+    const owner = this.owner;
+    if (
+      !owner?.ready ||
+      owner.closed ||
+      owner.socket.readyState !== PartySocket.OPEN
+    ) {
+      return;
+    }
+
+    await this.resetOwner(owner, timeoutMs);
+    if (generation !== this.generation || owner !== this.owner) return;
+    this.lastSentFrame = null;
+    this.needsResync = true;
+  }
+
+  private async resetOwner(owner: SocketOwner, timeoutMs: number) {
+    const response = await this.exchange(
+      owner,
+      { type: "reset", protocol: streamProtocol },
+      timeoutMs,
+    );
+    if (response.type === "reset") return;
+    const error = new Error("Invalid inference stream reset response");
+    this.discardOwner(owner, error);
+    throw error;
   }
 
   private open(timeoutMs: number): Promise<SocketOwner> {
@@ -332,23 +381,6 @@ export class InferenceSocket {
     this.owner = null;
     setInferenceConnectionStatus("idle");
   }
-}
-
-const inferenceSocket = new InferenceSocket();
-
-export function prepareInferenceStream() {
-  return inferenceSocket.prepare();
-}
-
-export function resetInferenceStream() {
-  inferenceSocket.reset();
-}
-
-export function recognizeOverWebSocket(
-  payload: RecognizeIn,
-  timeoutMs: number,
-) {
-  return inferenceSocket.recognize(payload, timeoutMs);
 }
 
 export function inferenceWebSocketURL(baseURL = env.VITE_INFERENCE_URL) {

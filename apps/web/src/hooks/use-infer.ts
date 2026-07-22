@@ -17,7 +17,7 @@ export function useInfer(frameRate: number | null, boundary: number) {
   useEffect(() => {
     if (frameRate === null) return;
 
-    const ctrl = createStreamCtrl(frameRate);
+    const ctrl = createStreamCtrl();
     ctrlRef.current = ctrl;
     void ctrl.start();
 

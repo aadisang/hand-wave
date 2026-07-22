@@ -2,15 +2,12 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   InferenceSocket,
   inferenceWebSocketURL,
-  prepareInferenceStream,
-  resetInferenceStream,
   streamFrameDelta,
 } from "@/lib/inference/socket";
-import type { Frame } from "@/types/inference";
+import type { Frame, RecognizeIn } from "@/types/inference";
 
 describe("inference WebSocket client", () => {
   afterEach(() => {
-    resetInferenceStream();
     FakeWebSocket.instances = [];
     vi.unstubAllGlobals();
   });
@@ -44,14 +41,15 @@ describe("inference WebSocket client", () => {
 
   test("does not report readiness before the handshake", async () => {
     vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket();
 
-    const first = prepareInferenceStream();
+    const first = client.prepare();
     const socket = await fakeSocket(0);
     socket.open();
     await Promise.resolve();
 
     let secondReady = false;
-    const second = prepareInferenceStream().then(() => {
+    const second = client.prepare().then(() => {
       secondReady = true;
     });
     await Promise.resolve();
@@ -68,6 +66,7 @@ describe("inference WebSocket client", () => {
 
     await Promise.all([first, second]);
     expect(secondReady).toBe(true);
+    client.close();
   });
 
   test("an old connection failure cannot close its replacement", async () => {
@@ -76,7 +75,7 @@ describe("inference WebSocket client", () => {
 
     const first = client.prepare().catch((error: unknown) => error);
     const firstSocket = await fakeSocket(0);
-    client.reset();
+    client.close();
 
     const second = client.prepare();
     const secondSocket = await fakeSocket(1);
@@ -95,7 +94,7 @@ describe("inference WebSocket client", () => {
     await expect(second).resolves.toBeUndefined();
     await expect(first).resolves.toBeInstanceOf(Error);
     expect(secondSocket.readyState).toBe(FakeWebSocket.OPEN);
-    client.reset();
+    client.close();
   });
 
   test("reconnects the same PartySocket after a network close", async () => {
@@ -119,7 +118,82 @@ describe("inference WebSocket client", () => {
 
     await expect(reconnected).resolves.toBeUndefined();
     expect(FakeWebSocket.instances).toHaveLength(2);
-    client.reset();
+    client.close();
+  });
+
+  test("resets recognition state without replacing a healthy socket", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket();
+
+    const connection = client.prepare();
+    const socket = await fakeSocket(0);
+    socket.open();
+    await Promise.resolve();
+    respondToPing(socket);
+    await connection;
+
+    const reset = client.clearRecognition(1_000);
+    await vi.waitFor(() => {
+      expect(JSON.parse(socket.sent.at(-1) ?? "null")).toMatchObject({
+        type: "reset",
+      });
+    });
+    const request = JSON.parse(socket.sent.at(-1) ?? "null") as {
+      sequence: number;
+      type: string;
+    };
+    expect(request.type).toBe("reset");
+    socket.receive({
+      type: "reset",
+      protocol: 1,
+      sequence: request.sequence,
+    });
+
+    await expect(reset).resolves.toBeUndefined();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+    client.close();
+  });
+
+  test("clears local recognition state without opening a socket", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket();
+
+    await expect(client.clearRecognition(1_000)).resolves.toBeUndefined();
+
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    client.close();
+  });
+
+  test("resets server state before a full-window cursor resync", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket();
+    const firstFrames = [frame(0), frame(1)];
+
+    const first = client.recognize(recognizePayload(firstFrames), 1_000);
+    const socket = await fakeSocket(0);
+    socket.open();
+    await Promise.resolve();
+    respondToPing(socket);
+    await respondToRecognition(socket);
+    await first;
+
+    const secondFrames = [frame(2), frame(3)];
+    const second = client.recognize(recognizePayload(secondFrames), 1_000);
+    await vi.waitFor(() => {
+      expect(lastRequest(socket).type).toBe("reset");
+    });
+    const reset = lastRequest(socket);
+    socket.receive({ type: "reset", protocol: 1, sequence: reset.sequence });
+    await respondToRecognition(socket);
+    await second;
+
+    const recognizeRequests = socket.sent
+      .map((message) => JSON.parse(message) as Record<string, unknown>)
+      .filter((request) => request.type === "recognize");
+    expect(recognizeRequests).toHaveLength(2);
+    expect(recognizeRequests[1]?.frames).toHaveLength(2);
+    client.close();
   });
 });
 
@@ -175,14 +249,54 @@ async function fakeSocket(index: number) {
 }
 
 function respondToPing(socket: FakeWebSocket) {
-  const request = JSON.parse(socket.sent.at(-1) ?? "null") as {
-    sequence: number;
-  };
+  const request = lastRequest(socket);
   socket.receive({
     type: "pong",
     protocol: 1,
     sequence: request.sequence,
   });
+}
+
+async function respondToRecognition(socket: FakeWebSocket) {
+  await vi.waitFor(() => {
+    expect(lastRequest(socket).type).toBe("recognize");
+  });
+  const request = lastRequest(socket);
+  socket.receive({
+    type: "result",
+    protocol: 1,
+    sequence: request.sequence,
+    result: {
+      state: {
+        selected_text: "",
+        selected_streak: 0,
+        display_misses: 0,
+        counts: [],
+      },
+      display_prediction: null,
+      committed: false,
+      trace: {},
+    },
+  });
+}
+
+function lastRequest(socket: FakeWebSocket) {
+  return JSON.parse(socket.sent.at(-1) ?? "null") as {
+    sequence: number;
+    type: string;
+  };
+}
+
+function recognizePayload(frames: Frame[]): RecognizeIn {
+  return {
+    frames,
+    context: {
+      idle_frames: 0,
+      missing_frames: 0,
+      segment_frames: frames.length,
+      motion: 0,
+    },
+  };
 }
 
 function frame(value: number): Frame {

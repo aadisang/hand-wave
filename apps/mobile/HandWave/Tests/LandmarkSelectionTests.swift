@@ -4,6 +4,25 @@ import Testing
 
 struct LandmarkSelectionTests {
   @Test
+  func mapsHandednessFromMirroredAndUnmirroredFeeds() {
+    #expect(LandmarkDetector.handSide(category: "Right", isMirrored: true) == .right)
+    #expect(LandmarkDetector.handSide(category: "Left", isMirrored: true) == .left)
+    #expect(LandmarkDetector.handSide(category: "Right", isMirrored: false) == .left)
+    #expect(LandmarkDetector.handSide(category: "Left", isMirrored: false) == .right)
+  }
+
+  @Test
+  func convertsMirroredFeedPointsToModelSpace() {
+    let points = [LandmarkPoint(x: 0.2, y: 0.3, z: 0.4)]
+
+    #expect(
+      LandmarkDetector.modelPoints(points, isMirrored: true)
+        == [LandmarkPoint(x: 0.8, y: 0.3, z: 0.4)]
+    )
+    #expect(LandmarkDetector.modelPoints(points, isMirrored: false) == points)
+  }
+
+  @Test
   func packsRealPose() {
     let hand = Self.hand(offset: 0.2)
     let pose = Self.pose(offset: 0.4)
@@ -17,7 +36,6 @@ struct LandmarkSelectionTests {
     let inference = LandmarkSelection.toInferenceFrame(
       frame,
       pose: pose,
-      poseMode: .required,
       selectedHand: .right,
       timestampMs: 100,
       recentLandmarks: recent
@@ -29,7 +47,7 @@ struct LandmarkSelectionTests {
   }
 
   @Test
-  func usesSyntheticPoseOnlyInFallbackMode() {
+  func rejectsFramesWithoutPose() {
     let hand = Self.hand(offset: 0.2)
     var recent = RecentLandmarks()
     let frame = HandLandmarksFrame(
@@ -38,26 +56,14 @@ struct LandmarkSelectionTests {
     )
 
     recent.remember(frame, timestampMs: 100)
-    let required = LandmarkSelection.toInferenceFrame(
+    let inference = LandmarkSelection.toInferenceFrame(
       frame,
       pose: nil,
-      poseMode: .required,
       selectedHand: .right,
       timestampMs: 100,
       recentLandmarks: recent
     )
-    let fallback = LandmarkSelection.toInferenceFrame(
-      frame,
-      pose: nil,
-      poseMode: .fallback,
-      selectedHand: .right,
-      timestampMs: 100,
-      recentLandmarks: recent
-    )
-    #expect(required == nil)
-    #expect(fallback?.landmarks.count == 54)
-    #expect(fallback?.landmarks[21].x == hand[0].x)
-    #expect(fallback?.landmarks[53].x == hand[0].x)
+    #expect(inference == nil)
   }
 
   @Test
@@ -75,7 +81,6 @@ struct LandmarkSelectionTests {
       LandmarkSelection.toInferenceFrame(
         frame,
         pose: pose,
-        poseMode: .required,
         selectedHand: .left,
         timestampMs: 100,
         recentLandmarks: recent

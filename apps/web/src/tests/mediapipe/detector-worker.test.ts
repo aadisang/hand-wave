@@ -4,6 +4,7 @@ import type { LandmarkDetectorApi } from "@/types/landmarks";
 const mocks = vi.hoisted(() => ({
   exposed: null as LandmarkDetectorApi | null,
   created: [] as string[],
+  poseResults: [] as Array<{ landmarks: Array<Array<Record<string, number>>> }>,
 }));
 
 vi.mock("comlink", () => ({
@@ -34,7 +35,7 @@ vi.mock("@/lib/mediapipe/console", () => ({
 vi.mock("@/lib/mediapipe/smooth", () => ({
   createSmoother: () => ({
     reset: vi.fn(),
-    smooth: vi.fn(),
+    smooth: vi.fn((frame) => frame),
   }),
 }));
 
@@ -43,6 +44,7 @@ describe("MediaPipe detector worker", () => {
     vi.resetModules();
     mocks.exposed = null;
     mocks.created.length = 0;
+    mocks.poseResults = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -63,18 +65,35 @@ describe("MediaPipe detector worker", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps handedness for mirrored camera input", async () => {
-    const { anatomicalHand } = await import("@/lib/mediapipe/detector-worker");
+  it("swaps MediaPipe handedness for unmirrored input", async () => {
+    const { handednessForUnmirroredInput } =
+      await import("@/lib/mediapipe/detector-worker");
 
-    expect(anatomicalHand("Right", "camera")).toBe("Right");
-    expect(anatomicalHand("Left", "camera")).toBe("Left");
+    expect(handednessForUnmirroredInput("Right")).toBe("Left");
+    expect(handednessForUnmirroredInput("Left")).toBe("Right");
   });
 
-  it("swaps handedness for unmirrored screen input", async () => {
-    const { anatomicalHand } = await import("@/lib/mediapipe/detector-worker");
+  it("reuses the last good pose through a short detector miss", async () => {
+    const pose = Array.from({ length: 33 }, (_, index) => ({
+      x: index / 100,
+      y: index / 100,
+      z: 0,
+    }));
+    mocks.poseResults = [{ landmarks: [pose] }, { landmarks: [] }];
+    await import("@/lib/mediapipe/detector-worker");
+    await mocks.exposed?.warm();
 
-    expect(anatomicalHand("Right", "screen")).toBe("Left");
-    expect(anatomicalHand("Left", "screen")).toBe("Right");
+    const first = await mocks.exposed?.detect({
+      image: fakeImage(),
+      timestamp: 100,
+    });
+    const second = await mocks.exposed?.detect({
+      image: fakeImage(),
+      timestamp: 200,
+    });
+
+    expect(first?.frame.poseLandmarks).toEqual([pose]);
+    expect(second?.frame.poseLandmarks).toEqual([pose]);
   });
 });
 
@@ -85,7 +104,22 @@ function consumeModuleFactory(task: string) {
   if (!worker.ModuleFactory) throw new Error("ModuleFactory not set.");
   delete worker.ModuleFactory;
   mocks.created.push(task);
-  return {};
+  if (task === "hand") {
+    return {
+      detectForVideo: () => ({ landmarks: [], handedness: [] }),
+    };
+  }
+  return {
+    detectForVideo: () => mocks.poseResults.shift() ?? { landmarks: [] },
+  };
+}
+
+function fakeImage() {
+  return {
+    width: 640,
+    height: 480,
+    close: vi.fn(),
+  } as unknown as ImageBitmap;
 }
 
 class FakeOffscreenCanvas {

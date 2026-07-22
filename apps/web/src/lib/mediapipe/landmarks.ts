@@ -62,6 +62,7 @@ export function toModelInput(
 
 export function createActiveHandSelector(): ActiveHandSelector {
   let active: HandSide | null = null;
+  let locked = false;
   let previous: Partial<Record<HandSide, NormalizedLandmark[]>> = {};
 
   return {
@@ -70,11 +71,16 @@ export function createActiveHandSelector(): ActiveHandSelector {
       const left = frame.leftHandLandmarks[0];
       if (!right && !left) {
         active = null;
+        locked = false;
         previous = {};
         return null;
       }
 
-      const next = selectActiveHand({ active, previous, right, left });
+      const next = selectActiveHand({ active, locked, previous, right, left });
+      const nextHand = next === "Right" ? right : left;
+      const nextMotion = next ? motion(previous[next], nextHand ?? []) : 0;
+      if (nextMotion > minSwitchMotion) locked = true;
+      if (active && !handFromCandidates(active, right, left)) locked = false;
       active = next;
       previous = {
         ...(right ? { Right: right } : {}),
@@ -84,6 +90,7 @@ export function createActiveHandSelector(): ActiveHandSelector {
     },
     reset() {
       active = null;
+      locked = false;
       previous = {};
     },
   };
@@ -91,11 +98,13 @@ export function createActiveHandSelector(): ActiveHandSelector {
 
 function selectActiveHand({
   active,
+  locked,
   previous,
   right,
   left,
 }: {
   active: HandSide | null;
+  locked: boolean;
   previous: Partial<Record<HandSide, NormalizedLandmark[]>>;
   right?: NormalizedLandmark[];
   left?: NormalizedLandmark[];
@@ -106,6 +115,10 @@ function selectActiveHand({
 
   const rightMotion = motion(previous.Right, right);
   const leftMotion = motion(previous.Left, left);
+
+  if (locked && active && handFromCandidates(active, right, left)) {
+    return active;
+  }
 
   if (active && handFromCandidates(active, right, left)) {
     const other = active === "Right" ? "Left" : "Right";

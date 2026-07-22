@@ -135,7 +135,7 @@ final class StreamModel {
   func observe() async {
     if prewarmTask == nil {
       prewarmTask = Task(priority: .utility) { [pipeline] in
-        try? await pipeline.prepare(poseMode: .required)
+        try? await pipeline.prepare()
       }
     }
     refresh()
@@ -159,11 +159,11 @@ final class StreamModel {
     do {
       switch source {
       case .glasses:
-        try await preparePipeline(for: run, source: .glasses)
+        try await preparePipeline(for: run)
         guard isCurrent(run) else { return }
         try await startGlasses(run: run)
       case .phone:
-        try await preparePipeline(for: run, source: .phone)
+        try await preparePipeline(for: run)
         guard isCurrent(run) else { return }
         try await startPhone(run: run)
       }
@@ -226,9 +226,8 @@ final class StreamModel {
     AppLog.stream.notice("Stream stopped")
   }
 
-  private func preparePipeline(for run: Int, source: Source) async throws {
+  private func preparePipeline(for run: Int) async throws {
     try await pipeline.start(
-      poseMode: source == .phone ? .required : .fallback,
       onPreview: { [weak self] image in
         guard self?.isCurrent(run) == true else { return }
         self?.latestFrame = image

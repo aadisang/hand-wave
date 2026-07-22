@@ -27,38 +27,34 @@ actor Recognizer {
     self.inference = inference
   }
 
-  func prepare(poseMode: LandmarkDetector.PoseMode) async throws {
-    try await detector.prepare(poseMode: poseMode)
+  func prepare() async throws {
+    try await detector.prepare()
   }
 
   func start(
-    poseMode: LandmarkDetector.PoseMode,
     onEvent: @escaping InferSession.EventHandler
   ) async throws {
     generation &+= 1
     let startGeneration = generation
     await inference.setEventHandler(onEvent)
     eventHandler = onEvent
-    try await prepare(poseMode: poseMode)
+    try await prepare()
     guard generation == startGeneration else { throw CancellationError() }
     startWarmup(generation: startGeneration)
   }
 
   func process(_ frame: FramePipeline.Frame) async throws -> RecognitionOutput {
     let cameraFrame: CameraFrame
-    let poseMode: LandmarkDetector.PoseMode
     switch frame {
     case .glasses(let frame):
-      cameraFrame = CameraFrame(sampleBuffer: frame.sampleBuffer)
-      poseMode = .fallback
+      cameraFrame = CameraFrame(sampleBuffer: frame.sampleBuffer, isMirrored: false)
     case .phone(let frame):
       cameraFrame = frame
-      poseMode = .required
     }
 
     let detection = try await detector.detect(
       sampleBuffer: cameraFrame.sampleBuffer,
-      poseMode: poseMode
+      isMirrored: cameraFrame.isMirrored
     )
     try Task.checkCancellation()
     let result: (event: RecognitionEvent?, failure: InferenceFailure?)
@@ -73,8 +69,7 @@ actor Recognizer {
       event: result.event,
       overlay: detection.overlayFrame,
       hasLandmarks: detection.inferenceFrame != nil,
-      needsPose: poseMode == .required
-        && detection.inferenceFrame == nil
+      needsPose: detection.inferenceFrame == nil
         && (!detection.overlayFrame.rightHandLandmarks.isEmpty
           || !detection.overlayFrame.leftHandLandmarks.isEmpty),
       backendFailure: result.failure

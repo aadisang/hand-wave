@@ -1,8 +1,12 @@
-import { recognizeFrames, resetInferenceStream } from "@/lib/inference/client";
-import { prepareInferenceStream } from "@/lib/inference/socket";
 import {
-  acceptedFrameTime,
+  clearInferenceSession,
+  closeInferenceStream,
+  prepareInferenceStream,
+  recognizeFrames,
+} from "@/lib/inference/client";
+import {
   frameMotion,
+  interpolateFrame,
   streamTiming,
 } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
@@ -21,7 +25,7 @@ import type {
 } from "@/types/inference";
 import { toDetectionPrediction } from "@/types/inference";
 
-export function createStreamCtrl(frameRate?: number): StreamCtrl {
+export function createStreamCtrl(): StreamCtrl {
   type RequestPhase =
     | { kind: "idle" }
     | { kind: "decode"; id: number; epoch: number }
@@ -38,9 +42,10 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     maxFrames,
     minMs,
     motionMin,
+    sampleMs,
     stallMs,
     strideMs,
-  } = streamTiming(frameRate);
+  } = streamTiming();
   const finalHoldMs = holdMs * 2;
   let frames: Frame[] = [];
   let seen = 0;
@@ -58,7 +63,9 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
   let epoch = 0;
   let lastMotion = 0;
   let lost = 0;
-  let lastAt = 0;
+  let lastObserved: Frame | null = null;
+  let lastObservedAt = 0;
+  let nextSampleAt = 0;
   let clearTimer: number | null = null;
   let disposed = false;
   let state: RecognitionState | null = null;
@@ -75,7 +82,6 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     frames = [];
     seen = 0;
     last = null;
-    lastAt = 0;
     segmentStartedAt = 0;
     idleStartedAt = 0;
     missingStartedAt = 0;
@@ -85,10 +91,17 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     lost = 0;
   };
 
+  const resetSampling = () => {
+    lastObserved = null;
+    lastObservedAt = 0;
+    nextSampleAt = 0;
+  };
+
   const resetRecognition = () => {
     clearHold();
     setPrediction(null);
     resetSegment();
+    resetSampling();
     state = null;
   };
 
@@ -98,7 +111,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     pendingFinalize = null;
     ended = false;
     resetRecognition();
-    resetInferenceStream();
+    void clearInferenceSession().catch(() => undefined);
   };
 
   const start = () => {
@@ -111,7 +124,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
     requestPhase = { kind: "idle" };
     pendingFinalize = null;
     resetRecognition();
-    resetInferenceStream();
+    closeInferenceStream();
   };
 
   const updateMotion = (frame: Frame, acceptedAt: number) => {
@@ -268,6 +281,7 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
   };
 
   const acceptMissingFrame = () => {
+    resetSampling();
     if (ended) return;
     const now = performance.now();
     const tooShort = !segmentStartedAt || now - segmentStartedAt < minMs;
@@ -276,29 +290,18 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
       return;
     }
 
-    lost += 1;
-    idle += 1;
     missingStartedAt ||= now;
     idleStartedAt ||= now;
+    lost = Math.max(1, Math.round((now - missingStartedAt) / sampleMs));
+    idle = Math.max(idle, Math.round((now - idleStartedAt) / sampleMs));
     if (now - missingStartedAt >= lostMs || now - idleStartedAt >= idleMs) {
       finalize("landmark-lost");
     }
   };
 
-  const accept = (frame: Frame | null) => {
-    if (disposed) return;
-    if (!frame) {
-      acceptMissingFrame();
-      return;
-    }
-
+  const acceptSample = (frame: Frame, acceptedAt: number) => {
     lost = 0;
     missingStartedAt = 0;
-    const acceptedAt = acceptedFrameTime(lastAt, frameRate);
-    if (acceptedAt === null) return;
-    if (lastAt && acceptedAt - lastAt > stallMs) reset();
-    lastAt = acceptedAt;
-
     updateMotion(frame, acceptedAt);
     segmentStartedAt ||= acceptedAt;
     if (ended) return;
@@ -318,6 +321,36 @@ export function createStreamCtrl(frameRate?: number): StreamCtrl {
 
     lastDecodeAt = acceptedAt;
     void decode(frames.slice(), idle);
+  };
+
+  const accept = (frame: Frame | null) => {
+    if (disposed) return;
+    if (!frame) {
+      acceptMissingFrame();
+      return;
+    }
+
+    const observedAt = performance.now();
+    if (lastObservedAt && observedAt - lastObservedAt > stallMs) reset();
+
+    const previous = lastObserved;
+    const previousAt = lastObservedAt;
+    lastObserved = frame;
+    lastObservedAt = observedAt;
+
+    if (!previous || previousAt === 0 || nextSampleAt === 0) {
+      nextSampleAt = observedAt + sampleMs;
+      acceptSample(frame, observedAt);
+      return;
+    }
+
+    while (nextSampleAt <= observedAt) {
+      const duration = observedAt - previousAt;
+      const progress =
+        duration > 0 ? (nextSampleAt - previousAt) / duration : 1;
+      acceptSample(interpolateFrame(previous, frame, progress), nextSampleAt);
+      nextSampleAt += sampleMs;
+    }
   };
 
   return { accept, dispose, reset, start };

@@ -33,4 +33,5 @@ struct RecognitionOutput: Sendable {
 
 struct CameraFrame: @unchecked Sendable {
   let sampleBuffer: CMSampleBuffer
+  let isMirrored: Bool
 }

@@ -5,7 +5,6 @@ import {
   PoseLandmarker,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
-import type { CaptureKind } from "@/types/capture";
 import type {
   HandFrame,
   HandSide,
@@ -31,12 +30,17 @@ type Trackers = {
 type DetectionState = {
   poseLandmarks: HandFrame["poseLandmarks"];
   poseAt: number;
+  poseSampledAt: number;
 };
 
 type WasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 
 const smoother = createSmoother();
-const state: DetectionState = { poseLandmarks: [], poseAt: 0 };
+const state: DetectionState = {
+  poseLandmarks: [],
+  poseAt: 0,
+  poseSampledAt: 0,
+};
 const trackers = load();
 
 async function load() {
@@ -102,24 +106,25 @@ function withInstalledLoader(fileset: WasmFileset): WasmFileset {
   return { ...fileset, wasmLoaderPath: "" };
 }
 
-function detect(
-  instance: Trackers,
-  image: ImageBitmap,
-  timestamp: number,
-  captureKind: CaptureKind,
-) {
-  const input = detectorInput(instance, image, captureKind);
+function detect(instance: Trackers, image: ImageBitmap, timestamp: number) {
+  const input = detectorInput(instance, image);
   const hand = instance.hand.detectForVideo(input, timestamp);
   const shouldSamplePose =
     state.poseLandmarks.length === 0 ||
-    timestamp - state.poseAt >= poseSampleMs;
+    timestamp - state.poseSampledAt >= poseSampleMs;
 
   if (shouldSamplePose) {
-    state.poseLandmarks = cloneLandmarkSets(
+    const detectedPose = cloneLandmarkSets(
       instance.pose.detectForVideo(input, timestamp).landmarks,
     );
-    state.poseAt = timestamp;
-  } else if (timestamp - state.poseAt > poseReuseMs) {
+    state.poseSampledAt = timestamp;
+    if (detectedPose.length > 0) {
+      state.poseLandmarks = detectedPose;
+      state.poseAt = timestamp;
+    } else if (timestamp - state.poseAt > poseReuseMs) {
+      state.poseLandmarks = [];
+    }
+  } else if (state.poseAt > 0 && timestamp - state.poseAt > poseReuseMs) {
     state.poseLandmarks = [];
   }
 
@@ -131,7 +136,7 @@ function detect(
       hand.handedness[index]?.[0]?.categoryName,
     );
     if (!detectedSide) return;
-    const category = anatomicalHand(detectedSide, captureKind);
+    const category = handednessForUnmirroredInput(detectedSide);
     if (category === "Left") {
       leftHandLandmarks.push(cloneLandmarkSet(landmarks));
     } else {
@@ -150,17 +155,12 @@ function parseHandSide(value: string | undefined): HandSide | null {
   return value === "Left" || value === "Right" ? value : null;
 }
 
-export function anatomicalHand(category: HandSide, captureKind: CaptureKind) {
-  if (captureKind === "camera") return category;
+export function handednessForUnmirroredInput(category: HandSide) {
   if (category === "Left") return "Right";
   return "Left";
 }
 
-function detectorInput(
-  instance: Trackers,
-  image: ImageBitmap,
-  captureKind: CaptureKind,
-) {
+function detectorInput(instance: Trackers, image: ImageBitmap) {
   const { canvas, context } = instance;
   const largest = Math.max(image.width, image.height);
   const scale =
@@ -171,13 +171,8 @@ function detectorInput(
   if (canvas.width !== width) canvas.width = width;
   if (canvas.height !== height) canvas.height = height;
 
-  if (captureKind === "camera") {
-    context.setTransform(-1, 0, 0, 1, width, 0);
-  } else {
-    context.setTransform(1, 0, 0, 1, 0, 0);
-  }
-  context.drawImage(image, 0, 0, width, height);
   context.setTransform(1, 0, 0, 1, 0, 0);
+  context.drawImage(image, 0, 0, width, height);
 
   return canvas;
 }
@@ -199,7 +194,7 @@ const api: LandmarkDetectorApi = {
     try {
       const instance = await trackers;
       const frame = smoother.smooth(
-        detect(instance, request.image, request.timestamp, request.captureKind),
+        detect(instance, request.image, request.timestamp),
         request.timestamp,
       );
       return { frame, inferenceMs: performance.now() - start };
@@ -210,6 +205,7 @@ const api: LandmarkDetectorApi = {
   reset() {
     state.poseLandmarks = [];
     state.poseAt = 0;
+    state.poseSampledAt = 0;
     smoother.reset();
   },
 };
