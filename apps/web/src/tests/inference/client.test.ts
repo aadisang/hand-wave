@@ -27,6 +27,7 @@ describe("inference WebSocket client", () => {
     expect(streamFrameDelta(frames, frames[1] ?? null, false)).toEqual({
       delta: [frames[2], frames[3]],
       resync: false,
+      cursorLost: false,
     });
   });
 
@@ -36,6 +37,7 @@ describe("inference WebSocket client", () => {
     expect(streamFrameDelta(frames, frame(1), false)).toEqual({
       delta: frames,
       resync: true,
+      cursorLost: true,
     });
   });
 

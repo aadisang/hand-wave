@@ -97,13 +97,11 @@ export class InferenceSocket {
     }
 
     const frames = payload.frames ?? [];
-    const { delta, resync } = streamFrameDelta(
+    const { delta, resync, cursorLost } = streamFrameDelta(
       frames,
       this.lastSentFrame,
       this.needsResync,
     );
-    const cursorLost =
-      resync && !this.needsResync && this.lastSentFrame !== null;
     if (cursorLost) {
       await this.resetOwner(owner, timeoutMs);
     }
@@ -151,9 +149,6 @@ export class InferenceSocket {
     }
 
     await this.resetOwner(owner, timeoutMs);
-    if (generation !== this.generation || owner !== this.owner) return;
-    this.lastSentFrame = null;
-    this.needsResync = true;
   }
 
   private async resetOwner(owner: SocketOwner, timeoutMs: number) {
@@ -397,10 +392,11 @@ export function streamFrameDelta(
   requiresResync: boolean,
 ) {
   const cursor = cursorFrame ? frames.lastIndexOf(cursorFrame) : -1;
-  const resync = requiresResync || (cursorFrame !== null && cursor < 0);
+  const cursorLost = !requiresResync && cursorFrame !== null && cursor < 0;
+  const resync = requiresResync || cursorLost;
   const delta =
     resync || cursorFrame === null ? frames : frames.slice(cursor + 1);
-  return { delta, resync };
+  return { delta, resync, cursorLost };
 }
 
 export function compactFrames(frames: Frame[]) {
