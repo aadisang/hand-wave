@@ -56,9 +56,7 @@ export function Stage() {
           autoPlay
           className={cn(
             "h-full w-full bg-stage",
-            state.kind === "camera"
-              ? "object-cover -scale-x-100"
-              : "object-contain",
+            state.kind === "camera" ? "object-cover" : "object-contain",
           )}
           muted
           playsInline

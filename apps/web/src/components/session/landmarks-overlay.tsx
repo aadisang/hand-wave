@@ -96,7 +96,9 @@ export function LandmarksOverlay({
       ref={canvasRef}
       className={[
         "pointer-events-none absolute inset-0 z-10 h-full w-full",
-        captureKind === "camera" ? "object-cover" : "object-contain",
+        captureKind === "camera"
+          ? "object-cover -scale-x-100"
+          : "object-contain",
       ].join(" ")}
     />
   );
