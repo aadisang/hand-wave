@@ -43,7 +43,7 @@ actor InferClient: InferAPI {
   private var sequence = 0
   private var lastSentTimestampMs: Int?
   private var needsResync = true
-  private var connectionBackoff = InferenceConnectionBackoff()
+  private var warmupThrottle = WarmupThrottle()
 
   init(
     baseURLs: [URL] = InferClient.configuredURLs,
@@ -54,7 +54,7 @@ actor InferClient: InferAPI {
   }
 
   func warmConnection() async throws(InferenceFailure) {
-    let wait = connectionBackoff.remainingDelay(at: Date())
+    let wait = warmupThrottle.remainingDelay(at: Date())
     if wait > 0 {
       do {
         try await Task.sleep(for: .seconds(wait))
@@ -64,9 +64,9 @@ actor InferClient: InferAPI {
     }
     do {
       try await connectWebSocket()
-      connectionBackoff.clear()
+      warmupThrottle.clear()
     } catch {
-      connectionBackoff.recordFailure(at: Date())
+      if error != .cancelled { warmupThrottle.recordFailure(at: Date()) }
       throw error
     }
   }
@@ -85,7 +85,7 @@ actor InferClient: InferAPI {
         finalize: finalize
       )
     } catch {
-      connectionBackoff.recordFailure(at: Date())
+      if error != .cancelled { warmupThrottle.recordFailure(at: Date()) }
       AppLog.inference.error(
         "WebSocket inference failed: \(error.localizedDescription, privacy: .private)"
       )
@@ -97,7 +97,7 @@ actor InferClient: InferAPI {
     // Closing makes reset unconditional even when the network is already stale.
     // The next recognition request reconnects with the complete active window.
     closeWebSocket()
-    connectionBackoff.clear()
+    warmupThrottle.clear()
   }
 
   private func recognizeOverWebSocket(
@@ -402,7 +402,10 @@ actor InferClient: InferAPI {
 
 private struct WebSocketResponseTimeout: Error {}
 
-struct InferenceConnectionBackoff: Sendable {
+/// Failures anywhere on the stream are recorded here, but the delay is only
+/// enforced when warming: `Recognizer` retries warmup from its frame loop, and
+/// this throttle is what keeps that loop from hammering an unhealthy backend.
+struct WarmupThrottle: Sendable {
   private static let retryDelay: TimeInterval = 5
   private(set) var retryAfter = Date.distantPast
 

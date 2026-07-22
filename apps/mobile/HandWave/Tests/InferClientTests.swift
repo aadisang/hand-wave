@@ -49,14 +49,14 @@ struct InferClientTests {
   @Test
   func waitsAfterAConnectionFailureAndClearsAfterSuccess() {
     let now = Date(timeIntervalSinceReferenceDate: 1_000)
-    var backoff = InferenceConnectionBackoff()
+    var throttle = WarmupThrottle()
 
-    backoff.recordFailure(at: now)
-    #expect(backoff.remainingDelay(at: now) == 5)
-    #expect(backoff.remainingDelay(at: now.addingTimeInterval(2)) == 3)
+    throttle.recordFailure(at: now)
+    #expect(throttle.remainingDelay(at: now) == 5)
+    #expect(throttle.remainingDelay(at: now.addingTimeInterval(2)) == 3)
 
-    backoff.clear()
-    #expect(backoff.remainingDelay(at: now) == 0)
+    throttle.clear()
+    #expect(throttle.remainingDelay(at: now) == 0)
   }
 
   @Test
