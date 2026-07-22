@@ -65,14 +65,6 @@ describe("MediaPipe detector worker", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("swaps MediaPipe handedness for unmirrored input", async () => {
-    const { handednessForUnmirroredInput } =
-      await import("@/lib/mediapipe/detector-worker");
-
-    expect(handednessForUnmirroredInput("Right")).toBe("Left");
-    expect(handednessForUnmirroredInput("Left")).toBe("Right");
-  });
-
   it("reuses the last good pose through a short detector miss", async () => {
     const pose = Array.from({ length: 33 }, (_, index) => ({
       x: index / 100,

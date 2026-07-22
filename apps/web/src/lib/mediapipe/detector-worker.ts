@@ -13,12 +13,12 @@ import type {
 } from "@/types/landmarks";
 import { handModelUrl, poseModelUrl, wasmPath } from "./assets";
 import { filterConsole } from "./console";
+import { handednessForUnmirroredInput } from "./landmarks";
+import { createPoseSampler } from "./pose-sampler";
 import { createSmoother } from "./smooth";
 
 const landmarkConfidence = 0.5;
 const maxDetectorDimension = 640;
-const poseSampleMs = 1000 / 12;
-const poseReuseMs = 500;
 
 type Trackers = {
   hand: HandLandmarker;
@@ -27,20 +27,10 @@ type Trackers = {
   context: OffscreenCanvasRenderingContext2D;
 };
 
-type DetectionState = {
-  poseLandmarks: HandFrame["poseLandmarks"];
-  poseAt: number;
-  poseSampledAt: number;
-};
-
 type WasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 
 const smoother = createSmoother();
-const state: DetectionState = {
-  poseLandmarks: [],
-  poseAt: 0,
-  poseSampledAt: 0,
-};
+const poseSampler = createPoseSampler({ sampleMs: 1000 / 12, reuseMs: 500 });
 const trackers = load();
 
 async function load() {
@@ -109,24 +99,9 @@ function withInstalledLoader(fileset: WasmFileset): WasmFileset {
 function detect(instance: Trackers, image: ImageBitmap, timestamp: number) {
   const input = detectorInput(instance, image);
   const hand = instance.hand.detectForVideo(input, timestamp);
-  const shouldSamplePose =
-    state.poseLandmarks.length === 0 ||
-    timestamp - state.poseSampledAt >= poseSampleMs;
-
-  if (shouldSamplePose) {
-    const detectedPose = cloneLandmarkSets(
-      instance.pose.detectForVideo(input, timestamp).landmarks,
-    );
-    state.poseSampledAt = timestamp;
-    if (detectedPose.length > 0) {
-      state.poseLandmarks = detectedPose;
-      state.poseAt = timestamp;
-    } else if (timestamp - state.poseAt > poseReuseMs) {
-      state.poseLandmarks = [];
-    }
-  } else if (state.poseAt > 0 && timestamp - state.poseAt > poseReuseMs) {
-    state.poseLandmarks = [];
-  }
+  const poseLandmarks = poseSampler.sample(timestamp, () =>
+    cloneLandmarkSets(instance.pose.detectForVideo(input, timestamp).landmarks),
+  );
 
   const rightHandLandmarks: HandFrame["rightHandLandmarks"] = [];
   const leftHandLandmarks: HandFrame["leftHandLandmarks"] = [];
@@ -144,20 +119,11 @@ function detect(instance: Trackers, image: ImageBitmap, timestamp: number) {
     }
   });
 
-  return {
-    rightHandLandmarks,
-    leftHandLandmarks,
-    poseLandmarks: state.poseLandmarks,
-  };
+  return { rightHandLandmarks, leftHandLandmarks, poseLandmarks };
 }
 
 function parseHandSide(value: string | undefined): HandSide | null {
   return value === "Left" || value === "Right" ? value : null;
-}
-
-export function handednessForUnmirroredInput(category: HandSide) {
-  if (category === "Left") return "Right";
-  return "Left";
 }
 
 function detectorInput(instance: Trackers, image: ImageBitmap) {
@@ -203,9 +169,7 @@ const api: LandmarkDetectorApi = {
     }
   },
   reset() {
-    state.poseLandmarks = [];
-    state.poseAt = 0;
-    state.poseSampledAt = 0;
+    poseSampler.reset();
     smoother.reset();
   },
 };

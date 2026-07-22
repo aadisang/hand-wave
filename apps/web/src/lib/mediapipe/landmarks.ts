@@ -60,6 +60,13 @@ export function toModelInput(
   };
 }
 
+// MediaPipe reports handedness for a mirrored (selfie) view; unmirrored input
+// swaps the labels.
+export function handednessForUnmirroredInput(category: HandSide): HandSide {
+  if (category === "Left") return "Right";
+  return "Left";
+}
+
 export function createActiveHandSelector(): ActiveHandSelector {
   let active: HandSide | null = null;
   let locked = false;

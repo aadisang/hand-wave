@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   createActiveHandSelector,
+  handednessForUnmirroredInput,
   toFrame,
   toModelInput,
 } from "@/lib/mediapipe/landmarks";
@@ -62,6 +63,13 @@ describe("toModelInput", () => {
     expect(input?.frame.rightHandLandmarks).toEqual([]);
     expect(input?.frame.leftHandLandmarks[0]?.[0]?.x).toBeCloseTo(0.2);
     expect(input?.frame.poseLandmarks[0]?.[0]?.x).toBeCloseTo(0.5);
+  });
+});
+
+describe("handednessForUnmirroredInput", () => {
+  it("swaps MediaPipe handedness for unmirrored input", () => {
+    expect(handednessForUnmirroredInput("Right")).toBe("Left");
+    expect(handednessForUnmirroredInput("Left")).toBe("Right");
   });
 });
 
