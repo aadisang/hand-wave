@@ -1,6 +1,9 @@
 import Foundation
 
 struct ActiveHandSelector {
+  private static let minSwitchMotion = 0.015
+  private static let switchMotionMargin = 0.012
+
   private var active: HandSide?
   private var locked = false
   private var previousLeft: [LandmarkPoint]?
@@ -26,7 +29,7 @@ struct ActiveHandSelector {
           previous: previousLeft,
           current: left ?? []
         )
-      if selectedMotion > 0.015 {
+      if selectedMotion > Self.minSwitchMotion {
         locked = true
       }
     }
@@ -66,13 +69,15 @@ struct ActiveHandSelector {
       let other: HandSide = active == .right ? .left : .right
       let activeMotion = active == .right ? rightMotion : leftMotion
       let otherMotion = other == .right ? rightMotion : leftMotion
-      if otherMotion > 0.015, otherMotion > activeMotion + 0.012 {
+      if otherMotion > Self.minSwitchMotion,
+        otherMotion > activeMotion + Self.switchMotionMargin
+      {
         return other
       }
       return active
     }
 
-    if abs(leftMotion - rightMotion) > 0.012 {
+    if abs(leftMotion - rightMotion) > Self.switchMotionMargin {
       return leftMotion > rightMotion ? .left : .right
     }
 

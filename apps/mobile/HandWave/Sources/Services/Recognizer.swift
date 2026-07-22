@@ -70,8 +70,8 @@ actor Recognizer {
       overlay: detection.overlayFrame,
       hasLandmarks: detection.inferenceFrame != nil,
       needsPose: detection.inferenceFrame == nil
-        && (!detection.overlayFrame.rightHandLandmarks.isEmpty
-          || !detection.overlayFrame.leftHandLandmarks.isEmpty),
+        && (!detection.overlayFrame.landmarks.rightHandLandmarks.isEmpty
+          || !detection.overlayFrame.landmarks.leftHandLandmarks.isEmpty),
       backendFailure: result.failure
     )
   }

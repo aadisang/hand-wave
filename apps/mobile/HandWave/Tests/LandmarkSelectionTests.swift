@@ -13,13 +13,17 @@ struct LandmarkSelectionTests {
 
   @Test
   func convertsMirroredFeedPointsToModelSpace() {
-    let points = [LandmarkPoint(x: 0.2, y: 0.3, z: 0.4)]
-
-    #expect(
-      LandmarkDetector.modelPoints(points, isMirrored: true)
-        == [LandmarkPoint(x: 0.8, y: 0.3, z: 0.4)]
+    let frame = HandLandmarksFrame(
+      rightHandLandmarks: [[LandmarkPoint(x: 0.2, y: 0.3, z: 0.4)]],
+      leftHandLandmarks: [[LandmarkPoint(x: 0.6, y: 0.1, z: nil)]],
+      poseLandmarks: [[LandmarkPoint(x: 1, y: 0.5, z: 0)]]
     )
-    #expect(LandmarkDetector.modelPoints(points, isMirrored: false) == points)
+
+    let mirrored = frame.mirroredHorizontally()
+
+    #expect(mirrored.rightHandLandmarks == [[LandmarkPoint(x: 0.8, y: 0.3, z: 0.4)]])
+    #expect(mirrored.leftHandLandmarks == [[LandmarkPoint(x: 0.4, y: 0.1, z: nil)]])
+    #expect(mirrored.poseLandmarks == [[LandmarkPoint(x: 0, y: 0.5, z: 0)]])
   }
 
   @Test

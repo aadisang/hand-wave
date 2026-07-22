@@ -25,7 +25,7 @@ enum RecognitionEvent: Equatable, Sendable {
 
 struct RecognitionOutput: Sendable {
   let event: RecognitionEvent?
-  let overlay: HandLandmarksFrame
+  let overlay: LandmarkOverlayFrame
   let hasLandmarks: Bool
   let needsPose: Bool
   let backendFailure: InferenceFailure?

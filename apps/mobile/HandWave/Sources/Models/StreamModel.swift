@@ -83,7 +83,7 @@ final class StreamModel {
   private var lifecycle: Lifecycle = .idle
   private(set) var hasActiveDevice = false
   private(set) var latestFrame: UIImage?
-  private(set) var overlayFrame = HandLandmarksFrame.empty
+  private(set) var overlayFrame = LandmarkOverlayFrame.empty
   private(set) var current: Prediction?
   private(set) var speakingText: String?
   private(set) var isPreparingLandmarks = false

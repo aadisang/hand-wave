@@ -39,7 +39,7 @@ private struct StreamContent: View {
   let source: StreamModel.Source
   let phoneSession: AVCaptureSession
   let latestFrame: UIImage?
-  let overlayFrame: HandLandmarksFrame
+  let overlayFrame: LandmarkOverlayFrame
   let current: Prediction?
   let speakingText: String?
   let framingMessage: String?
@@ -65,7 +65,8 @@ private struct StreamContent: View {
         PreviewPane(source: source, phoneSession: phoneSession, frame: latestFrame)
         if showsLandmarks {
           LandmarkOverlay(
-            frame: overlayFrame,
+            frame: overlayFrame.landmarks,
+            imageSize: overlayFrame.imageSize,
             showsPose: showsPoseLandmarks,
             previewMode: source == .phone ? .fill : .fit
           )

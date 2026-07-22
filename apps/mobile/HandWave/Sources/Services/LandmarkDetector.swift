@@ -25,13 +25,9 @@ actor LandmarkDetector {
   private var activeHandSelector = ActiveHandSelector()
   private var recentLandmarks = RecentLandmarks()
   private var lastSelectedHand: HandSide?
-  private var recentPose: [LandmarkPoint]?
-  private var recentPoseAt = 0
-  private var lastPoseDetectionAt = 0
+  private var poseSampler = PoseSampler()
   private var lastInputMirrored: Bool?
   private let imageBufferConverter = PixelBufferConverter()
-  private static let poseSampleMs = 1_000 / 12
-  private static let poseReuseMs = 500
 
   func prepare() async throws {
     try await prepareHand()
@@ -149,26 +145,14 @@ actor LandmarkDetector {
       videoFrame: image,
       timestampInMilliseconds: timestampMs
     )
-    let pose = try await detectPose(
-      in: image,
-      timestampMs: timestampMs
-    )
+    let pose = try detectPose(in: image, timestampMs: timestampMs)
 
-    let rightHands = hands(from: handResult, side: .right, isMirrored: isMirrored)
-    let leftHands = hands(from: handResult, side: .left, isMirrored: isMirrored)
-    let overlayFrame = HandLandmarksFrame(
-      rightHandLandmarks: rightHands,
-      leftHandLandmarks: leftHands,
-      poseLandmarks: pose.map { [$0] } ?? [],
-      imageSize: imageSize
+    let detectedFrame = HandLandmarksFrame(
+      rightHandLandmarks: hands(from: handResult, side: .right, isMirrored: isMirrored),
+      leftHandLandmarks: hands(from: handResult, side: .left, isMirrored: isMirrored),
+      poseLandmarks: pose.map { [$0] } ?? []
     )
-    let modelPose = pose.map { Self.modelPoints($0, isMirrored: isMirrored) }
-    let modelFrame = HandLandmarksFrame(
-      rightHandLandmarks: rightHands.map { Self.modelPoints($0, isMirrored: isMirrored) },
-      leftHandLandmarks: leftHands.map { Self.modelPoints($0, isMirrored: isMirrored) },
-      poseLandmarks: modelPose.map { [$0] } ?? [],
-      imageSize: imageSize
-    )
+    let modelFrame = isMirrored ? detectedFrame.mirroredHorizontally() : detectedFrame
     let selectedHand = activeHandSelector.select(modelFrame)
     if let selectedHand {
       lastSelectedHand = selectedHand
@@ -177,12 +161,12 @@ actor LandmarkDetector {
     return DetectResult(
       inferenceFrame: LandmarkSelection.toInferenceFrame(
         modelFrame,
-        pose: modelPose,
+        pose: modelFrame.poseLandmarks.first,
         selectedHand: selectedHand ?? lastSelectedHand,
         timestampMs: timestampMs,
         recentLandmarks: recentLandmarks
       ),
-      overlayFrame: overlayFrame,
+      overlayFrame: LandmarkOverlayFrame(landmarks: detectedFrame, imageSize: imageSize),
       timestampMs: timestampMs
     )
   }
@@ -191,51 +175,26 @@ actor LandmarkDetector {
     activeHandSelector.reset()
     recentLandmarks.reset()
     lastSelectedHand = nil
-    recentPose = nil
-    recentPoseAt = 0
-    lastPoseDetectionAt = 0
+    poseSampler.reset()
   }
 
   private func detectPose(
     in image: MPImage,
     timestampMs: Int
-  ) async throws -> [LandmarkPoint]? {
-    if lastPoseDetectionAt > 0,
-      timestampMs - lastPoseDetectionAt < Self.poseSampleMs
-    {
-      return recentPose
-    }
-    try await preparePose()
+  ) throws -> [LandmarkPoint]? {
     guard let poseLandmarker else {
       throw DetectorError.modelUnavailable("pose landmarker")
     }
-
-    lastPoseDetectionAt = timestampMs
-    return poseLandmarks(
-      from: try poseLandmarker.detect(
+    return try poseSampler.sample(at: timestampMs) {
+      let result = try poseLandmarker.detect(
         videoFrame: image,
         timestampInMilliseconds: timestampMs
-      ),
-      timestampMs: timestampMs
-    )
-  }
-
-  private func poseLandmarks(
-    from result: PoseLandmarkerResult?,
-    timestampMs: Int
-  ) -> [LandmarkPoint]? {
-    if let pose = result?.landmarks.first?.map(LandmarkPoint.init),
-      LandmarkValidation.validPose(pose)
-    {
-      recentPose = pose
-      recentPoseAt = timestampMs
+      )
+      guard let pose = result.landmarks.first?.map(LandmarkPoint.init),
+        LandmarkValidation.validPose(pose)
+      else { return nil }
       return pose
     }
-
-    guard let recentPose, timestampMs - recentPoseAt <= Self.poseReuseMs else {
-      return nil
-    }
-    return recentPose
   }
 
   private func hands(
@@ -263,17 +222,6 @@ actor LandmarkDetector {
     guard let detected, !isMirrored else { return detected }
     return detected == .right ? .left : .right
   }
-
-  static func modelPoints(
-    _ points: [LandmarkPoint],
-    isMirrored: Bool
-  ) -> [LandmarkPoint] {
-    guard isMirrored else { return points }
-    return points.map { point in
-      LandmarkPoint(x: 1 - point.x, y: point.y, z: point.z)
-    }
-  }
-
 }
 
 extension LandmarkPoint {
