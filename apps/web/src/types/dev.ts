@@ -5,7 +5,7 @@ import type {
   Frame,
   PredictTrace,
 } from "@/types/inference";
-import type { HandFrame, HandSide } from "@/types/landmarks";
+import type { FrameMetrics, HandFrame, HandSide } from "@/types/landmarks";
 
 export type DevTrace = DecodeTrace | FinalizeTrace | PredictTrace;
 
@@ -31,13 +31,21 @@ export type DevState = {
   enabled: boolean;
   boundary: number;
   frame: HandFrame | null;
-  fps: number;
+  pipelineFps: number;
+  poseFps: number;
+  presentedFps: number;
+  detectorRoundTripMs: number;
   inferenceMs: number;
+  poseRoundTripMs: number;
+  poseInferenceMs: number;
   traces: DevTrace[];
   recording: DevRecording | null;
   recordings: DevRecording[];
   toggle: () => void;
-  push: (frame: HandFrame | null, inferenceMs: number) => void;
+  push: (frame: HandFrame | null, metrics: FrameMetrics) => void;
+  pushPose: (at: number, metrics: FrameMetrics) => void;
+  pushPresentedFrames: (frames: number, at: number) => void;
+  resetRates: () => void;
   pushTrace: (trace: DevTrace) => void;
   startRecording: (label: string) => void;
   stopRecording: () => void;

@@ -70,7 +70,10 @@ export function Stage() {
         />
       )}
       <div className="pointer-events-none absolute top-4 left-4 z-20 max-w-dev-panel">
-        <DevPanel live={isLive} />
+        <DevPanel
+          live={isLive}
+          trackFps={state.status === "live" ? state.frameRate : null}
+        />
       </div>
       {state.status === "live" && inference.status === "ready" && (
         <div className="pointer-events-none absolute top-4 right-4 z-20 flex h-2 items-center">

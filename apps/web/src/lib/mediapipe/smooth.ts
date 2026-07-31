@@ -1,52 +1,41 @@
 import { OneEuroFilter } from "1eurofilter";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { cfg } from "@hand-wave/contract";
-import type { Filters, HandFrame, SmoothParams } from "@/types/landmarks";
 
 const smoothing = cfg.mp.smooth;
 
-export function createSmoother() {
-  const cache = new Map<string, Filters[]>();
+type SmoothKind = keyof typeof smoothing;
+type SmoothParams = (typeof smoothing)[SmoothKind];
+type Filters = {
+  x: OneEuroFilter;
+  y: OneEuroFilter;
+  z: OneEuroFilter;
+};
+
+export function createSmoother(kind: SmoothKind) {
+  const params = smoothing[kind];
+  let cache: Filters[][] = [];
 
   return {
-    smooth(frame: HandFrame, timestampMs: number): HandFrame {
+    smooth(sets: NormalizedLandmark[][], timestampMs: number) {
       const ts = timestampMs / 1_000;
-      const active = new Set<string>();
-
-      const smoothSets = (
-        name: string,
-        sets: HandFrame["rightHandLandmarks"],
-      ) =>
-        sets.map((landmarks, index) => {
-          const key = `${name}:${index}`;
-          active.add(key);
-          const params = name === "pose" ? smoothing.pose : smoothing.hand;
-          return smoothPoints(
-            landmarks,
-            ts,
-            filtersFor(cache, key, landmarks.length, params),
-          );
-        });
-
-      const next = {
-        rightHandLandmarks: smoothSets("right", frame.rightHandLandmarks),
-        leftHandLandmarks: smoothSets("left", frame.leftHandLandmarks),
-        poseLandmarks: smoothSets("pose", frame.poseLandmarks),
-      };
-
-      for (const key of cache.keys()) {
-        if (!active.has(key)) cache.delete(key);
-      }
-
-      return next;
+      const nextCache: Filters[][] = [];
+      const smoothed = sets.map((landmarks, index) => {
+        const filters = filtersFor(cache[index], landmarks.length, params);
+        nextCache.push(filters);
+        return smoothPoints(landmarks, ts, filters);
+      });
+      cache = nextCache;
+      return smoothed;
     },
     reset() {
-      cache.clear();
+      cache = [];
     },
   };
 }
 
 function smoothPoints(
-  landmarks: HandFrame["rightHandLandmarks"][number],
+  landmarks: NormalizedLandmark[],
   timestamp: number,
   filters: Filters[],
 ) {
@@ -62,17 +51,13 @@ function smoothPoints(
 }
 
 function filtersFor(
-  cache: Map<string, Filters[]>,
-  key: string,
+  existing: Filters[] | undefined,
   count: number,
   params: SmoothParams,
 ) {
-  const existing = cache.get(key);
   if (existing?.length === count) return existing;
 
-  const next = Array.from({ length: count }, () => newFilters(params));
-  cache.set(key, next);
-  return next;
+  return Array.from({ length: count }, () => newFilters(params));
 }
 
 function newFilters(params: SmoothParams): Filters {

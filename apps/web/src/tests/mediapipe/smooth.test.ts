@@ -1,46 +1,32 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { createSmoother } from "@/lib/mediapipe/smooth";
-import type { HandFrame } from "@/types/landmarks";
 
 describe("createSmoother", () => {
   it("keeps hands more responsive than pose", () => {
-    const smoother = createSmoother();
+    const hand = createSmoother("hand");
+    const pose = createSmoother("pose");
 
-    smoother.smooth(frame(point(0.5)), 0);
-    const smoothed = smoother.smooth(frame(point(0.6)), 16);
-    const handX = smoothed.rightHandLandmarks[0]?.[0]?.x ?? 0;
-    const poseX = smoothed.poseLandmarks[0]?.[0]?.x ?? 0;
+    hand.smooth([landmarks(21, point(0.5))], 0);
+    pose.smooth([landmarks(33, point(0.5))], 0);
+    const handX = hand.smooth([landmarks(21, point(0.6))], 16)[0]?.[0]?.x ?? 0;
+    const poseX = pose.smooth([landmarks(33, point(0.6))], 16)[0]?.[0]?.x ?? 0;
 
     expect(handX).toBeGreaterThan(poseX);
     expect(handX).toBeLessThan(0.6);
     expect(poseX).toBeGreaterThan(0.5);
   });
 
-  it("drops stale hand state when MediaPipe loses the hand", () => {
-    const smoother = createSmoother();
+  it("drops stale state when MediaPipe loses the landmarks", () => {
+    const smoother = createSmoother("hand");
 
-    smoother.smooth(frame(point(0.5)), 0);
-    const smoothed = smoother.smooth(
-      {
-        rightHandLandmarks: [],
-        leftHandLandmarks: [],
-        poseLandmarks: [landmarks(33, point(0.5))],
-      },
-      16,
-    );
+    smoother.smooth([landmarks(21, point(0.5))], 0);
+    expect(smoother.smooth([], 16)).toEqual([]);
+    const reacquired = smoother.smooth([landmarks(21, point(0.6))], 32);
 
-    expect(smoothed.rightHandLandmarks).toEqual([]);
+    expect(reacquired[0]?.[0]?.x).toBe(0.6);
   });
 });
-
-function frame(landmark: NormalizedLandmark): HandFrame {
-  return {
-    rightHandLandmarks: [landmarks(21, landmark)],
-    leftHandLandmarks: [],
-    poseLandmarks: [landmarks(33, landmark)],
-  };
-}
 
 function landmarks(count: number, landmark: NormalizedLandmark) {
   return Array.from({ length: count }, () => ({ ...landmark }));

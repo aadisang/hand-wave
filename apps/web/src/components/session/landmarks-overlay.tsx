@@ -18,7 +18,7 @@ import {
 } from "@/lib/mediapipe/landmarks";
 import { useDevStore } from "@/stores/dev-store";
 import type { Frame } from "@/types/inference";
-import type { HandFrame } from "@/types/landmarks";
+import type { FrameMetrics, HandFrame } from "@/types/landmarks";
 
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -43,7 +43,7 @@ export function LandmarksOverlay({
   const [handSelector] = useState(createActiveHandSelector);
 
   const onFrame = useCallback(
-    (frame: HandFrame, inferenceMs: number) => {
+    (frame: HandFrame, metrics: FrameMetrics) => {
       const selectedHand = handSelector.select(frame);
       const input = toModelInput(frame, selectedHand);
       if (draw && input) {
@@ -57,10 +57,10 @@ export function LandmarksOverlay({
       onInferenceFrame(input?.features ?? null);
       const dev = useDevStore.getState();
       if (dev.enabled) {
-        dev.push(input?.frame ?? null, inferenceMs);
+        dev.push(input?.frame ?? null, metrics);
         if (dev.recording) {
           dev.pushFrameTrace({
-            inferenceMs,
+            inferenceMs: metrics.inferenceMs,
             captureKind,
             selectedHand,
             rawFrame: frame,

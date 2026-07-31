@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createRateMeter } from "@/lib/rate-meter";
 import type { DevState } from "@/types/dev";
 import type { HandFrame } from "@/types/landmarks";
 
@@ -9,11 +10,15 @@ const maxTraces = 5000;
 const maxFrameTraces = 1200;
 const maxRecordings = 120;
 const panelUpdateMs = 250;
-let lastAt = 0;
+const fpsSampleMs = 500;
+const pipelineRate = createRateMeter(fpsSampleMs);
+const poseRate = createRateMeter(fpsSampleMs);
+const presentedRate = createRateMeter(fpsSampleMs);
 let lastPanelAt = 0;
 let pendingFrame: HandFrame | null = null;
+let pendingDetectorRoundTripMs = 0;
 let pendingInferenceMs = 0;
-let pendingFps: number | null = null;
+let pendingPipelineFps: number | null = null;
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clearPendingPanelUpdate() {
@@ -22,9 +27,12 @@ function clearPendingPanelUpdate() {
     pendingTimer = null;
   }
   pendingFrame = null;
+  pendingDetectorRoundTripMs = 0;
   pendingInferenceMs = 0;
-  pendingFps = null;
-  lastAt = 0;
+  pendingPipelineFps = null;
+  pipelineRate.reset();
+  poseRate.reset();
+  presentedRate.reset();
   lastPanelAt = 0;
 }
 
@@ -32,8 +40,13 @@ export const useDevStore = create<DevState>((set) => ({
   enabled: false,
   boundary: 0,
   frame: null,
-  fps: 0,
+  pipelineFps: 0,
+  poseFps: 0,
+  presentedFps: 0,
+  detectorRoundTripMs: 0,
   inferenceMs: 0,
+  poseRoundTripMs: 0,
+  poseInferenceMs: 0,
   traces: [],
   recording: null,
   recordings: [],
@@ -42,8 +55,13 @@ export const useDevStore = create<DevState>((set) => ({
     set((s) => ({
       enabled: !s.enabled,
       frame: null,
-      fps: 0,
+      pipelineFps: 0,
+      poseFps: 0,
+      presentedFps: 0,
+      detectorRoundTripMs: 0,
       inferenceMs: 0,
+      poseRoundTripMs: 0,
+      poseInferenceMs: 0,
       ...(s.enabled && s.recording
         ? {
             recording: null,
@@ -52,13 +70,12 @@ export const useDevStore = create<DevState>((set) => ({
         : {}),
     }));
   },
-  push: (frame, ms) => {
+  push: (frame, metrics) => {
     const now = performance.now();
-    const dt = lastAt ? now - lastAt : 0;
-    lastAt = now;
     pendingFrame = frame;
-    pendingInferenceMs = ms;
-    pendingFps = dt ? 1000 / dt : null;
+    pendingDetectorRoundTripMs = metrics.detectorRoundTripMs;
+    pendingInferenceMs = metrics.inferenceMs;
+    pendingPipelineFps = pipelineRate.push(now) ?? pendingPipelineFps;
 
     const commit = () => {
       if (pendingTimer) {
@@ -67,12 +84,18 @@ export const useDevStore = create<DevState>((set) => ({
       }
       lastPanelAt = performance.now();
       const nextFrame = pendingFrame;
+      const nextDetectorRoundTripMs = pendingDetectorRoundTripMs;
       const nextInferenceMs = pendingInferenceMs;
-      const nextFps = pendingFps;
+      const nextPipelineFps = pendingPipelineFps;
+      pendingPipelineFps = null;
       set((s) => ({
         frame: nextFrame,
+        detectorRoundTripMs: ema(
+          s.detectorRoundTripMs,
+          nextDetectorRoundTripMs,
+        ),
         inferenceMs: ema(s.inferenceMs, nextInferenceMs),
-        fps: nextFps ? ema(s.fps, nextFps) : s.fps,
+        pipelineFps: nextPipelineFps ?? s.pipelineFps,
       }));
     };
 
@@ -82,6 +105,31 @@ export const useDevStore = create<DevState>((set) => ({
     } else if (!pendingTimer) {
       pendingTimer = setTimeout(commit, panelUpdateMs - elapsed);
     }
+  },
+  pushPose: (at, metrics) => {
+    const poseFps = poseRate.push(at);
+    if (poseFps === null) return;
+    set((s) => ({
+      poseFps,
+      poseRoundTripMs: ema(s.poseRoundTripMs, metrics.detectorRoundTripMs),
+      poseInferenceMs: ema(s.poseInferenceMs, metrics.inferenceMs),
+    }));
+  },
+  pushPresentedFrames: (frames, at) => {
+    const presentedFps = presentedRate.push(at, frames);
+    if (presentedFps !== null) set({ presentedFps });
+  },
+  resetRates: () => {
+    clearPendingPanelUpdate();
+    set({
+      detectorRoundTripMs: 0,
+      inferenceMs: 0,
+      pipelineFps: 0,
+      poseFps: 0,
+      presentedFps: 0,
+      poseRoundTripMs: 0,
+      poseInferenceMs: 0,
+    });
   },
   pushTrace: (trace) =>
     set((s) => ({ traces: [...s.traces, trace].slice(-maxTraces) })),

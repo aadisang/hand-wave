@@ -1,55 +1,29 @@
 import { expose } from "comlink";
 import {
-  FilesetResolver,
   HandLandmarker,
-  PoseLandmarker,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
 import type {
   HandFrame,
+  HandDetectorApi,
   HandSide,
-  LandmarkDetectionRequest,
-  LandmarkDetectorApi,
+  DetectionRequest,
 } from "@/types/landmarks";
-import { handModelUrl, poseModelUrl, wasmPath } from "./assets";
+import { handModelUrl } from "./assets";
 import { filterConsole } from "./console";
 import { handednessForUnmirroredInput } from "./landmarks";
-import { createPoseSampler } from "./pose-sampler";
+import { loadWorkerVisionFileset } from "./runtime";
 import { createSmoother } from "./smooth";
 
 const landmarkConfidence = 0.5;
-const maxDetectorDimension = 640;
 
-type Trackers = {
-  hand: HandLandmarker;
-  pose: PoseLandmarker;
-  canvas: OffscreenCanvas;
-  context: OffscreenCanvasRenderingContext2D;
-};
-
-type WasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
-
-const smoother = createSmoother();
-const poseSampler = createPoseSampler({ sampleMs: 1000 / 12, reuseMs: 500 });
-const trackers = load();
+const rightHandSmoother = createSmoother("hand");
+const leftHandSmoother = createSmoother("hand");
+const tracker = load();
 
 async function load() {
   filterConsole();
-  const fileset = await FilesetResolver.forVisionTasks(wasmPath);
-  const hand = await createHand(fileset);
-  const pose = await createPose(fileset);
-  const canvas = new OffscreenCanvas(1, 1);
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Could not create MediaPipe worker input canvas");
-  }
-
-  return { hand, pose, canvas, context };
-}
-
-async function createHand(fileset: WasmFileset) {
-  await installModuleFactory(fileset.wasmLoaderPath);
-  return HandLandmarker.createFromOptions(withInstalledLoader(fileset), {
+  return HandLandmarker.createFromOptions(await loadWorkerVisionFileset(), {
     baseOptions: { modelAssetPath: handModelUrl, delegate: "GPU" },
     runningMode: "VIDEO",
     numHands: 2,
@@ -59,50 +33,12 @@ async function createHand(fileset: WasmFileset) {
   });
 }
 
-async function createPose(fileset: WasmFileset) {
-  await installModuleFactory(fileset.wasmLoaderPath);
-  return PoseLandmarker.createFromOptions(withInstalledLoader(fileset), {
-    baseOptions: { modelAssetPath: poseModelUrl, delegate: "GPU" },
-    runningMode: "VIDEO",
-    numPoses: 1,
-    minPoseDetectionConfidence: landmarkConfidence,
-    minPosePresenceConfidence: landmarkConfidence,
-    minTrackingConfidence: landmarkConfidence,
-  });
-}
-
-async function installModuleFactory(loaderPath: string) {
-  const source = await loadScript(loaderPath);
-  // MediaPipe's task runner expects this factory on the worker global. Vite
-  // module workers do not get that from MediaPipe's internal script helper.
-  (0, eval)(`${source}\n;globalThis.ModuleFactory = ModuleFactory;`);
-  if (!("ModuleFactory" in globalThis)) {
-    throw new Error("MediaPipe WASM module factory did not install");
-  }
-}
-
-function loadScript(url: string) {
-  return fetch(url).then((response) => {
-    if (!response.ok) {
-      throw new Error(
-        `Could not load MediaPipe WASM loader: ${response.status}`,
-      );
-    }
-    return response.text();
-  });
-}
-
-function withInstalledLoader(fileset: WasmFileset): WasmFileset {
-  return { ...fileset, wasmLoaderPath: "" };
-}
-
-function detect(instance: Trackers, image: ImageBitmap, timestamp: number) {
-  const input = detectorInput(instance, image);
-  const hand = instance.hand.detectForVideo(input, timestamp);
-  const poseLandmarks = poseSampler.sample(timestamp, () =>
-    cloneLandmarkSets(instance.pose.detectForVideo(input, timestamp).landmarks),
-  );
-
+function detect(
+  instance: HandLandmarker,
+  image: ImageBitmap,
+  timestamp: number,
+) {
+  const hand = instance.detectForVideo(image, timestamp);
   const rightHandLandmarks: HandFrame["rightHandLandmarks"] = [];
   const leftHandLandmarks: HandFrame["leftHandLandmarks"] = [];
 
@@ -119,58 +55,46 @@ function detect(instance: Trackers, image: ImageBitmap, timestamp: number) {
     }
   });
 
-  return { rightHandLandmarks, leftHandLandmarks, poseLandmarks };
+  return { rightHandLandmarks, leftHandLandmarks };
 }
 
 function parseHandSide(value: string | undefined): HandSide | null {
   return value === "Left" || value === "Right" ? value : null;
 }
 
-function detectorInput(instance: Trackers, image: ImageBitmap) {
-  const { canvas, context } = instance;
-  const largest = Math.max(image.width, image.height);
-  const scale =
-    largest > maxDetectorDimension ? maxDetectorDimension / largest : 1;
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
-
-  if (canvas.width !== width) canvas.width = width;
-  if (canvas.height !== height) canvas.height = height;
-
-  context.setTransform(1, 0, 0, 1, 0, 0);
-  context.drawImage(image, 0, 0, width, height);
-
-  return canvas;
-}
-
-function cloneLandmarkSets(sets: NormalizedLandmark[][]) {
-  return sets.map(cloneLandmarkSet);
-}
-
 function cloneLandmarkSet(landmarks: NormalizedLandmark[]) {
   return landmarks.map((landmark) => ({ ...landmark }));
 }
 
-const api: LandmarkDetectorApi = {
+const api: HandDetectorApi = {
   async warm() {
-    await trackers;
+    await tracker;
   },
-  async detect(request: LandmarkDetectionRequest) {
+  async detect(request: DetectionRequest) {
     const start = performance.now();
     try {
-      const instance = await trackers;
-      const frame = smoother.smooth(
-        detect(instance, request.image, request.timestamp),
-        request.timestamp,
-      );
-      return { frame, inferenceMs: performance.now() - start };
+      const instance = await tracker;
+      const frame = detect(instance, request.image, request.timestamp);
+      return {
+        frame: {
+          rightHandLandmarks: rightHandSmoother.smooth(
+            frame.rightHandLandmarks,
+            request.timestamp,
+          ),
+          leftHandLandmarks: leftHandSmoother.smooth(
+            frame.leftHandLandmarks,
+            request.timestamp,
+          ),
+        },
+        inferenceMs: performance.now() - start,
+      };
     } finally {
       request.image.close();
     }
   },
   reset() {
-    poseSampler.reset();
-    smoother.reset();
+    rightHandSmoother.reset();
+    leftHandSmoother.reset();
   },
 };
 

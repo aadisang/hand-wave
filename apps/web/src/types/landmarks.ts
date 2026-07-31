@@ -1,5 +1,4 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import type { OneEuroFilter } from "1eurofilter";
 
 export type HandSide = "Left" | "Right";
 
@@ -9,35 +8,36 @@ export type HandFrame = {
   poseLandmarks: NormalizedLandmark[][];
 };
 
-export type FrameSink = (frame: HandFrame, inferenceMs: number) => void;
+export type FrameMetrics = {
+  detectorRoundTripMs: number;
+  inferenceMs: number;
+};
 
-export type LandmarkDetectionRequest = {
+export type FrameSink = (frame: HandFrame, metrics: FrameMetrics) => void;
+
+export type DetectionRequest = {
   image: ImageBitmap;
   timestamp: number;
 };
 
-export type LandmarkDetectionResult = {
-  frame: HandFrame;
+export type HandDetectionResult = {
+  frame: Pick<HandFrame, "leftHandLandmarks" | "rightHandLandmarks">;
   inferenceMs: number;
 };
 
-export type LandmarkDetectorApi = {
+export type PoseDetectionResult = {
+  poseLandmarks: HandFrame["poseLandmarks"];
+  inferenceMs: number;
+};
+
+export type HandDetectorApi = {
   warm: () => Promise<void>;
   reset: () => void;
-  detect: (
-    request: LandmarkDetectionRequest,
-  ) => Promise<LandmarkDetectionResult>;
+  detect: (request: DetectionRequest) => Promise<HandDetectionResult>;
 };
 
-export type Filters = {
-  x: OneEuroFilter;
-  y: OneEuroFilter;
-  z: OneEuroFilter;
-};
-
-export type SmoothParams = {
-  freq: number;
-  cutoff: number;
-  beta: number;
-  dCutoff: number;
+export type PoseDetectorApi = {
+  warm: () => Promise<void>;
+  reset: () => void;
+  detect: (request: DetectionRequest) => Promise<PoseDetectionResult>;
 };

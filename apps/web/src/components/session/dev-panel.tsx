@@ -6,18 +6,28 @@ import { Surface } from "@/components/ui/surface";
 import { useDevStore } from "@/stores/dev-store";
 import type { DevRecording, DevTrace } from "@/types/dev";
 
-export function DevPanel({ live }: { live: boolean }) {
+type Props = {
+  live: boolean;
+  trackFps: number | null;
+};
+
+export function DevPanel({ live, trackFps }: Props) {
   const enabled = useDevStore((s) => s.enabled);
 
   if (!enabled) return null;
 
-  return <DevPanelContent live={live} />;
+  return <DevPanelContent live={live} trackFps={trackFps} />;
 }
 
-function DevPanelContent({ live }: { live: boolean }) {
+function DevPanelContent({ live, trackFps }: Props) {
   const frame = useDevStore((s) => s.frame);
-  const fps = useDevStore((s) => s.fps);
+  const pipelineFps = useDevStore((s) => s.pipelineFps);
+  const poseFps = useDevStore((s) => s.poseFps);
+  const presentedFps = useDevStore((s) => s.presentedFps);
+  const detectorRoundTripMs = useDevStore((s) => s.detectorRoundTripMs);
   const inferenceMs = useDevStore((s) => s.inferenceMs);
+  const poseRoundTripMs = useDevStore((s) => s.poseRoundTripMs);
+  const poseInferenceMs = useDevStore((s) => s.poseInferenceMs);
   const traces = useDevStore((s) => s.traces);
   const recording = useDevStore((s) => s.recording);
   const recordings = useDevStore((s) => s.recordings);
@@ -128,8 +138,23 @@ function DevPanelContent({ live }: { live: boolean }) {
             </Button>
           </div>
         </div>
-        <Row label="FPS" value={fps.toFixed(1)} />
-        <Row label="Inference" value={`${inferenceMs.toFixed(1)} ms`} />
+        <Row label="Track FPS" value={trackFps?.toFixed(1) ?? "-"} />
+        <Row label="Presented FPS" value={presentedFps.toFixed(1)} />
+        <Row label="Hand FPS" value={pipelineFps.toFixed(1)} />
+        <Row label="Pose FPS" value={poseFps.toFixed(1)} />
+        <Row
+          label="Hand round trip"
+          value={`${detectorRoundTripMs.toFixed(1)} ms`}
+        />
+        <Row label="Hand inference" value={`${inferenceMs.toFixed(1)} ms`} />
+        <Row
+          label="Pose round trip"
+          value={`${poseRoundTripMs.toFixed(1)} ms`}
+        />
+        <Row
+          label="Pose inference"
+          value={`${poseInferenceMs.toFixed(1)} ms`}
+        />
         <Row label="Hands" value={hands.length.toString()} />
         <Row label="Pose" value={poseCount.toString()} />
         {hands.map((hand) => {
