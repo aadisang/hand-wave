@@ -1,12 +1,35 @@
 import MWDATCamera
 import UIKit
 
+struct FramePipelineStats: Sendable, Equatable {
+  var receivedFrames = 0
+  var processedFrames = 0
+  var inferenceFrames = 0
+  var supersededFrames = 0
+
+  func subtracting(_ earlier: Self) -> Self {
+    Self(
+      receivedFrames: receivedFrames - earlier.receivedFrames,
+      processedFrames: processedFrames - earlier.processedFrames,
+      inferenceFrames: inferenceFrames - earlier.inferenceFrames,
+      supersededFrames: supersededFrames - earlier.supersededFrames
+    )
+  }
+}
+
 actor FramePipeline {
   private static let reportInterval: Duration = .seconds(5)
 
   enum Frame: Sendable {
     case glasses(VideoFrame)
     case phone(CameraFrame)
+
+    var sourceName: String {
+      switch self {
+      case .glasses: "glasses"
+      case .phone: "phone"
+      }
+    }
   }
 
   typealias PreviewHandler = @MainActor @Sendable (UIImage) -> Void
@@ -24,10 +47,8 @@ actor FramePipeline {
   private var onOutput: OutputHandler?
   private var onEvent: EventHandler?
   private var onFailure: FailureHandler?
-  private var receivedFrames = 0
-  private var processedFrames = 0
-  private var inferenceFrames = 0
-  private var supersededFrames = 0
+  private var stats = FramePipelineStats()
+  private var reportedStats = FramePipelineStats()
   private var reportStartedAt = ContinuousClock.now
 
   init(recognizer: Recognizer = Recognizer()) {
@@ -49,6 +70,8 @@ actor FramePipeline {
     self.onOutput = onOutput
     self.onEvent = onEvent
     self.onFailure = onFailure
+    stats = FramePipelineStats()
+    reportedStats = stats
     reportStartedAt = .now
 
     try await recognizer.start { [weak self] event in
@@ -57,9 +80,14 @@ actor FramePipeline {
   }
 
   func submit(_ frame: Frame) {
-    receivedFrames += 1
+    stats.receivedFrames += 1
+    if stats.receivedFrames == 1 {
+      AppLog.stream.notice(
+        "Frame pipeline received first frame source=\(frame.sourceName, privacy: .public)"
+      )
+    }
     if latestFrame != nil {
-      supersededFrames += 1
+      stats.supersededFrames += 1
     }
     latestFrame = frame
     startRecognitionIfNeeded()
@@ -69,7 +97,7 @@ actor FramePipeline {
     startPreviewIfNeeded()
   }
 
-  func stop() async {
+  func stop() async -> FramePipelineStats {
     generation &+= 1
     let activeRecognitionTask = recognitionTask
     let activePreviewTask = previewTask
@@ -85,11 +113,11 @@ actor FramePipeline {
     onOutput = nil
     onEvent = nil
     onFailure = nil
-    receivedFrames = 0
-    processedFrames = 0
-    inferenceFrames = 0
-    supersededFrames = 0
+    let finalStats = stats
+    stats = FramePipelineStats()
+    reportedStats = stats
     await recognizer.stop()
+    return finalStats
   }
 
   private func startRecognitionIfNeeded() {
@@ -110,9 +138,9 @@ actor FramePipeline {
         let output = try await recognizer.process(frame)
         AppLog.performance.endInterval("Landmark processing", interval)
         guard expectedGeneration == generation, !Task.isCancelled else { break }
-        processedFrames += 1
+        stats.processedFrames += 1
         if output.hasLandmarks {
-          inferenceFrames += 1
+          stats.inferenceFrames += 1
         }
         reportPerformanceIfNeeded()
         if let onOutput {
@@ -174,13 +202,11 @@ actor FramePipeline {
 
   private func reportPerformanceIfNeeded() {
     guard reportStartedAt.duration(to: .now) >= Self.reportInterval else { return }
-    AppLog.stream.debug(
-      "Frame pipeline received=\(self.receivedFrames) processed=\(self.processedFrames) inference=\(self.inferenceFrames) superseded=\(self.supersededFrames)"
+    let interval = stats.subtracting(reportedStats)
+    AppLog.stream.notice(
+      "Frame pipeline received=\(interval.receivedFrames) processed=\(interval.processedFrames) inference=\(interval.inferenceFrames) superseded=\(interval.supersededFrames)"
     )
-    receivedFrames = 0
-    processedFrames = 0
-    inferenceFrames = 0
-    supersededFrames = 0
+    reportedStats = stats
     reportStartedAt = .now
   }
 }

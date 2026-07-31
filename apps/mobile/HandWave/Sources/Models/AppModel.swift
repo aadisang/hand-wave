@@ -35,7 +35,7 @@ final class AppModel {
   }
 
   func resetConnection() async {
-    await stream.stop()
+    await stream.stop(reason: .connectionReset)
     await wearables.disconnect()
     refresh()
   }

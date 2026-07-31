@@ -1,3 +1,4 @@
+import Foundation
 import OSLog
 
 enum AppLog {
@@ -10,4 +11,22 @@ enum AppLog {
   static let speech = Logger(subsystem: subsystem, category: "speech")
   static let stream = Logger(subsystem: subsystem, category: "stream")
   static let wearables = Logger(subsystem: subsystem, category: "wearables")
+
+  static var environmentSummary: String {
+    let info = Bundle.main.infoDictionary
+    let version = info?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let build = info?["CFBundleVersion"] as? String ?? "unknown"
+    let sdkVersion =
+      Bundle.allFrameworks
+      .first { $0.bundleURL.lastPathComponent == "MWDATCore.framework" }?
+      .infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+    let os = ProcessInfo.processInfo.operatingSystemVersionString
+
+    return
+      "app_version=\(version) build=\(build) mwdat_version=\(sdkVersion) os=\(os)"
+  }
+
+  static func recordLaunch() {
+    app.notice("App launched \(environmentSummary, privacy: .public)")
+  }
 }

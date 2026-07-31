@@ -11,12 +11,21 @@ enum LogExporter {
       let predicate = NSPredicate(format: "subsystem == %@", AppLog.subsystem)
       let entries = try store.getEntries(at: position, matching: predicate)
       let formatter = ISO8601DateFormatter()
+      let header = [
+        "# Hand Wave diagnostics",
+        "exported_at=\(formatter.string(from: Date()))",
+        AppLog.environmentSummary,
+        "process_uptime_seconds=\(Int(ProcessInfo.processInfo.systemUptime))",
+        "",
+      ].joined(separator: "\n")
 
-      return entries.compactMap { entry -> String? in
+      let logs = entries.compactMap { entry -> String? in
         guard let entry = entry as? OSLogEntryLog else { return nil }
         return
           "\(formatter.string(from: entry.date)) [\(entry.level.label)] [\(entry.category)] \(entry.composedMessage)"
       }.joined(separator: "\n")
+
+      return header + logs
     }.value
   }
 }

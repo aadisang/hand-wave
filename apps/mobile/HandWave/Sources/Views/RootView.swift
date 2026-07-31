@@ -68,7 +68,7 @@ struct RootView: View {
       case .active:
         appModel.refresh()
       case .background:
-        Task { await appModel.stream.stop() }
+        Task { await appModel.stream.stop(reason: .appBackgrounded) }
       default:
         break
       }
@@ -79,7 +79,7 @@ struct RootView: View {
     for await _ in NotificationCenter.default.notifications(
       named: UIApplication.willTerminateNotification
     ) {
-      await appModel.stream.stop()
+      await appModel.stream.stop(reason: .appTerminated)
     }
   }
 }

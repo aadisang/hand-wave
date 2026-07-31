@@ -8,8 +8,10 @@ struct HandWaveApp: App {
 
   init() {
     AppFont.register()
+    AppLog.recordLaunch()
     do {
       try Wearables.configure()
+      AppLog.wearables.notice("Wearables SDK configured")
     } catch {
       AppLog.app.fault(
         "Wearables configuration failed: \(error.localizedDescription, privacy: .private)")

@@ -21,7 +21,7 @@ struct StreamView: View {
       showsPoseLandmarks: showsPoseLandmarks,
       showsLandmarks: showsLandmarks,
       rotateCamera: appModel.stream.rotateCamera,
-      stop: appModel.stream.stop
+      stop: { await appModel.stream.stop() }
     )
   }
 }

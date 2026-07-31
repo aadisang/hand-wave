@@ -96,6 +96,7 @@ final class StreamModel {
   @ObservationIgnored private let phoneCamera = PhoneCamera()
   @ObservationIgnored private let pipeline = FramePipeline()
   @ObservationIgnored private let speech = SpeechCoordinator()
+  @ObservationIgnored private let wearableDiagnostics: WearableDiagnosticsObserver
   @ObservationIgnored private var deviceSession: DeviceSession?
   @ObservationIgnored private var glassesStream: MWDATCamera.Stream?
   @ObservationIgnored private var stateToken: AnyListenerToken?
@@ -109,10 +110,12 @@ final class StreamModel {
   @ObservationIgnored private var streamStarted = false
   @ObservationIgnored private var startError: DeviceSessionError?
   @ObservationIgnored private var datUpdateGeneration: Int?
+  @ObservationIgnored private var diagnostics = StreamDiagnosticState()
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
     self.selector = AutoDeviceSelector(wearables: wearables)
+    self.wearableDiagnostics = WearableDiagnosticsObserver(wearables: wearables)
     speech.onSpeakingTextChanged = { [weak self] in self?.speakingText = $0 }
   }
 
@@ -135,47 +138,75 @@ final class StreamModel {
   func observe() async {
     if prewarmTask == nil {
       prewarmTask = Task(priority: .utility) { [pipeline] in
-        try? await pipeline.prepare()
+        let startedAt = ContinuousClock.now
+        AppLog.inference.notice("MediaPipe prewarm started")
+        do {
+          try await pipeline.prepare()
+          AppLog.inference.notice(
+            "MediaPipe prewarm completed elapsed_ms=\(milliseconds(from: startedAt))"
+          )
+        } catch {
+          AppLog.inference.error(
+            "MediaPipe prewarm failed error_type=\(String(reflecting: type(of: error)), privacy: .public) message=\(error.localizedDescription, privacy: .private)"
+          )
+        }
       }
     }
     refresh()
     for await device in selector.activeDeviceStream() {
       hasActiveDevice = device != nil
+      diagnostics.replaceDevice()
+      await wearableDiagnostics.select(device) { [weak self] level in
+        self?.diagnostics.record(thermalLevel: level) ?? false
+      }
     }
   }
 
   func refresh() {
-    hasActiveDevice = selector.activeDevice != nil
+    let available = selector.activeDevice != nil
+    guard available != hasActiveDevice else { return }
+    hasActiveDevice = available
+    AppLog.wearables.notice("Glasses availability changed available=\(available)")
   }
 
   func start() async {
-    guard status == .idle, !isStopping else { return }
+    guard status == .idle, !isStopping else {
+      AppLog.stream.info(
+        "Ignored stream start status=\(self.status.diagnosticName, privacy: .public) stopping=\(self.isStopping)"
+      )
+      return
+    }
     failure = nil
     generation &+= 1
     let run = generation
+    diagnostics.begin()
     lifecycle = .connecting(source)
     isPreparingLandmarks = true
+    AppLog.stream.notice(
+      "Stream start requested run=\(run) source=\(self.source.rawValue, privacy: .public) glasses_available=\(self.hasActiveDevice) thermal=\(self.diagnostics.thermalLevelName, privacy: .public)"
+    )
 
     do {
+      try await preparePipeline(for: run)
+      guard isCurrent(run) else { return }
       switch source {
       case .glasses:
-        try await preparePipeline(for: run)
-        guard isCurrent(run) else { return }
         try await startGlasses(run: run)
       case .phone:
-        try await preparePipeline(for: run)
-        guard isCurrent(run) else { return }
         try await startPhone(run: run)
       }
     } catch is CancellationError {
       guard generation == run else { return }
-      await stop()
+      AppLog.stream.notice("Stream start cancelled run=\(run)")
+      await stop(reason: .startCancelled)
     } catch {
       guard generation == run else { return }
       let failure = error as? StreamFailure ?? .camera(error.localizedDescription)
-      await stop()
+      AppLog.stream.error(
+        "Stream start failed run=\(run) error_type=\(String(reflecting: type(of: error)), privacy: .public) message=\(error.localizedDescription, privacy: .private)"
+      )
+      await stop(reason: .startupFailed)
       self.failure = failure
-      AppLog.stream.error("Stream failed: \(failure.localizedDescription, privacy: .private)")
     }
   }
 
@@ -183,14 +214,29 @@ final class StreamModel {
     guard activeSource == .phone else { return }
     do {
       _ = try await phoneCamera.rotate()
+      AppLog.camera.notice("Phone camera rotated")
     } catch {
       failure = .camera(error.localizedDescription)
+      AppLog.camera.error(
+        "Phone camera rotation failed: \(error.localizedDescription, privacy: .private)"
+      )
     }
   }
 
-  func stop() async {
-    guard status != .idle, !isStopping else { return }
+  func stop(reason: StreamStopReason = .requested) async {
+    guard status != .idle, !isStopping else {
+      AppLog.stream.info(
+        "Ignored stream stop reason=\(reason.diagnosticName, privacy: .public) status=\(self.status.diagnosticName, privacy: .public) stopping=\(self.isStopping)"
+      )
+      return
+    }
     isStopping = true
+    let run = generation
+    let stoppedSource = activeSource ?? source
+    let elapsedMilliseconds = diagnostics.elapsedMilliseconds()
+    let sessionState = diagnostics.sessionStateName
+    let streamState = diagnostics.streamStateName
+    let thermalLevel = diagnostics.thermalLevelName
     generation &+= 1
 
     stateToken = nil
@@ -209,7 +255,7 @@ final class StreamModel {
     startError = nil
 
     await phoneCamera.stop()
-    await pipeline.stop()
+    let stats = await pipeline.stop()
     stream?.stop()
     session?.stop()
 
@@ -223,38 +269,59 @@ final class StreamModel {
     speech.reset()
     lifecycle = .idle
     isStopping = false
-    AppLog.stream.notice("Stream stopped")
-  }
-
-  private func preparePipeline(for run: Int) async throws {
-    try await pipeline.start(
-      onPreview: { [weak self] image in
-        guard self?.isCurrent(run) == true else { return }
-        self?.latestFrame = image
-      },
-      onOutput: { [weak self] output in
-        guard self?.isCurrent(run) == true else { return }
-        self?.apply(output)
-      },
-      onEvent: { [weak self] event in
-        guard self?.isCurrent(run) == true else { return }
-        self?.apply(event)
-      },
-      onFailure: { [weak self] message in
-        guard self?.isCurrent(run) == true else { return }
-        self?.failure = .recognition(message)
-      }
+    diagnostics.end()
+    AppLog.stream.notice(
+      "Stream stopped run=\(run) source=\(stoppedSource.rawValue, privacy: .public) reason=\(reason.diagnosticName, privacy: .public) elapsed_ms=\(elapsedMilliseconds) frames_received=\(stats.receivedFrames) frames_processed=\(stats.processedFrames) inference_frames=\(stats.inferenceFrames) superseded_frames=\(stats.supersededFrames) session_state=\(sessionState, privacy: .public) camera_state=\(streamState, privacy: .public) thermal=\(thermalLevel, privacy: .public)"
     )
   }
 
+  private func preparePipeline(for run: Int) async throws {
+    let startedAt = ContinuousClock.now
+    AppLog.stream.notice("Preparing recognition pipeline run=\(run)")
+    do {
+      try await pipeline.start(
+        onPreview: { [weak self] image in
+          guard self?.isCurrent(run) == true else { return }
+          self?.latestFrame = image
+        },
+        onOutput: { [weak self] output in
+          guard self?.isCurrent(run) == true else { return }
+          self?.apply(output)
+        },
+        onEvent: { [weak self] event in
+          guard self?.isCurrent(run) == true else { return }
+          self?.apply(event)
+        },
+        onFailure: { [weak self] message in
+          guard self?.isCurrent(run) == true else { return }
+          self?.failure = .recognition(message)
+          AppLog.inference.error(
+            "Recognition pipeline failure run=\(run) message=\(message, privacy: .private)"
+          )
+        }
+      )
+      AppLog.stream.notice(
+        "Recognition pipeline ready run=\(run) elapsed_ms=\(milliseconds(from: startedAt))"
+      )
+    } catch {
+      AppLog.stream.error(
+        "Recognition pipeline setup failed run=\(run) elapsed_ms=\(milliseconds(from: startedAt)) error_type=\(String(reflecting: type(of: error)), privacy: .public) message=\(error.localizedDescription, privacy: .private)"
+      )
+      throw error
+    }
+  }
+
   private func startPhone(run: Int) async throws {
+    AppLog.camera.notice("Phone camera start requested run=\(run) position=back")
     let frames = try await phoneCamera.start(position: .back)
     guard isCurrent(run) else {
       await phoneCamera.stop()
       return
     }
     lifecycle = .streaming(.phone)
-    AppLog.stream.notice("Phone stream started")
+    AppLog.stream.notice(
+      "Phone stream started run=\(run) elapsed_ms=\(self.diagnostics.elapsedMilliseconds())"
+    )
 
     frameTask = Task { [weak self] in
       guard let self else { return }
@@ -266,7 +333,18 @@ final class StreamModel {
   }
 
   private func startGlasses(run: Int) async throws {
-    guard hasActiveDevice else { throw StreamFailure.noGlasses }
+    guard let deviceIdentifier = selector.activeDevice else {
+      throw StreamFailure.noGlasses
+    }
+    if let device = wearables.deviceForIdentifier(deviceIdentifier) {
+      AppLog.stream.notice(
+        "Creating glasses session run=\(run) link=\(device.linkState.diagnosticName, privacy: .public) compatibility=\(device.compatibility().diagnosticName, privacy: .public) thermal=\(self.diagnostics.thermalLevelName, privacy: .public)"
+      )
+    } else {
+      AppLog.stream.notice(
+        "Creating glasses session run=\(run) device_details=unavailable thermal=\(self.diagnostics.thermalLevelName, privacy: .public)"
+      )
+    }
     let session = try wearables.createSession(deviceSelector: selector)
     deviceSession = session
     let states = session.stateStream()
@@ -274,13 +352,21 @@ final class StreamModel {
 
     do {
       try session.start()
+      AppLog.stream.notice("Glasses session start accepted run=\(run)")
     } catch let error {
+      AppLog.stream.error(
+        "Glasses session start rejected run=\(run) case=\(error.diagnosticName, privacy: .public) message=\(error.localizedDescription, privacy: .private)"
+      )
       guard case .datAppOnTheGlassesUpdateRequired = error else { throw error }
       await openDATGlassesAppUpdate(run: run)
       throw StreamFailure.stopped(error)
     }
     for await state in states {
       guard isCurrent(run), !Task.isCancelled else { return }
+      diagnostics.record(sessionState: state)
+      AppLog.stream.notice(
+        "Glasses session state run=\(run) state=\(state.diagnosticName, privacy: .public) elapsed_ms=\(self.diagnostics.elapsedMilliseconds())"
+      )
       switch state {
       case .started:
         try await openGlassesStream(session, run: run)
@@ -299,20 +385,28 @@ final class StreamModel {
       resolution: .low,
       frameRate: 30
     )
+    AppLog.stream.notice(
+      "Adding glasses camera stream run=\(run) codec=raw resolution=low fps=30"
+    )
     guard let stream = try session.addStream(config: configuration) else {
       throw StreamFailure.camera("Stream settings rejected.")
     }
     glassesStream = stream
+    AppLog.stream.notice("Glasses camera stream added run=\(run)")
 
     stateToken = stream.statePublisher.listen { [weak self] state in
       Task { @MainActor [weak self] in
         guard let self, isCurrent(run) else { return }
+        diagnostics.record(streamState: state)
+        AppLog.stream.notice(
+          "Glasses camera state run=\(run) state=\(state.diagnosticName, privacy: .public) elapsed_ms=\(self.diagnostics.elapsedMilliseconds())"
+        )
         switch state {
         case .streaming:
           streamStarted = true
           lifecycle = .streaming(.glasses)
         case .stopped where streamStarted:
-          await stop()
+          await stop(reason: .streamStateStopped)
         case .waitingForDevice, .starting, .paused, .stopping:
           streamStarted = true
           lifecycle = .connecting(.glasses)
@@ -325,7 +419,10 @@ final class StreamModel {
     errorToken = stream.errorPublisher.listen { [weak self] error in
       Task { @MainActor [weak self] in
         guard let self, isCurrent(run) else { return }
-        await stop()
+        AppLog.stream.fault(
+          "Glasses camera error run=\(run) case=\(error.diagnosticName, privacy: .public) message=\(error.localizedDescription, privacy: .private) elapsed_ms=\(self.diagnostics.elapsedMilliseconds()) session_state=\(self.diagnostics.sessionStateName, privacy: .public) camera_state=\(self.diagnostics.streamStateName, privacy: .public) thermal=\(self.diagnostics.thermalLevelName, privacy: .public)"
+        )
+        await stop(reason: .streamError(error))
         failure = .camera(error.localizedDescription)
       }
     }
@@ -346,7 +443,9 @@ final class StreamModel {
     }
 
     stream.start()
-    AppLog.stream.notice("Glasses stream requested at 30 FPS")
+    AppLog.stream.notice(
+      "Glasses stream requested run=\(run) fps=30 elapsed_ms=\(self.diagnostics.elapsedMilliseconds())"
+    )
   }
 
   private func observeSessionErrors(_ session: DeviceSession, run: Int) {
@@ -355,11 +454,14 @@ final class StreamModel {
       for await error in session.errorStream() {
         guard isCurrent(run), !Task.isCancelled else { return }
         startError = error
+        AppLog.stream.error(
+          "Glasses session error run=\(run) case=\(error.diagnosticName, privacy: .public) terminal=\(error.stopsSession) message=\(error.localizedDescription, privacy: .private) elapsed_ms=\(self.diagnostics.elapsedMilliseconds()) session_state=\(self.diagnostics.sessionStateName, privacy: .public) camera_state=\(self.diagnostics.streamStateName, privacy: .public) thermal=\(self.diagnostics.thermalLevelName, privacy: .public)"
+        )
         guard error.stopsSession else { continue }
         if case .datAppOnTheGlassesUpdateRequired = error {
           await openDATGlassesAppUpdate(run: run)
         }
-        await stop()
+        await stop(reason: .sessionError(error))
         failure = .stopped(error)
       }
     }
@@ -419,5 +521,16 @@ final class StreamModel {
 
   private func isCurrent(_ run: Int) -> Bool {
     run == generation && status != .idle
+  }
+
+}
+
+extension StreamModel.Status {
+  fileprivate var diagnosticName: String {
+    switch self {
+    case .idle: "idle"
+    case .connecting: "connecting"
+    case .streaming: "streaming"
+    }
   }
 }
