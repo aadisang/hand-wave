@@ -116,46 +116,26 @@ tasks:
     preset: "utility"
 
   format:
-    command:
-      - "swift"
-      - "format"
-      - "--recursive"
-      - "--in-place"
-      - "HandWave"
-      - "Project.swift"
-      - "Tuist.swift"
+    command: "./scripts/swift-format.sh format"
     inputs:
       - "**/*.swift"
       - ".swift-format"
       - "moon.yml"
+      - "scripts/swift-format.sh"
     preset: "utility"
 
   formatCheck:
-    command:
-      - "swift"
-      - "format"
-      - "lint"
-      - "--recursive"
-      - "--strict"
-      - "HandWave"
-      - "Project.swift"
-      - "Tuist.swift"
+    command: "./scripts/swift-format.sh lint"
     inputs:
       - "**/*.swift"
       - ".swift-format"
       - "moon.yml"
+      - "scripts/swift-format.sh"
 
   lint:
-    command:
-      - "swift"
-      - "format"
-      - "lint"
-      - "--recursive"
-      - "--strict"
-      - "HandWave"
-      - "Project.swift"
-      - "Tuist.swift"
+    command: "./scripts/swift-format.sh lint"
     inputs:
       - "**/*.swift"
       - ".swift-format"
       - "moon.yml"
+      - "scripts/swift-format.sh"
