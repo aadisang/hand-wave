@@ -9,7 +9,7 @@ export type CaptureState =
   | ({ status: "starting" } & CaptureRequest)
   | ({
       status: "live";
-      frameRate: number;
+      frameRate: number | null;
       stream: MediaStream;
     } & CaptureRequest)
   | { status: "error"; message: string };

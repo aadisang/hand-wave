@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cfg } from "@hand-wave/contract";
+import { useCameraStore } from "@/stores/camera-store";
 import type {
   CaptureKind,
   CaptureRequest,
@@ -15,23 +16,15 @@ const preferredFrameRate = 60;
 const cameraFrameRate = { ideal: preferredFrameRate, max: preferredFrameRate };
 const screenFrameRate = { ideal: cfg.stream.fps, max: cfg.stream.fps };
 
-function reportedFrameRate(stream: MediaStream, fallback = cfg.stream.fps) {
-  return stream.getVideoTracks()[0]?.getSettings().frameRate ?? fallback;
+function reportedFrameRate(stream: MediaStream) {
+  return stream.getVideoTracks()[0]?.getSettings().frameRate ?? null;
 }
 
-async function applyPreferredFrameRate(stream: MediaStream) {
-  const [track] = stream.getVideoTracks();
-  const maxFrameRate = track?.getCapabilities().frameRate?.max;
-  const frameRate = Math.min(
-    preferredFrameRate,
-    maxFrameRate ?? cfg.stream.fps,
+function isStaleCameraError(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    (error.name === "NotFoundError" || error.name === "OverconstrainedError")
   );
-  if (maxFrameRate) {
-    await track.applyConstraints({
-      frameRate: { ideal: frameRate, max: frameRate },
-    });
-  }
-  return reportedFrameRate(stream, frameRate);
 }
 
 async function openStream(request: CaptureRequest) {
@@ -44,23 +37,35 @@ async function openStream(request: CaptureRequest) {
     return { stream, frameRate: reportedFrameRate(stream) };
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      frameRate: cameraFrameRate,
-      ...(request.cameraId
-        ? { deviceId: { exact: request.cameraId } }
-        : { facingMode: "user" }),
-    },
-  });
+  const openCamera = (cameraId: string | null) =>
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: cameraFrameRate,
+        ...(cameraId
+          ? { deviceId: { exact: cameraId } }
+          : { facingMode: "user" }),
+      },
+    });
+
+  let stream: MediaStream;
   try {
-    return { stream, frameRate: await applyPreferredFrameRate(stream) };
+    stream = await openCamera(request.cameraId);
   } catch (error) {
-    stopStream(stream);
-    throw error;
+    if (request.cameraId === null || !isStaleCameraError(error)) throw error;
+    stream = await openCamera(null);
   }
+
+  const [track] = stream.getVideoTracks();
+  try {
+    await track?.applyConstraints({ frameRate: cameraFrameRate });
+  } catch {
+    // Keep the working stream when the selected format cannot reach 60 FPS.
+  }
+
+  return { stream, frameRate: reportedFrameRate(stream) };
 }
 
 function captureErrorMessage(kind: CaptureKind, error: unknown) {
@@ -87,14 +92,15 @@ export function useCaptureSession(): CaptureSession {
         intent: CaptureRequest;
         phase: "live";
         stream: MediaStream;
-        frameRate: number;
+        frameRate: number | null;
       };
 
   const [machine, setMachine] = useState<CaptureMachine>({
     intent: null,
     phase: "idle",
   });
-  const [cameraId, setCameraIdState] = useState<string | null>(null);
+  const cameraId = useCameraStore((store) => store.cameraId);
+  const setCameraPreference = useCameraStore((store) => store.setCameraId);
   const intent = machine.intent;
 
   useEffect(() => {
@@ -122,11 +128,13 @@ export function useCaptureSession(): CaptureSession {
             : current,
         );
 
-        if (intent.kind === "camera" && intent.cameraId === null) {
+        if (intent.kind === "camera") {
           const resolvedCameraId = next.stream
             .getVideoTracks()[0]
             .getSettings().deviceId;
-          if (resolvedCameraId) setCameraIdState(resolvedCameraId);
+          if (resolvedCameraId) {
+            setCameraPreference(resolvedCameraId);
+          }
         }
 
         next.stream.getVideoTracks().forEach((track) => {
@@ -149,7 +157,7 @@ export function useCaptureSession(): CaptureSession {
       });
       if (active) stopStream(active);
     };
-  }, [intent]);
+  }, [intent, setCameraPreference]);
 
   const start = useCallback(
     (kind: CaptureKind) => {
@@ -165,17 +173,20 @@ export function useCaptureSession(): CaptureSession {
     setMachine({ intent: null, phase: "idle" });
   }, []);
 
-  const setCameraId = useCallback((next: string | null) => {
-    setCameraIdState(next);
-    setMachine((current) =>
-      current.intent?.kind === "camera"
-        ? {
-            intent: { ...current.intent, cameraId: next },
-            phase: "starting",
-          }
-        : current,
-    );
-  }, []);
+  const setCameraId = useCallback(
+    (next: string | null) => {
+      setCameraPreference(next);
+      setMachine((current) =>
+        current.intent?.kind === "camera"
+          ? {
+              intent: { ...current.intent, cameraId: next },
+              phase: "starting",
+            }
+          : current,
+      );
+    },
+    [setCameraPreference],
+  );
 
   const state = useMemo<CaptureState>(() => {
     if (machine.phase === "idle") return { status: "idle" };
