@@ -6,7 +6,7 @@
     "fps": 24,
     "min": 18,
     "stride": 3,
-    "idle": 27,
+    "idle": 18,
     "lost": 9,
     "holdMs": 1600,
     "motion": 0.003

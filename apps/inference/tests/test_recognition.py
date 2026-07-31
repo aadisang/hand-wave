@@ -1,5 +1,9 @@
-from inference.recognition import SmoothConfig, accept_prediction, empty_state, finalize
-from inference.schemas import Prediction, PredictOut, RecognitionContext
+import asyncio
+from collections.abc import Sequence
+
+from inference.model import ModelBackend
+from inference.recognition import SmoothConfig, accept_prediction, empty_state, finalize, recognize
+from inference.schemas import LandmarkFrame, Prediction, PredictOut, RecognitionContext, RecognizeIn
 
 
 def context() -> RecognitionContext:
@@ -140,3 +144,38 @@ def test_requires_more_confidence_when_acoustic_decode_disagrees() -> None:
 
     assert not finalize(disagreed, context(), config).committed
     assert finalize(agreed, context(), config).committed
+
+
+def test_finalize_skips_endpoint_decode_for_committable_state() -> None:
+    state = empty_state()
+    response = predict("water", 0.95)
+    for _ in range(7):
+        state = accept_prediction(state, response, context(), 24, 0).state
+    backend = CountingBackend(response)
+
+    out = asyncio.run(
+        recognize(
+            RecognizeIn(
+                frames=[LandmarkFrame([0.0] * 162)],
+                state=state,
+                context=context(),
+                finalize=True,
+            ),
+            backend,
+        )
+    )
+
+    assert out.committed
+    assert out.display_prediction
+    assert out.display_prediction.label == "water"
+    assert backend.calls == 0
+
+
+class CountingBackend(ModelBackend):
+    def __init__(self, response: PredictOut) -> None:
+        self.response = response
+        self.calls = 0
+
+    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
+        self.calls += 1
+        return self.response

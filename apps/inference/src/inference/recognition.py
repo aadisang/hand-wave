@@ -191,6 +191,10 @@ async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut
     config = SmoothConfig.from_env()
     state = payload.state or empty_state()
     if payload.finalize:
+        out = finalize(state, payload.context, config)
+        if out.committed:
+            return out
+
         prediction = None
         decode = None
         frames = list(payload.frames or [])

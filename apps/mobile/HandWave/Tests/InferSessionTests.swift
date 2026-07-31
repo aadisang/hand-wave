@@ -127,6 +127,32 @@ struct InferSessionTests {
   }
 
   @Test
+  func finalizesAfterConfiguredIdleDuration() async throws {
+    let client = RecordingInferAPI(responseText: "hello")
+    let session = InferSession(client: client)
+    let lastMotionAt = 840
+    let idleDurationMs = InferCfg.Stream.idle * 1_000 / InferCfg.Stream.fps
+    try await session.start()
+    try await Self.feedMovement(to: session, through: lastMotionAt)
+
+    let beforeIdle = lastMotionAt + idleDurationMs - 1
+    _ = try await session.ingest(
+      Self.frame(at: beforeIdle, offset: 0.84),
+      at: beforeIdle
+    )
+    #expect(await client.finalizeCount == 0)
+
+    let atIdle = lastMotionAt + idleDurationMs
+    _ = try await session.ingest(
+      Self.frame(at: atIdle, offset: 0.84),
+      at: atIdle
+    )
+    await client.waitForFinalize()
+
+    #expect(await client.finalizeCount == 1)
+  }
+
+  @Test
   func producesTheBackendFeatureWidth() {
     let features = Self.frame(at: 0).inferenceFeatures
     #expect(features.count == 162)
@@ -143,8 +169,8 @@ struct InferSessionTests {
     }
   }
 
-  private static func frame(at timestamp: Int) -> LandmarkFrame {
-    let offset = Double(timestamp) / 1_000
+  private static func frame(at timestamp: Int, offset: Double? = nil) -> LandmarkFrame {
+    let offset = offset ?? Double(timestamp) / 1_000
     return LandmarkFrame(
       landmarks: (0..<54).map { index in
         LandmarkPoint(
@@ -189,6 +215,7 @@ private final class EventRecorder {
 private actor RecordingInferAPI: InferAPI {
   private let responseText: String
   private(set) var recognizeCount = 0
+  private(set) var finalizeCount = 0
   private(set) var firstBatchCount: Int?
 
   init(responseText: String) {
@@ -202,6 +229,7 @@ private actor RecordingInferAPI: InferAPI {
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     recognizeCount += 1
+    if finalize { finalizeCount += 1 }
     firstBatchCount = firstBatchCount ?? frames.count
     return recognitionResponse(text: responseText, context: context, finalize: finalize)
   }
@@ -213,6 +241,14 @@ private actor RecordingInferAPI: InferAPI {
       try? await Task.sleep(for: .milliseconds(10))
     }
     return firstBatchCount
+  }
+
+  func waitForFinalize() async {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while finalizeCount == 0, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
+    }
   }
 }
 
