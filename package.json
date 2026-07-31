@@ -6,7 +6,7 @@
     "contract:regen": "moon run contract:cleanGenerated --force && moon run contract:generate --force",
     "check": "moon run :formatCheck :lint :typecheck :test contract:generatedCheck",
     "check:affected": "moon run :formatCheck :lint :typecheck :test --affected",
-    "dev": "moon run :dev",
+    "dev": "moon run :dev --quiet",
     "fix": "moon run :format :lintFix",
     "format": "moon run :format",
     "format:check": "moon run :formatCheck",

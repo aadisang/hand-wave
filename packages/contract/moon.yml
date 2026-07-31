@@ -88,6 +88,8 @@ tasks:
       - "/pnpm-lock.yaml"
     outputs:
       - "generated/**/*"
+    options:
+      outputStyle: "buffer-only-failure"
 
   validateConfig:
     command:
@@ -123,6 +125,8 @@ tasks:
       - "generated/json-schema/**/*.json"
       - "package.json"
       - "/pnpm-lock.yaml"
+    options:
+      outputStyle: "buffer-only-failure"
 
   generateWeb:
     command:
@@ -142,6 +146,8 @@ tasks:
       - "/pnpm-lock.yaml"
     outputs:
       - "/apps/web/src/lib/inference/generated/openapi.ts"
+    options:
+      outputStyle: "buffer-only-failure"
 
   generatePython:
     command:
@@ -174,6 +180,8 @@ tasks:
       - "/apps/inference/uv.lock"
     outputs:
       - "/apps/inference/src/inference/generated/schemas.py"
+    options:
+      outputStyle: "buffer-only-failure"
 
   generateSwift:
     command:
@@ -188,7 +196,6 @@ tasks:
         --additional-properties generateAliasAsModel=true
         -c swift6-models.yaml
         >/dev/null
-        && perl -0777 -i -pe 's/\A/\/\/ swift-format-ignore-file\n/' ../../apps/mobile/HandWave/Sources/Generated/OpenAPI/*.swift
     deps:
       - "compile"
     inputs:
@@ -199,6 +206,8 @@ tasks:
       - "/pnpm-lock.yaml"
     outputs:
       - "/apps/mobile/HandWave/Sources/Generated/OpenAPI/**/*"
+    options:
+      outputStyle: "buffer-only-failure"
 
   generateTunings:
     command:
@@ -209,6 +218,8 @@ tasks:
       - "scripts/generate-inference-tunings.mjs"
     outputs:
       - "/apps/inference/src/inference/generated/tunings.py"
+    options:
+      outputStyle: "buffer-only-failure"
 
   generate:
     command:
@@ -221,6 +232,7 @@ tasks:
       - "generateTunings"
     options:
       cache: false
+      outputStyle: "buffer-only-failure"
 
   generatedCheck:
     command:
