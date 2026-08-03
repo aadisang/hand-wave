@@ -16,7 +16,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.5.1",
-    "datamodel-code-generator>=0.58.0",
+    "datamodel-code-generator>=0.64.0",
     "httpx>=0.28.1",
     "pyright>=1.1.390",
     "pytest>=8.3.0",

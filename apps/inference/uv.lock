@@ -285,21 +285,21 @@ nvtx = [
 
 [[package]]
 name = "datamodel-code-generator"
-version = "0.58.0"
+version = "0.71.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
-    { name = "black" },
+    { name = "black", marker = "sys_platform != 'emscripten'" },
     { name = "genson" },
     { name = "inflect" },
-    { name = "isort" },
+    { name = "isort", marker = "sys_platform != 'emscripten'" },
     { name = "jinja2" },
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/7f/0e838be05fb64a088730bf5a3a510f4260e43ea9fbcea8b86d97aa31ca80/datamodel_code_generator-0.58.0.tar.gz", hash = "sha256:14b157b26ca85b8dfc2fdf2ada242f003937a130375892003067a4fdf046021c", size = 986860, upload-time = "2026-05-25T03:23:53.113Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/f5/f4ce23d99503b147c9ec514dc995a96d3b4d2a3284252ad665f875a3145d/datamodel_code_generator-0.71.0.tar.gz", hash = "sha256:d27cd7a0d10f9b2db74a41db7f3e050c226da9cf0afb4916a7ab56275ebacbf2", size = 1684916, upload-time = "2026-07-24T15:32:04.334Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/f6/992262b2f7845885899a6b57ff81f97f8506d443a20b7244ee8ea85247d8/datamodel_code_generator-0.58.0-py3-none-any.whl", hash = "sha256:73c4feb12bf773e280eb721b7968a5d5dbb953be2a700bf70995ba442abd0a57", size = 274532, upload-time = "2026-05-25T03:23:51.027Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/4d/556cb290170f41b97ce50fd872e10a266f141d7a38352bb3071e4ae61f41/datamodel_code_generator-0.71.0-py3-none-any.whl", hash = "sha256:680b68338d59e98a0559eeb54d8e5ca33c35b3ec0bef922ec2cc783f2cb28e9a", size = 452379, upload-time = "2026-07-24T15:32:02.467Z" },
 ]
 
 [[package]]
@@ -463,7 +463,7 @@ requires-dist = [
 deploy = [{ name = "modal", specifier = ">=1.0.0" }]
 dev = [
     { name = "black", specifier = ">=26.5.1" },
-    { name = "datamodel-code-generator", specifier = ">=0.58.0" },
+    { name = "datamodel-code-generator", specifier = ">=0.64.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=8.3.0" },
