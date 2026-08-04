@@ -1,27 +1,34 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
 import { interpolateFrame, streamTiming } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
-import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
+import type {
+  Frame,
+  FrameRecognizeIn,
+  InferenceMode,
+  RecognizeOut,
+  StreamCtrl,
+} from "@/types/inference";
 
 const { lost, minFrames, stride } = streamTiming();
 
 const inference = vi.hoisted(() => ({
   prepare: vi.fn<() => Promise<void>>(),
-  recognize: vi.fn<(payload: RecognizeIn) => Promise<RecognizeOut>>(),
+  recognize: vi.fn<(payload: FrameRecognizeIn) => Promise<RecognizeOut>>(),
   resetSession: vi.fn<() => Promise<void>>(),
   reset: vi.fn(),
   warm: vi.fn(),
 }));
 
 let clockStepMs = 40;
+const controllers: StreamCtrl[] = [];
 
 vi.mock("@/lib/inference/client", () => ({
   clearInferenceSession: inference.resetSession,
   closeInferenceStream: inference.reset,
   prepareInferenceStream: inference.prepare,
-  recognizeFrames: vi.fn((payload: RecognizeIn) =>
+  recognizeFrames: vi.fn((_mode: InferenceMode, payload: FrameRecognizeIn) =>
     inference.recognize(payload),
   ),
   warmInference: inference.warm,
@@ -48,20 +55,24 @@ describe("stream controller", () => {
     });
   });
 
+  afterEach(() => {
+    for (const controller of controllers.splice(0)) controller.dispose();
+  });
+
   test("keeps the prepared transport open while no hand is visible", () => {
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
 
     for (let index = 0; index < lost * 2; index += 1) {
       controller.accept(null);
     }
 
     expect(inference.reset).not.toHaveBeenCalled();
-    controller.dispose();
+    disposeTestStreamCtrl(controller);
     expect(inference.reset).toHaveBeenCalledOnce();
   });
 
   test("resets server state without closing the transport after a frame stall", () => {
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
     clockStepMs = 100;
     controller.accept(frame(0));
     clockStepMs = streamTiming().stallMs + 1;
@@ -73,13 +84,15 @@ describe("stream controller", () => {
 
   test("keeps a sign made while the server warms", async () => {
     const ready = deferred<void>();
+    const finalized = deferred<FrameRecognizeIn>();
     inference.prepare.mockReturnValue(ready.promise);
     inference.recognize.mockImplementation(async (payload) => {
-      if (!payload.finalize) await ready.promise;
-      return response("cat", Boolean(payload.finalize));
+      if (isFinalizing(payload)) finalized.resolve(payload);
+      else await ready.promise;
+      return response("cat", isFinalizing(payload));
     });
 
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
     void controller.start();
     for (let index = 0; index < minFrames + stride + 4; index += 1) {
       controller.accept(frame(index * 0.01));
@@ -89,15 +102,16 @@ describe("stream controller", () => {
     }
 
     expect(inference.recognize).toHaveBeenCalledTimes(1);
+    const prediction = waitForPrediction(
+      (value) => value?.text === "cat" && !value.committed,
+    );
     ready.resolve();
-    await flushPromises();
+    await prediction;
 
     controller.accept(null);
-    await flushPromises();
+    const finalPayload = await finalized.promise;
 
-    expect(inference.recognize).toHaveBeenCalledWith(
-      expect.objectContaining({ finalize: true }),
-    );
+    expect(finalPayload.finalize).toBe(true);
   });
 
   test("keeps model timing on the trained 24 FPS grid", () => {
@@ -132,7 +146,7 @@ describe("stream controller", () => {
     clockStepMs = 100;
     inference.recognize.mockResolvedValue(response("cat", false));
 
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
     for (
       let index = 0;
       inference.recognize.mock.calls.length === 0;
@@ -151,13 +165,14 @@ describe("stream controller", () => {
 
   test("preserves a decode response after landmarks disappear", async () => {
     const decode = deferred<RecognizeOut>();
-    inference.recognize.mockImplementation((payload) =>
-      payload.finalize
-        ? Promise.resolve(response("cat", true))
-        : decode.promise,
-    );
+    const finalized = deferred<FrameRecognizeIn>();
+    inference.recognize.mockImplementation((payload) => {
+      if (!isFinalizing(payload)) return decode.promise;
+      finalized.resolve(payload);
+      return Promise.resolve(response("cat", true));
+    });
 
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
     for (
       let index = 0;
       inference.recognize.mock.calls.length === 0;
@@ -174,26 +189,31 @@ describe("stream controller", () => {
     expect(inference.recognize).toHaveBeenCalledTimes(1);
     expect(useDetectionsStore.getState().currentPrediction).toBeNull();
 
-    decode.resolve(response("cat", false));
-    await flushPromises();
-
-    expect(useDetectionsStore.getState().currentPrediction?.text).toBe("cat");
-
-    controller.accept(null);
-    await flushPromises();
-
-    expect(inference.recognize).toHaveBeenLastCalledWith(
-      expect.objectContaining({ finalize: true }),
+    const partial = waitForPrediction(
+      (value) => value?.text === "cat" && !value.committed,
     );
-    expect(useDetectionsStore.getState().currentPrediction?.text).toBe("cat");
+    const committed = waitForPrediction(
+      (value) => value?.text === "cat" && value.committed,
+    );
+    decode.resolve(response("cat", false));
+    await partial;
+    const finalPayload = await finalized.promise;
+    await committed;
+
+    expect(finalPayload.finalize).toBe(true);
+    expect(useDetectionsStore.getState().currentPrediction).toMatchObject({
+      text: "cat",
+      committed: true,
+    });
   });
 
   test("does not finalize during a normal short hold", async () => {
     inference.recognize.mockImplementation((payload) =>
-      Promise.resolve(response("cat", Boolean(payload.finalize))),
+      Promise.resolve(response("cat", isFinalizing(payload))),
     );
 
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
+    const prediction = waitForPrediction((value) => value?.text === "cat");
     for (
       let index = 0;
       inference.recognize.mock.calls.length === 0;
@@ -202,14 +222,13 @@ describe("stream controller", () => {
       controller.accept(frame(index * 0.01));
       expect(index).toBeLessThan(minFrames + stride + 4);
     }
-    await flushPromises();
+    await prediction;
 
     const heldFrame = frame(0.24);
     const holdFrames = Math.ceil(cfg.stream.fps * 0.6);
     for (let index = 0; index < holdFrames; index += 1) {
       controller.accept(heldFrame);
     }
-    await flushPromises();
 
     expect(inference.recognize).not.toHaveBeenCalledWith(
       expect.objectContaining({ finalize: true }),
@@ -226,7 +245,8 @@ describe("stream controller", () => {
       committed: false,
     });
 
-    const controller = createStreamCtrl();
+    const controller = createTestStreamCtrl();
+    const cleared = waitForPrediction((value) => value === null);
     for (
       let index = 0;
       inference.recognize.mock.calls.length === 0;
@@ -235,7 +255,7 @@ describe("stream controller", () => {
       controller.accept(frame(index * 0.01));
       expect(index).toBeLessThan(minFrames + stride + 4);
     }
-    await flushPromises();
+    await cleared;
 
     expect(useDetectionsStore.getState().currentPrediction).toBeNull();
   });
@@ -248,6 +268,18 @@ function frame(offset: number): Frame {
   );
 }
 
+function createTestStreamCtrl() {
+  const controller = createStreamCtrl("remote");
+  controllers.push(controller);
+  return controller;
+}
+
+function disposeTestStreamCtrl(controller: StreamCtrl) {
+  const index = controllers.indexOf(controller);
+  if (index >= 0) controllers.splice(index, 1);
+  controller.dispose();
+}
+
 function firstDecodeAtRate(frameRate: number) {
   let now = 0;
   const step = 1_000 / frameRate;
@@ -255,7 +287,7 @@ function firstDecodeAtRate(frameRate: number) {
     now += step;
     return now;
   });
-  const controller = createStreamCtrl();
+  const controller = createStreamCtrl("remote");
   for (let index = 0; inference.recognize.mock.calls.length === 0; index += 1) {
     controller.accept(frame(index / frameRate));
     expect(index).toBeLessThan(frameRate * 2);
@@ -263,6 +295,10 @@ function firstDecodeAtRate(frameRate: number) {
   const payload = inference.recognize.mock.calls[0]?.[0];
   controller.dispose();
   return payload?.frames ?? [];
+}
+
+function isFinalizing(payload: FrameRecognizeIn) {
+  return payload.finalize === true;
 }
 
 function deferred<T>() {
@@ -273,10 +309,24 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+function waitForPrediction(
+  predicate: (
+    prediction: ReturnType<
+      typeof useDetectionsStore.getState
+    >["currentPrediction"],
+  ) => boolean,
+) {
+  const current = useDetectionsStore.getState().currentPrediction;
+  if (predicate(current)) return Promise.resolve(current);
+  return new Promise<
+    ReturnType<typeof useDetectionsStore.getState>["currentPrediction"]
+  >((resolve) => {
+    const unsubscribe = useDetectionsStore.subscribe((state) => {
+      if (!predicate(state.currentPrediction)) return;
+      unsubscribe();
+      resolve(state.currentPrediction);
+    });
+  });
 }
 
 function response(text: string, committed: boolean): RecognizeOut {

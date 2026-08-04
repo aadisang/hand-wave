@@ -33,9 +33,11 @@ import {
 import { duration, easeOut } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { CaptureSession } from "@/types/capture";
+import type { InferenceMode } from "@/types/inference";
 import { useDevStore } from "@/stores/dev-store";
 import { useLandmarksStore } from "@/stores/landmarks-store";
 import { CameraSelect } from "./camera-select";
+import { InferenceModeSelect } from "./inference-mode-select";
 
 const repositoryUrl = "https://github.com/sinarck/hand-wave";
 
@@ -48,6 +50,8 @@ type Props = {
   capture: CaptureSession;
   full: boolean;
   onFull: () => void;
+  mode: InferenceMode;
+  setMode: (mode: InferenceMode) => void;
   /** Whether recent stage activity should keep the controls on screen. */
   revealed: boolean;
 };
@@ -56,6 +60,8 @@ export const StreamToolbar = memo(function StreamToolbar({
   capture,
   full,
   onFull,
+  mode,
+  setMode,
   revealed,
 }: Props) {
   const devEnabled = useDevStore((s) => s.enabled);
@@ -212,6 +218,13 @@ export const StreamToolbar = memo(function StreamToolbar({
                   setCameraId={setCameraId}
                 />
               )}
+
+              <InferenceModeSelect
+                disabled={isCapturing}
+                mode={mode}
+                onOpenChange={setSelectOpen}
+                setMode={setMode}
+              />
 
               <ToolbarSeparator orientation="vertical" />
 

@@ -6,6 +6,7 @@ import { useInfer } from "@/hooks/use-infer";
 import { cn } from "@/lib/utils";
 import { useLandmarksStore } from "@/stores/landmarks-store";
 import { useDevStore } from "@/stores/dev-store";
+import { useInferenceModeStore } from "@/stores/inference-mode-store";
 import { DevPanel } from "./dev-panel";
 import { LandmarksOverlay } from "./landmarks-overlay";
 import { IdleStage } from "./idle-stage";
@@ -21,10 +22,12 @@ export function Stage() {
   const drawLandmarks = useLandmarksStore((s) => s.draw);
   const inferenceBoundary = useDevStore((s) => s.boundary);
   const controls = useAutoHideControls();
+  const inferenceMode = useInferenceModeStore((state) => state.mode);
+  const setInferenceMode = useInferenceModeStore((state) => state.setMode);
 
   const { state } = capture;
   const isLive = state.status === "live";
-  const inference = useInfer(isLive, inferenceBoundary);
+  const inference = useInfer(isLive, inferenceBoundary, inferenceMode);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -104,8 +107,10 @@ export function Stage() {
       <StreamToolbar
         capture={capture}
         full={full}
+        mode={inferenceMode}
         onFull={fullCtrl.toggleFullscreen}
         revealed={controls.revealed}
+        setMode={setInferenceMode}
       />
     </div>
   );
