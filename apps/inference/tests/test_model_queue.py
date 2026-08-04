@@ -1,6 +1,5 @@
 import asyncio
 import threading
-import time
 from pathlib import Path
 
 from inference.ctc import DecodedAlternative, DecodedText
@@ -21,8 +20,7 @@ class BlockingRuntime:
             self.active += 1
             self.max_active = max(self.max_active, self.active)
         self.started.set()
-        self.release.wait(timeout=2)
-        time.sleep(0.01)
+        assert self.release.wait(timeout=30), "test did not release the model runtime"
         with self.lock:
             self.active -= 1
         best = DecodedAlternative("hello", 1, 0, 0, "hello")
@@ -31,13 +29,16 @@ class BlockingRuntime:
 
 def test_cancelled_prediction_never_overlaps_the_next_runtime_call(monkeypatch) -> None:
     runtime = BlockingRuntime()
-    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _path: runtime)
+    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _path, **_kwargs: runtime)
     backend = CheckpointBackend(Path("unused.ckpt"))
     frame = LandmarkFrame(root=[0.0] * 162)
 
     async def run() -> None:
         first = asyncio.create_task(backend.predict_frames([frame]))
-        await asyncio.to_thread(runtime.started.wait, 1)
+        assert await asyncio.wait_for(
+            asyncio.to_thread(runtime.started.wait),
+            timeout=30,
+        )
         first.cancel()
         try:
             await first
@@ -47,7 +48,8 @@ def test_cancelled_prediction_never_overlaps_the_next_runtime_call(monkeypatch) 
             raise AssertionError("cancelled prediction completed")
 
         second = asyncio.create_task(backend.predict_frames([frame]))
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0)
+        assert not second.done()
         assert runtime.max_active == 1
         runtime.release.set()
         await second

@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 from inference import main
 from inference.model import ModelBackend
-from inference.schemas import LandmarkFrame, Prediction, PredictOut
+from inference.schemas import Emission, LandmarkFrame, Prediction, PredictOut
 
 
 class FakeBackend(ModelBackend):
@@ -19,6 +19,9 @@ class FakeBackend(ModelBackend):
             stable_text="",
             tail_blank_frames=len(frames),
         )
+
+    async def predict_emission(self, emission: Emission) -> PredictOut:
+        return await self.predict_frames([landmark_frame()] * (len(emission.values) * 2))
 
 
 class FailOnceBackend(FakeBackend):
@@ -62,6 +65,8 @@ def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> Non
                 {
                     "type": "recognize",
                     "sequence": 1,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame(i) for i in range(10)],
                     "context": context(10),
                 }
@@ -71,6 +76,8 @@ def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> Non
                 {
                     "type": "recognize",
                     "sequence": 2,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame(i) for i in range(10, 13)],
                     "context": context(13),
                 }
@@ -80,7 +87,8 @@ def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> Non
                 {
                     "type": "recognize",
                     "sequence": 3,
-                    "finalize": True,
+                    "protocol": 1,
+                    "input": "finalize",
                     "context": {**context(13), "endpoint_reason": "idle"},
                 }
             )
@@ -89,6 +97,8 @@ def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> Non
                 {
                     "type": "recognize",
                     "sequence": 4,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame(i) for i in range(10)],
                     "context": context(10),
                 }
@@ -100,12 +110,34 @@ def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> Non
     assert next_segment["result"]["trace"]["decode"]["buffered_frames"] == 10
 
 
+def test_stream_accepts_on_device_emissions(monkeypatch) -> None:
+    with client(monkeypatch) as test_client:
+        with test_client.websocket_connect("/v1/stream", subprotocols=["handwave.v1"]) as socket:
+            socket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 1,
+                    "protocol": 1,
+                    "input": "emission",
+                    "emission": {
+                        "values": [[0.0] * 60 for _ in range(5)],
+                        "frame_confidence": 0.9,
+                    },
+                    "context": context(10),
+                }
+            )
+            response = socket.receive_json()
+
+    assert response["type"] == "result"
+    assert response["result"]["trace"]["decode"]["buffered_frames"] == 10
+
+
 def test_control_messages_use_versioned_envelopes(monkeypatch) -> None:
     with client(monkeypatch) as test_client:
         with test_client.websocket_connect("/v1/stream", subprotocols=["handwave.v1"]) as socket:
-            socket.send_json({"type": "ping", "sequence": 7})
+            socket.send_json({"type": "ping", "sequence": 7, "protocol": 1})
             pong = socket.receive_json()
-            socket.send_json({"type": "reset", "sequence": 8})
+            socket.send_json({"type": "reset", "sequence": 8, "protocol": 1})
             reset = socket.receive_json()
 
     assert pong == {"type": "pong", "sequence": 7, "protocol": 1}
@@ -119,6 +151,8 @@ def test_recognize_rejects_missing_context(monkeypatch) -> None:
                 {
                     "type": "recognize",
                     "sequence": 9,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame()],
                 }
             )
@@ -129,6 +163,30 @@ def test_recognize_rejects_missing_context(monkeypatch) -> None:
     assert "context" in response["detail"]
 
 
+def test_recognize_rejects_fields_from_another_input_variant(monkeypatch) -> None:
+    with client(monkeypatch) as test_client:
+        with test_client.websocket_connect("/v1/stream", subprotocols=["handwave.v1"]) as socket:
+            socket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 10,
+                    "protocol": 1,
+                    "input": "frames",
+                    "frames": [landmark_frame()],
+                    "emission": {
+                        "values": [[0.0] * 60],
+                        "frame_confidence": 0.9,
+                    },
+                    "context": context(1),
+                }
+            )
+            response = socket.receive_json()
+
+    assert response["type"] == "error"
+    assert response["sequence"] == 10
+    assert "emission" in response["detail"]
+
+
 def test_failed_request_does_not_mutate_stream_window(monkeypatch) -> None:
     with client_with(monkeypatch, FailOnceBackend) as test_client:
         with test_client.websocket_connect("/v1/stream", subprotocols=["handwave.v1"]) as socket:
@@ -136,6 +194,8 @@ def test_failed_request_does_not_mutate_stream_window(monkeypatch) -> None:
                 {
                     "type": "recognize",
                     "sequence": 1,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame(i) for i in range(5)],
                     "context": context(5),
                 }
@@ -145,6 +205,8 @@ def test_failed_request_does_not_mutate_stream_window(monkeypatch) -> None:
                 {
                     "type": "recognize",
                     "sequence": 2,
+                    "protocol": 1,
+                    "input": "frames",
                     "frames": [landmark_frame(i) for i in range(8)],
                     "context": context(8),
                 }

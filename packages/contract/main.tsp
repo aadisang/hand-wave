@@ -40,6 +40,20 @@ model PredictIn {
   frames: LandmarkFrame[];
 }
 
+@minItems(60)
+@maxItems(60)
+model EmissionFrame is float64[];
+
+model Emission {
+  @minItems(1)
+  @maxItems(96)
+  values: EmissionFrame[];
+
+  @minValue(0)
+  @maxValue(1)
+  frame_confidence: float64;
+}
+
 model PredictOut {
   prediction: Prediction;
   alternatives: Prediction[];
@@ -151,13 +165,38 @@ model RecognitionTrace {
   finalize?: FinalizeTrace | null;
 }
 
-model RecognizeIn {
-  @maxItems(512)
-  frames?: LandmarkFrame[];
-
+model RecognitionRequestContext {
   state?: RecognitionState | null;
   context: RecognitionContext;
+}
+
+model FrameRecognizeIn {
+  ...RecognitionRequestContext;
+  input: "frames";
+
+  @minItems(1)
+  @maxItems(192)
+  frames: LandmarkFrame[];
+
   finalize?: boolean;
+}
+
+model EmissionRecognizeIn {
+  ...RecognitionRequestContext;
+  input: "emission";
+  emission: Emission;
+  finalize?: boolean;
+}
+
+model FinalizeRecognizeIn {
+  ...RecognitionRequestContext;
+  input: "finalize";
+}
+
+union RecognizeIn {
+  frames: FrameRecognizeIn,
+  emission: EmissionRecognizeIn,
+  finalize: FinalizeRecognizeIn,
 }
 
 model RecognizeOut {
@@ -184,21 +223,27 @@ model StreamResetRequest extends StreamEnvelope {
   type: "reset";
 }
 
-model StreamRecognizeRequest extends StreamEnvelope {
+model StreamFrameRecognizeRequest extends StreamEnvelope {
   type: "recognize";
+  ...FrameRecognizeIn;
+}
 
-  @maxItems(192)
-  frames?: LandmarkFrame[];
+model StreamEmissionRecognizeRequest extends StreamEnvelope {
+  type: "recognize";
+  ...EmissionRecognizeIn;
+}
 
-  state?: RecognitionState | null;
-  context: RecognitionContext;
-  finalize?: boolean;
+model StreamFinalizeRecognizeRequest extends StreamEnvelope {
+  type: "recognize";
+  ...FinalizeRecognizeIn;
 }
 
 union StreamRequest {
   ping: StreamPingRequest,
   reset: StreamResetRequest,
-  recognize: StreamRecognizeRequest,
+  frames: StreamFrameRecognizeRequest,
+  emission: StreamEmissionRecognizeRequest,
+  finalize: StreamFinalizeRecognizeRequest,
 }
 
 model StreamPongResponse extends StreamEnvelope {

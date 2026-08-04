@@ -10,8 +10,10 @@ from inference.schemas import (
     HealthOut,
     PredictIn,
     PredictOut,
-    RecognizeIn,
     RecognizeOut,
+    RecognizeRequestBody,
+    StreamPingRequest,
+    StreamResetRequest,
 )
 from inference.streaming import (
     PROTOCOL_VERSION,
@@ -45,11 +47,11 @@ async def health() -> HealthOut:
 
 @router.post("/recognize", response_model=RecognizeOut)
 async def recognize(
-    payload: RecognizeIn,
+    payload: RecognizeRequestBody,
     backend: Annotated[ModelBackend, Depends(get_backend)],
 ) -> RecognizeOut:
     try:
-        return await recognize_payload(payload, backend)
+        return await recognize_payload(payload.root, backend)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -76,12 +78,12 @@ async def stream(websocket: WebSocket) -> None:
                     sequence = payload["sequence"]
                 request = parse_stream_request(payload)
                 sequence = request.sequence
-                if request.type == "ping":
+                if isinstance(request, StreamPingRequest):
                     response = PongResponse(
                         sequence=request.sequence,
                         protocol=PROTOCOL_VERSION,
                     )
-                elif request.type == "reset":
+                elif isinstance(request, StreamResetRequest):
                     session.reset()
                     response = ResetResponse(
                         sequence=request.sequence,

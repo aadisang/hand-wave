@@ -64,3 +64,24 @@ tasks:
     deps:
       - 'contract:generate'
     preset: 'utility'
+
+  exportLocalModels:
+    command:
+      - 'uv'
+      - 'run'
+      - '--group'
+      - 'export'
+      - 'python'
+      - 'scripts/export_local_models.py'
+    inputs:
+      - 'models/best.ckpt'
+      - 'scripts/export_local_models.py'
+      - 'src/inference/network.py'
+      - 'src/inference/ctc.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+    outputs:
+      - '/apps/web/public/models/handwave-local.onnx'
+      - '/apps/web/public/models/handwave-local.onnx.data'
+      - '/apps/mobile/HandWave/Resources/HandWaveLocal.mlpackage/**/*'
+    preset: 'utility'
