@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 
 minimumReleaseAgeExclude:
-  - brace-expansion@1.1.17
-  - brace-expansion@2.1.3
+  - brace-expansion
   - fast-uri
+  - ip-address
+  - postcss
