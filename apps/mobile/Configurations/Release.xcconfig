@@ -2,3 +2,4 @@
 #include? "HandWave.xcconfig"
 
 HANDWAVE_INFERENCE_URL = https:/$()/handwave.sh
+HANDWAVE_DEVICE_INFERENCE_URL = https:/$()/sinarck--decoder.modal.run
