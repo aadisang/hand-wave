@@ -2,6 +2,8 @@
 
 Sign recognition for web and iOS, backed by a small Python inference service.
 
+[Watch the demo on YouTube](https://youtu.be/KzZ0YsMSmO8)
+
 ## Setup
 
 Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, and moon.
