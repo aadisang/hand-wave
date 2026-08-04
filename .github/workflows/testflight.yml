@@ -6,6 +6,14 @@ on:
       - main
     tags:
       - "ios-v*"
+    paths:
+      - ".github/actions/setup-contract/**"
+      - ".github/actions/setup-tuist/**"
+      - ".github/workflows/testflight.yml"
+      - "apps/mobile/**"
+      - "package.json"
+      - "packages/contract/**"
+      - "pnpm-lock.yaml"
   workflow_dispatch:
     inputs:
       changelog:
