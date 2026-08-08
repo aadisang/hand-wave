@@ -1,24 +1,16 @@
 from collections import deque
-from typing import Literal, assert_never
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 
 from inference.model import ModelBackend
 from inference.recognition import recognize
 from inference.schemas import (
-    EmissionRecognizeIn,
-    FinalizeRecognizeIn,
-    FrameRecognizeIn,
     LandmarkFrame,
+    RecognitionContext,
     RecognitionState,
+    RecognizeIn,
     RecognizeOut,
-    StreamEmissionRecognizeRequest,
-    StreamFinalizeRecognizeRequest,
-    StreamFrameRecognizeRequest,
-    StreamPingRequest,
-    StreamRecognizeRequest,
-    StreamRequestBody,
-    StreamResetRequest,
 )
 
 PROTOCOL_VERSION = 1
@@ -31,7 +23,27 @@ class StreamMessage(BaseModel):
     protocol: Literal[1] = PROTOCOL_VERSION
 
 
-StreamRequest = StreamPingRequest | StreamResetRequest | StreamRecognizeRequest
+class PingRequest(StreamMessage):
+    type: Literal["ping"]
+
+
+class ResetRequest(StreamMessage):
+    type: Literal["reset"]
+
+
+class RecognizeRequest(StreamMessage):
+    type: Literal["recognize"]
+    frames: list[LandmarkFrame] = Field(default_factory=list, max_length=WINDOW_FRAMES)
+    state: RecognitionState | None = None
+    context: RecognitionContext
+    finalize: bool = False
+
+
+StreamRequest = Annotated[
+    PingRequest | ResetRequest | RecognizeRequest,
+    Field(discriminator="type"),
+]
+stream_request_adapter = TypeAdapter(StreamRequest)
 
 
 class PongResponse(StreamMessage):
@@ -56,7 +68,7 @@ StreamResponse = PongResponse | ResetResponse | ResultResponse | ErrorResponse
 
 
 def parse_stream_request(payload: object) -> StreamRequest:
-    return StreamRequestBody.model_validate(payload).root
+    return stream_request_adapter.validate_python(payload)
 
 
 class RecognitionStream:
@@ -69,56 +81,25 @@ class RecognitionStream:
         self.frames.clear()
         self.state = None
 
-    async def recognize(self, request: StreamRecognizeRequest) -> RecognizeOut:
+    async def recognize(self, request: RecognizeRequest) -> RecognizeOut:
         next_state = request.state if request.state is not None else self.state
         next_frames = deque(self.frames, maxlen=WINDOW_FRAMES)
-        if isinstance(request, StreamFrameRecognizeRequest):
-            next_frames.extend(request.frames)
-            payload = FrameRecognizeIn(
-                input="frames",
+        next_frames.extend(request.frames)
+        if not next_frames and not request.finalize:
+            raise ValueError("recognize messages require at least one buffered frame")
+
+        result = await recognize(
+            RecognizeIn(
                 frames=list(next_frames),
                 state=next_state,
                 context=request.context,
                 finalize=request.finalize,
-            )
-            should_finalize = request.finalize is True
-        elif isinstance(request, StreamEmissionRecognizeRequest):
-            payload = EmissionRecognizeIn(
-                input="emission",
-                emission=request.emission,
-                state=next_state,
-                context=request.context,
-                finalize=request.finalize,
-            )
-            should_finalize = request.finalize is True
-        elif isinstance(request, StreamFinalizeRecognizeRequest):
-            payload = (
-                FrameRecognizeIn(
-                    input="frames",
-                    frames=list(next_frames),
-                    state=next_state,
-                    context=request.context,
-                    finalize=True,
-                )
-                if next_frames
-                else FinalizeRecognizeIn(
-                    input="finalize",
-                    state=next_state,
-                    context=request.context,
-                )
-            )
-            should_finalize = True
-        else:
-            assert_never(request)
-
-        result = await recognize(payload, self.backend)
-        if should_finalize:
+            ),
+            self.backend,
+        )
+        if request.finalize:
             self.reset()
         else:
-            self.frames = (
-                next_frames
-                if isinstance(request, StreamFrameRecognizeRequest)
-                else deque(maxlen=WINDOW_FRAMES)
-            )
+            self.frames = next_frames
             self.state = result.state
         return result

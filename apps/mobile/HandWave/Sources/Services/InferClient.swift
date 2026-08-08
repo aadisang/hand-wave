@@ -16,17 +16,7 @@ extension InferAPI {
   func resetStream() async {}
 }
 
-enum InferenceEndpoint: Equatable, Sendable {
-  case remote
-  case device
-}
-
 actor InferClient: InferAPI {
-  private enum RecognitionInput: Sendable {
-    case frames([LandmarkFrame])
-    case emission(InferenceEmission)
-  }
-
   private final class WebSocketOwner: @unchecked Sendable {
     let task: URLSessionWebSocketTask
     let url: URL
@@ -38,9 +28,6 @@ actor InferClient: InferAPI {
   }
 
   private static let productionURL = URL(string: "https://handwave.sh")!
-  private static let deviceProductionURL = URL(
-    string: "https://sinarck--decoder.modal.run"
-  )!
   private static let localURL = URL(string: "http://localhost:8000")!
   private static let handshakeTimeout: Duration = .seconds(120)
   // Native model work keeps running after a client timeout. Leave enough time
@@ -59,11 +46,10 @@ actor InferClient: InferAPI {
   private var warmupThrottle = WarmupThrottle()
 
   init(
-    baseURLs: [URL]? = nil,
-    endpoint: InferenceEndpoint = .remote,
+    baseURLs: [URL] = InferClient.configuredURLs,
     webSocketSession: URLSession = InferClient.webSocketSession
   ) {
-    self.baseURLs = baseURLs ?? InferClient.configuredURLs(for: endpoint)
+    self.baseURLs = baseURLs
     self.webSocketSession = webSocketSession
   }
 
@@ -93,7 +79,7 @@ actor InferClient: InferAPI {
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     do {
       return try await recognizeOverWebSocket(
-        input: .frames(frames),
+        frames: frames,
         state: state,
         context: context,
         finalize: finalize
@@ -107,28 +93,6 @@ actor InferClient: InferAPI {
     }
   }
 
-  func recognize(
-    emission: InferenceEmission,
-    state: InferenceRecognitionState?,
-    context: InferenceRecognitionContext,
-    finalize: Bool
-  ) async throws(InferenceFailure) -> InferenceRecognizeOut {
-    do {
-      return try await recognizeOverWebSocket(
-        input: .emission(emission),
-        state: state,
-        context: context,
-        finalize: finalize
-      )
-    } catch {
-      if error != .cancelled { warmupThrottle.recordFailure(at: Date()) }
-      AppLog.inference.error(
-        "WebSocket decoder failed: \(error.localizedDescription, privacy: .private)"
-      )
-      throw error
-    }
-  }
-
   func resetStream() async {
     // Closing makes reset unconditional even when the network is already stale.
     // The next recognition request reconnects with the complete active window.
@@ -137,77 +101,38 @@ actor InferClient: InferAPI {
   }
 
   private func recognizeOverWebSocket(
-    input: RecognitionInput,
+    frames: [LandmarkFrame],
     state: InferenceRecognitionState?,
     context: InferenceRecognitionContext,
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     let owner = try await connectWebSocket()
     do {
-      if case .frames(let frames) = input,
-        Self.cursorWasLost(
-          in: frames,
-          after: lastSentTimestampMs,
-          requiresResync: needsResync
-        )
-      {
+      if Self.cursorWasLost(
+        in: frames,
+        after: lastSentTimestampMs,
+        requiresResync: needsResync
+      ) {
         sequence &+= 1
         try await resetRecognition(owner: owner)
       }
       sequence &+= 1
       let requestSequence = sequence
-      switch input {
-      case .frames(let frames):
-        let delta = Self.unsentFrames(
-          frames,
-          after: lastSentTimestampMs,
-          requiresResync: needsResync
-        )
-        if delta.isEmpty {
-          guard finalize else {
-            throw InferenceFailure.unexpected("Inference request had no new frames.")
-          }
-          try await sendWebSocket(
-            InferenceStreamFinalizeRecognizeRequest(
-              sequence: requestSequence,
-              _protocol: 1,
-              type: .recognize,
-              state: needsResync ? state : nil,
-              context: context,
-              input: .finalize
-            ),
-            owner: owner
-          )
-        } else {
-          try await sendWebSocket(
-            InferenceStreamFrameRecognizeRequest(
-              sequence: requestSequence,
-              _protocol: 1,
-              type: .recognize,
-              state: needsResync ? state : nil,
-              context: context,
-              input: .frames,
-              frames: delta.map(\.inferenceFeatures),
-              finalize: finalize
-            ),
-            owner: owner
-          )
-        }
-      case .emission(let emission):
-        try await sendWebSocket(
-          InferenceStreamEmissionRecognizeRequest(
-            sequence: requestSequence,
-            _protocol: 1,
-            type: .recognize,
-            state: needsResync ? state : nil,
-            context: context,
-            input: .emission,
-            emission: emission,
-            finalize: finalize
-          ),
-          owner: owner
-        )
-      }
+      let delta = Self.unsentFrames(
+        frames,
+        after: lastSentTimestampMs,
+        requiresResync: needsResync
+      )
+      let request = InferenceStreamRecognizeRequest(
+        sequence: requestSequence,
+        _protocol: 1,
+        type: .recognize,
+        frames: delta.map(\.inferenceFeatures),
+        state: needsResync ? state : nil,
+        context: context,
+        finalize: finalize
+      )
+      try await sendWebSocket(request, owner: owner)
       let response = try await receiveWebSocket(
         from: owner,
         timeout: Self.inferenceTimeout
@@ -229,13 +154,8 @@ actor InferClient: InferAPI {
       }
       if finalize {
         lastSentTimestampMs = nil
-      } else {
-        switch input {
-        case .frames(let frames):
-          lastSentTimestampMs = frames.last?.timestampMs
-        case .emission:
-          lastSentTimestampMs = nil
-        }
+      } else if let timestamp = frames.last?.timestampMs {
+        lastSentTimestampMs = timestamp
       }
       needsResync = false
       return result
@@ -461,15 +381,13 @@ actor InferClient: InferAPI {
     throw .missingBaseURL
   }
 
-  private static func configuredURLs(for endpoint: InferenceEndpoint) -> [URL] {
-    let key = endpoint == .remote ? "HandWaveInferenceURL" : "HandWaveDeviceInferenceURL"
-    let fallback = endpoint == .remote ? productionURL : deviceProductionURL
-    let configured = (Bundle.main.object(forInfoDictionaryKey: key) as? String)
+  private static var configuredURLs: [URL] {
+    let configured = (Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String)
       .flatMap { $0.contains("$(") ? nil : URL(string: $0) }
     #if DEBUG
     return [configured ?? localURL]
     #else
-    return [configured ?? fallback]
+    return [configured ?? productionURL]
     #endif
   }
 

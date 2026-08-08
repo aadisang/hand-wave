@@ -3,10 +3,6 @@ import type { Prediction as DetectionPrediction } from "@/types/detections";
 
 export type Frame = components["schemas"]["LandmarkFrameItem"];
 export type InferOut = components["schemas"]["PredictOut"];
-export type Emission = components["schemas"]["Emission"];
-export type EmissionRecognizeIn = components["schemas"]["EmissionRecognizeIn"];
-export type FinalizeRecognizeIn = components["schemas"]["FinalizeRecognizeIn"];
-export type FrameRecognizeIn = components["schemas"]["FrameRecognizeIn"];
 export type RecognizeIn = components["schemas"]["RecognizeIn"];
 export type RecognizeOut = components["schemas"]["RecognizeOut"];
 export type RecognitionState = components["schemas"]["RecognitionState"];
@@ -14,8 +10,6 @@ export type RecognitionContext = components["schemas"]["RecognitionContext"];
 export type WirePrediction = components["schemas"]["Prediction"];
 export type WireDecodeTrace = components["schemas"]["DecodeTrace"];
 export type WireFinalizeTrace = components["schemas"]["FinalizeTrace"];
-
-export type InferenceMode = "remote" | "device";
 
 export type StreamCtrl = {
   start: () => void;

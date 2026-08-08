@@ -4,9 +4,9 @@ import {
   getInferenceConnectionStatus,
   subscribeInferenceConnection,
 } from "@/lib/inference/connection";
-import type { Frame, InferenceMode, StreamCtrl } from "@/types/inference";
+import type { Frame, StreamCtrl } from "@/types/inference";
 
-export function useInfer(live: boolean, boundary: number, mode: InferenceMode) {
+export function useInfer(live: boolean, boundary: number) {
   const ctrlRef = useRef<StreamCtrl | null>(null);
   const connectionStatus = useSyncExternalStore(
     subscribeInferenceConnection,
@@ -17,7 +17,7 @@ export function useInfer(live: boolean, boundary: number, mode: InferenceMode) {
   useEffect(() => {
     if (!live) return;
 
-    const ctrl = createStreamCtrl(mode);
+    const ctrl = createStreamCtrl();
     ctrlRef.current = ctrl;
     void ctrl.start();
 
@@ -25,7 +25,7 @@ export function useInfer(live: boolean, boundary: number, mode: InferenceMode) {
       ctrlRef.current = null;
       ctrl.dispose();
     };
-  }, [live, mode]);
+  }, [live]);
 
   useEffect(() => {
     ctrlRef.current?.reset();

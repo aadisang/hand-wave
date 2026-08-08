@@ -5,33 +5,24 @@ from os import getenv
 from pathlib import Path
 
 from inference.ctc import DecodedText
-from inference.schemas import Emission, LandmarkFrame, Prediction, PredictOut, Span
+from inference.schemas import LandmarkFrame, Prediction, PredictOut, Span
 from inference.text_normalizer import normalize_prediction_text
 
 DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
 MODELS_DIR = Path(getenv("MODEL_DIR", str(DEFAULT_MODELS_DIR)))
 MODEL_CHECKPOINT_PATH_ENV = "MODEL_CHECKPOINT_PATH"
-DECODER_ONLY_ENV = "HANDWAVE_DECODER_ONLY"
 
 
 class ModelBackend:
     async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
         raise NotImplementedError
 
-    async def predict_emission(self, emission: Emission) -> PredictOut:
-        raise NotImplementedError
-
 
 class CheckpointBackend(ModelBackend):
     def __init__(self, checkpoint_path: Path) -> None:
-        from inference.decoder import EmissionDecoder
         from inference.runtime import HandwaveRuntime
 
-        self.decoder = EmissionDecoder()
-        self.runtime = HandwaveRuntime(
-            checkpoint_path,
-            emission_decoder=self.decoder,
-        )
+        self.runtime = HandwaveRuntime(checkpoint_path)
         # Cancellation cannot stop native model work once it has entered a
         # thread. A single-worker executor keeps the runtime serial even when
         # the task awaiting an older prediction gets cancelled.
@@ -47,40 +38,6 @@ class CheckpointBackend(ModelBackend):
             self._inference_executor,
             self.runtime.predict,
             frame_batch,
-        )
-        return decoded_to_predict_out(decoded)
-
-    async def predict_emission(self, emission: Emission) -> PredictOut:
-        loop = asyncio.get_running_loop()
-        decoded = await loop.run_in_executor(
-            self._inference_executor,
-            self.decoder.decode_values,
-            [frame.root for frame in emission.values],
-            emission.frame_confidence,
-        )
-        return decoded_to_predict_out(decoded)
-
-
-class DecoderBackend(ModelBackend):
-    def __init__(self) -> None:
-        from inference.decoder import EmissionDecoder
-
-        self.decoder = EmissionDecoder()
-        self._executor = ThreadPoolExecutor(
-            max_workers=1,
-            thread_name_prefix="handwave-decoder",
-        )
-
-    async def predict_frames(self, frames: Sequence[LandmarkFrame]) -> PredictOut:
-        raise ValueError("this endpoint accepts on-device model emissions only")
-
-    async def predict_emission(self, emission: Emission) -> PredictOut:
-        loop = asyncio.get_running_loop()
-        decoded = await loop.run_in_executor(
-            self._executor,
-            self.decoder.decode_values,
-            [frame.root for frame in emission.values],
-            emission.frame_confidence,
         )
         return decoded_to_predict_out(decoded)
 
@@ -127,8 +84,6 @@ def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
 
 
 def load_backend() -> ModelBackend:
-    if getenv(DECODER_ONLY_ENV) == "1":
-        return DecoderBackend()
     return CheckpointBackend(resolve_checkpoint_path())
 
 

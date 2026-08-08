@@ -4,12 +4,11 @@ import {
   inferenceWebSocketURL,
   streamFrameDelta,
 } from "@/lib/inference/socket";
-import type { Frame, FrameRecognizeIn } from "@/types/inference";
+import type { Frame, RecognizeIn } from "@/types/inference";
 
 describe("inference WebSocket client", () => {
   afterEach(() => {
-    FakeWebSocket.reset();
-    vi.useRealTimers();
+    FakeWebSocket.instances = [];
     vi.unstubAllGlobals();
   });
 
@@ -47,9 +46,9 @@ describe("inference WebSocket client", () => {
     const client = new InferenceSocket();
 
     const first = client.prepare();
-    const socket = await FakeWebSocket.instance(0);
+    const socket = await fakeSocket(0);
     socket.open();
-    const request = await socket.nextRequest("ping");
+    await Promise.resolve();
 
     let secondReady = false;
     const second = client.prepare().then(() => {
@@ -58,6 +57,9 @@ describe("inference WebSocket client", () => {
     await Promise.resolve();
     expect(secondReady).toBe(false);
 
+    const request = JSON.parse(socket.sent.at(-1) ?? "null") as {
+      sequence: number;
+    };
     socket.receive({
       type: "pong",
       protocol: 1,
@@ -74,14 +76,17 @@ describe("inference WebSocket client", () => {
     const client = new InferenceSocket();
 
     const first = client.prepare().catch((error: unknown) => error);
-    const firstSocket = await FakeWebSocket.instance(0);
+    const firstSocket = await fakeSocket(0);
     client.close();
 
     const second = client.prepare();
-    const secondSocket = await FakeWebSocket.instance(1);
+    const secondSocket = await fakeSocket(1);
     expect(secondSocket).not.toBe(firstSocket);
     secondSocket.open();
-    const ping = await secondSocket.nextRequest("ping");
+    await Promise.resolve();
+    const ping = JSON.parse(secondSocket.sent.at(-1) ?? "null") as {
+      sequence: number;
+    };
     secondSocket.receive({
       type: "pong",
       protocol: 1,
@@ -95,23 +100,23 @@ describe("inference WebSocket client", () => {
   });
 
   test("reconnects the same PartySocket after a network close", async () => {
-    vi.useFakeTimers();
     vi.stubGlobal("WebSocket", FakeWebSocket);
     const client = new InferenceSocket();
 
     const firstConnection = client.prepare();
-    await vi.advanceTimersByTimeAsync(0);
-    const firstSocket = await FakeWebSocket.instance(0);
+    const firstSocket = await fakeSocket(0);
     firstSocket.open();
-    await respondToPing(firstSocket);
+    await Promise.resolve();
+    respondToPing(firstSocket);
     await firstConnection;
 
     firstSocket.drop();
-    await vi.advanceTimersByTimeAsync(5_000);
-    const secondSocket = await FakeWebSocket.instance(1);
+    const secondSocket = await fakeSocket(1);
     secondSocket.open();
+    await Promise.resolve();
     const reconnected = client.prepare();
-    await respondToPing(secondSocket);
+    await Promise.resolve();
+    respondToPing(secondSocket);
 
     await expect(reconnected).resolves.toBeUndefined();
     expect(FakeWebSocket.instances).toHaveLength(2);
@@ -123,13 +128,23 @@ describe("inference WebSocket client", () => {
     const client = new InferenceSocket();
 
     const connection = client.prepare();
-    const socket = await FakeWebSocket.instance(0);
+    const socket = await fakeSocket(0);
     socket.open();
-    await respondToPing(socket);
+    await Promise.resolve();
+    respondToPing(socket);
     await connection;
 
     const reset = client.clearRecognition(1_000);
-    const request = await socket.nextRequest("reset");
+    await vi.waitFor(() => {
+      expect(JSON.parse(socket.sent.at(-1) ?? "null")).toMatchObject({
+        type: "reset",
+      });
+    });
+    const request = JSON.parse(socket.sent.at(-1) ?? "null") as {
+      sequence: number;
+      type: string;
+    };
+    expect(request.type).toBe("reset");
     socket.receive({
       type: "reset",
       protocol: 1,
@@ -158,15 +173,19 @@ describe("inference WebSocket client", () => {
     const firstFrames = [frame(0), frame(1)];
 
     const first = client.recognize(recognizePayload(firstFrames), 1_000);
-    const socket = await FakeWebSocket.instance(0);
+    const socket = await fakeSocket(0);
     socket.open();
-    await respondToPing(socket);
+    await Promise.resolve();
+    respondToPing(socket);
     await respondToRecognition(socket);
     await first;
 
     const secondFrames = [frame(2), frame(3)];
     const second = client.recognize(recognizePayload(secondFrames), 1_000);
-    const reset = await socket.nextRequest("reset");
+    await vi.waitFor(() => {
+      expect(lastRequest(socket).type).toBe("reset");
+    });
+    const reset = lastRequest(socket);
     socket.receive({ type: "reset", protocol: 1, sequence: reset.sequence });
     await respondToRecognition(socket);
     await second;
@@ -178,62 +197,6 @@ describe("inference WebSocket client", () => {
     expect(recognizeRequests[1]?.frames).toHaveLength(2);
     client.close();
   });
-
-  test("sends local emissions without landmark frames", async () => {
-    vi.stubGlobal("WebSocket", FakeWebSocket);
-    const client = new InferenceSocket("https://decoder.example");
-    const request = client.recognize(
-      {
-        input: "emission",
-        emission: {
-          values: [Array(60).fill(-1)],
-          frame_confidence: 0.8,
-        },
-        context: {
-          idle_frames: 0,
-          missing_frames: 0,
-          segment_frames: 18,
-          motion: 0.1,
-        },
-      },
-      1_000,
-    );
-    const socket = await FakeWebSocket.instance(0);
-    socket.open();
-    await respondToPing(socket);
-    const payload = await socket.nextRequest("recognize");
-
-    expect(payload.frames).toBeUndefined();
-    expect(payload.emission).toMatchObject({ frame_confidence: 0.8 });
-    respondToRecognitionRequest(socket, payload);
-    await request;
-    client.close();
-  });
-
-  test("sends a finalize-only request when no new frames arrived", async () => {
-    vi.stubGlobal("WebSocket", FakeWebSocket);
-    const client = new InferenceSocket();
-    const frames = [frame(0), frame(1)];
-
-    const first = client.recognize(recognizePayload(frames), 1_000);
-    const socket = await FakeWebSocket.instance(0);
-    socket.open();
-    await respondToPing(socket);
-    await respondToRecognition(socket);
-    await first;
-
-    const final = client.recognize(
-      { ...recognizePayload(frames), finalize: true },
-      1_000,
-    );
-    const finalRequest = await socket.nextRequest("recognize");
-
-    expect(finalRequest.input).toBe("finalize");
-    expect(finalRequest).not.toHaveProperty("frames");
-    respondToRecognitionRequest(socket, finalRequest);
-    await final;
-    client.close();
-  });
 });
 
 class FakeWebSocket extends EventTarget {
@@ -242,18 +205,8 @@ class FakeWebSocket extends EventTarget {
   static readonly CLOSING = 2;
   static readonly CLOSED = 3;
   static instances: FakeWebSocket[] = [];
-  private static instanceWaiters = new Map<
-    number,
-    Array<(socket: FakeWebSocket) => void>
-  >();
 
   readonly sent: string[] = [];
-  private readonly requests: StreamTestRequest[] = [];
-  private requestCursor = 0;
-  private requestWaiters: Array<{
-    type: string;
-    resolve: (request: StreamTestRequest) => void;
-  }> = [];
   readyState = FakeWebSocket.CONNECTING;
 
   constructor(
@@ -262,25 +215,6 @@ class FakeWebSocket extends EventTarget {
   ) {
     super();
     FakeWebSocket.instances.push(this);
-    const index = FakeWebSocket.instances.length - 1;
-    const waiters = FakeWebSocket.instanceWaiters.get(index) ?? [];
-    FakeWebSocket.instanceWaiters.delete(index);
-    for (const waiter of waiters) waiter(this);
-  }
-
-  static reset() {
-    FakeWebSocket.instances = [];
-    FakeWebSocket.instanceWaiters.clear();
-  }
-
-  static instance(index: number): Promise<FakeWebSocket> {
-    const socket = FakeWebSocket.instances[index];
-    if (socket) return Promise.resolve(socket);
-    return new Promise((resolve) => {
-      const waiters = FakeWebSocket.instanceWaiters.get(index) ?? [];
-      waiters.push(resolve);
-      FakeWebSocket.instanceWaiters.set(index, waiters);
-    });
   }
 
   open() {
@@ -290,28 +224,6 @@ class FakeWebSocket extends EventTarget {
 
   send(data: string) {
     this.sent.push(data);
-    const request = JSON.parse(data) as StreamTestRequest;
-    this.requests.push(request);
-    const waiterIndex = this.requestWaiters.findIndex(
-      (waiter) => waiter.type === request.type,
-    );
-    if (waiterIndex < 0) return;
-    const [waiter] = this.requestWaiters.splice(waiterIndex, 1);
-    this.requestCursor = this.requests.length;
-    waiter?.resolve(request);
-  }
-
-  nextRequest(type: string): Promise<StreamTestRequest> {
-    const index = this.requests.findIndex(
-      (request, index) => index >= this.requestCursor && request.type === type,
-    );
-    if (index >= 0) {
-      this.requestCursor = index + 1;
-      return Promise.resolve(this.requests[index] as StreamTestRequest);
-    }
-    return new Promise((resolve) => {
-      this.requestWaiters.push({ type, resolve });
-    });
   }
 
   receive(data: object) {
@@ -331,8 +243,15 @@ class FakeWebSocket extends EventTarget {
   }
 }
 
-async function respondToPing(socket: FakeWebSocket) {
-  const request = await socket.nextRequest("ping");
+async function fakeSocket(index: number) {
+  while (!FakeWebSocket.instances[index]) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return FakeWebSocket.instances[index];
+}
+
+function respondToPing(socket: FakeWebSocket) {
+  const request = lastRequest(socket);
   socket.receive({
     type: "pong",
     protocol: 1,
@@ -341,14 +260,10 @@ async function respondToPing(socket: FakeWebSocket) {
 }
 
 async function respondToRecognition(socket: FakeWebSocket) {
-  const request = await socket.nextRequest("recognize");
-  respondToRecognitionRequest(socket, request);
-}
-
-function respondToRecognitionRequest(
-  socket: FakeWebSocket,
-  request: StreamTestRequest,
-) {
+  await vi.waitFor(() => {
+    expect(lastRequest(socket).type).toBe("recognize");
+  });
+  const request = lastRequest(socket);
   socket.receive({
     type: "result",
     protocol: 1,
@@ -367,15 +282,15 @@ function respondToRecognitionRequest(
   });
 }
 
-type StreamTestRequest = Record<string, unknown> & {
-  input?: string;
-  sequence: number;
-  type: string;
-};
+function lastRequest(socket: FakeWebSocket) {
+  return JSON.parse(socket.sent.at(-1) ?? "null") as {
+    sequence: number;
+    type: string;
+  };
+}
 
-function recognizePayload(frames: Frame[]): FrameRecognizeIn {
+function recognizePayload(frames: Frame[]): RecognizeIn {
   return {
-    input: "frames",
     frames,
     context: {
       idle_frames: 0,

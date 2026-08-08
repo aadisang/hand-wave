@@ -4,7 +4,6 @@ import logging
 from dataclasses import dataclass
 from os import getenv
 from time import perf_counter
-from typing import assert_never
 
 from inference.generated.tunings import SMOOTH
 from inference.model import ModelBackend
@@ -30,11 +29,8 @@ from inference.recognition_policy import (
 )
 from inference.schemas import (
     DecodeTrace,
-    EmissionRecognizeIn,
     EndpointReason,
-    FinalizeRecognizeIn,
     FinalizeTrace,
-    FrameRecognizeIn,
     Prediction,
     PredictOut,
     RecognitionContext,
@@ -194,23 +190,23 @@ def empty_state() -> RecognitionState:
 async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut:
     config = SmoothConfig.from_env()
     state = payload.state or empty_state()
-    if is_finalizing(payload):
+    if payload.finalize:
         out = finalize(state, payload.context, config)
         if out.committed:
             return out
 
         prediction = None
         decode = None
-        buffered_frames = recognition_input_frames(payload)
-        if buffered_frames and payload.state is not None:
+        frames = list(payload.frames or [])
+        if frames and payload.state is not None:
             started = perf_counter()
-            prediction = await predict_input(payload, backend)
+            prediction = await backend.predict_frames(frames)
             latency_ms = (perf_counter() - started) * 1_000
             state, decode = accept_endpoint_prediction(
                 state,
                 prediction,
                 payload.context,
-                buffered_frames,
+                len(frames),
                 latency_ms,
                 config,
             )
@@ -225,8 +221,8 @@ async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut
             }
         )
 
-    buffered_frames = recognition_input_frames(payload)
-    if not buffered_frames:
+    frames = list(payload.frames or [])
+    if not frames:
         return RecognizeOut(
             state=state,
             display_prediction=state.display.prediction if state.display else None,
@@ -235,44 +231,16 @@ async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut
         )
 
     started = perf_counter()
-    prediction = await predict_input(payload, backend)
+    prediction = await backend.predict_frames(frames)
     latency_ms = (perf_counter() - started) * 1_000
     return accept_prediction(
         state,
         prediction,
         payload.context,
-        buffered_frames,
+        len(frames),
         latency_ms,
         config,
     )
-
-
-def recognition_input_frames(payload: RecognizeIn) -> int:
-    if isinstance(payload, FrameRecognizeIn):
-        return len(payload.frames)
-    if isinstance(payload, EmissionRecognizeIn):
-        return len(payload.emission.values) * 2
-    if isinstance(payload, FinalizeRecognizeIn):
-        return 0
-    assert_never(payload)
-
-
-async def predict_input(payload: RecognizeIn, backend: ModelBackend) -> PredictOut:
-    if isinstance(payload, EmissionRecognizeIn):
-        return await backend.predict_emission(payload.emission)
-    if isinstance(payload, FrameRecognizeIn):
-        return await backend.predict_frames(payload.frames)
-    if isinstance(payload, FinalizeRecognizeIn):
-        raise ValueError("finalize-only requests do not contain model input")
-    assert_never(payload)
-
-
-def is_finalizing(payload: RecognizeIn) -> bool:
-    if isinstance(payload, FinalizeRecognizeIn):
-        return True
-    if isinstance(payload, (FrameRecognizeIn, EmissionRecognizeIn)):
-        return payload.finalize is True
-    assert_never(payload)
 
 
 def accept_prediction(

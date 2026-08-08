@@ -2,13 +2,7 @@ import createClient from "openapi-fetch";
 import { env } from "@/config/env";
 import type { paths } from "@/lib/inference/generated/openapi";
 import { compactFrames, InferenceSocket } from "@/lib/inference/socket";
-import { inferLocally, prepareLocalModel } from "@/lib/inference/local-model";
-import type {
-  Frame,
-  FrameRecognizeIn,
-  InferenceMode,
-  RecognizeOut,
-} from "@/types/inference";
+import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
 class StatusError extends Error {
   constructor(readonly status: number) {
@@ -23,16 +17,9 @@ const predictTimeoutMs = 12_000;
 const streamTimeoutMs = 30_000;
 const warmupTimeoutMs = 120_000;
 const landmarkFrameSize = 162;
-const deviceInferenceURL =
-  env.VITE_DEVICE_INFERENCE_URL ??
-  (import.meta.env.PROD
-    ? "https://sinarck--decoder.modal.run"
-    : env.VITE_INFERENCE_URL);
 const warmupFrame: Frame = Array(landmarkFrameSize).fill(0);
-const remoteSocket = new InferenceSocket();
-const deviceSocket = new InferenceSocket(deviceInferenceURL);
+const inferenceSocket = new InferenceSocket();
 let warmup: Promise<void> | null = null;
-let deviceWarmup: Promise<void> | null = null;
 
 export async function predictFrames(
   frames: Frame[],
@@ -56,16 +43,13 @@ export async function predictFrames(
 }
 
 export function recognizeFrames(
-  mode: InferenceMode,
-  payload: FrameRecognizeIn,
+  payload: RecognizeIn,
   timeoutMs = streamTimeoutMs,
 ): Promise<RecognizeOut> {
-  if (mode === "remote") return remoteSocket.recognize(payload, timeoutMs);
-  return recognizeWithLocalModel(payload, timeoutMs);
+  return inferenceSocket.recognize(payload, timeoutMs);
 }
 
-export function warmInference(mode: InferenceMode) {
-  if (mode === "device") return prepareDeviceInference();
+export function warmInference() {
   // Warm the model without reserving a long-lived WebSocket for an idle page.
   warmup ??= predictFrames([warmupFrame], warmupTimeoutMs)
     .then(() => undefined)
@@ -76,48 +60,14 @@ export function warmInference(mode: InferenceMode) {
   return warmup;
 }
 
-export async function prepareInferenceStream(mode: InferenceMode) {
-  if (mode === "device") {
-    await prepareDeviceInference();
-    return;
-  }
-  await remoteSocket.prepare();
+export function prepareInferenceStream() {
+  return inferenceSocket.prepare();
 }
 
-export function clearInferenceSession(mode: InferenceMode) {
-  return socketFor(mode).clearRecognition(streamTimeoutMs);
+export function clearInferenceSession() {
+  return inferenceSocket.clearRecognition(streamTimeoutMs);
 }
 
-export function closeInferenceStream(mode: InferenceMode) {
-  socketFor(mode).close();
-}
-
-async function recognizeWithLocalModel(
-  payload: FrameRecognizeIn,
-  timeoutMs: number,
-) {
-  const emission = await inferLocally(payload.frames);
-  return deviceSocket.recognize(
-    {
-      input: "emission",
-      emission,
-      state: payload.state,
-      context: payload.context,
-      finalize: payload.finalize,
-    },
-    timeoutMs,
-  );
-}
-
-function socketFor(mode: InferenceMode) {
-  return mode === "device" ? deviceSocket : remoteSocket;
-}
-
-function prepareDeviceInference() {
-  deviceWarmup ??= Promise.all([prepareLocalModel(), deviceSocket.prepare()])
-    .then(() => undefined)
-    .finally(() => {
-      deviceWarmup = null;
-    });
-  return deviceWarmup;
+export function closeInferenceStream() {
+  inferenceSocket.close();
 }

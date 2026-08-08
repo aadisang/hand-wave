@@ -43,8 +43,6 @@ export class InferenceSocket {
   private needsResync = true;
   private requestQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly baseURL = env.VITE_INFERENCE_URL) {}
-
   prepare(timeoutMs = warmupTimeoutMs) {
     return this.open(timeoutMs).then(() => undefined);
   }
@@ -98,54 +96,26 @@ export class InferenceSocket {
       throw new Error("Inference stream was reset");
     }
 
-    let request: StreamRequestBody;
-    let nextFrame: Frame | null = null;
-    if (payload.input === "frames") {
-      const { delta, resync, cursorLost } = streamFrameDelta(
-        payload.frames,
-        this.lastSentFrame,
-        this.needsResync,
-      );
-      if (cursorLost) await this.resetOwner(owner, timeoutMs);
-      if (delta.length === 0) {
-        if (!payload.finalize) {
-          throw new Error("Inference request did not contain new frames");
-        }
-        request = {
-          type: "recognize",
-          protocol: streamProtocol,
-          input: "finalize",
-          state: resync ? payload.state : undefined,
-          context: payload.context,
-        };
-      } else {
-        request = {
-          type: "recognize",
-          protocol: streamProtocol,
-          input: "frames",
-          frames: compactFrames(delta),
-          state: resync ? payload.state : undefined,
-          context: payload.context,
-          finalize: payload.finalize,
-        };
-        nextFrame = payload.finalize ? null : (payload.frames.at(-1) ?? null);
-      }
-    } else if (payload.input === "emission") {
-      request = {
-        ...payload,
-        type: "recognize",
-        protocol: streamProtocol,
-        state: this.needsResync ? payload.state : undefined,
-      };
-    } else {
-      request = {
-        ...payload,
-        type: "recognize",
-        protocol: streamProtocol,
-        state: this.needsResync ? payload.state : undefined,
-      };
+    const frames = payload.frames ?? [];
+    const { delta, resync, cursorLost } = streamFrameDelta(
+      frames,
+      this.lastSentFrame,
+      this.needsResync,
+    );
+    if (cursorLost) {
+      await this.resetOwner(owner, timeoutMs);
     }
-    const response = await this.exchange(owner, request, timeoutMs);
+    const response = await this.exchange(
+      owner,
+      {
+        ...payload,
+        type: "recognize",
+        protocol: streamProtocol,
+        frames: compactFrames(delta),
+        state: resync ? payload.state : undefined,
+      },
+      timeoutMs,
+    );
     if (response.type === "error") {
       throw new Error(response.detail);
     }
@@ -160,7 +130,7 @@ export class InferenceSocket {
     }
 
     this.needsResync = false;
-    this.lastSentFrame = nextFrame;
+    this.lastSentFrame = payload.finalize ? null : (frames.at(-1) ?? null);
     return response.result;
   }
 
@@ -222,7 +192,7 @@ export class InferenceSocket {
 
   private createOwner(): SocketOwner {
     const socket = new PartySocket(
-      inferenceWebSocketURL(this.baseURL).toString(),
+      inferenceWebSocketURL().toString(),
       [streamSubprotocol],
       {
         WebSocket: globalThis.WebSocket,

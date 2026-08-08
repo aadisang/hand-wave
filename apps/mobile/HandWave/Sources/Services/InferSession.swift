@@ -76,7 +76,7 @@ actor InferSession {
   private var requestID = 0
   private var requestTask: Task<Void, Never>?
 
-  init(client: InferAPI = InferenceClientRouter()) {
+  init(client: InferAPI = InferClient()) {
     self.client = client
   }
 

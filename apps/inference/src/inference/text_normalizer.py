@@ -18,7 +18,6 @@ MAX_WORD_LENGTH = 14
 MAX_SOURCE_SPAN = 12
 MAX_CANDIDATES_PER_SPAN = 64
 MAX_PATHS_PER_POSITION = 128
-PRESERVED_PATHS_PER_WORD_COUNT = 16
 MIN_CORRECTION_LENGTH = 6
 ACCEPT_SCORE = 5.6
 EXACT_SPLIT_ACCEPT_SCORE = 5.1
@@ -98,8 +97,7 @@ class TextNormalizer:
         candidates = self.correction_candidates(raw)
         if not candidates:
             return self.refine_spaced_candidate(short_first.words) if short_first else text
-        _, best = preferred_correction_candidate(candidates)
-        best_score = self.path_score(best)
+        best_score, best = preferred_correction_candidate(candidates)
         if (
             short_first is not None
             and len(best.words[0]) < 4
@@ -133,8 +131,7 @@ class TextNormalizer:
         if not candidates:
             return text
 
-        _, best = min(candidates, key=lambda item: item[0])
-        best_score = self.path_score(best)
+        best_score, best = min(candidates, key=lambda item: item[0])
         if best_score + SPACED_CORRECTION_MARGIN >= current_score:
             return text
         return " ".join(best.words)
@@ -162,7 +159,7 @@ class TextNormalizer:
                 continue
             if not preserves_edges(raw, path.words):
                 continue
-            scored.append((self.correction_score(path), path))
+            scored.append((self.path_score(path), path))
         result = tuple(sorted(scored, key=lambda item: item[0]))
         if len(self._correction_cache) >= 512:
             self._correction_cache.clear()
@@ -298,10 +295,6 @@ class TextNormalizer:
         rank_cost = sum(log1p(self.ranks[word]) for word in path.words) / len(path.words)
         return path.edits * 0.35 + lm_cost * 1.3 + rank_cost * 0.025 + len(path.words) * 0.03
 
-    def correction_score(self, path: SegmentationPath) -> float:
-        extra_words = max(0, len(path.words) - 3)
-        return self.path_score(path) + path.edits * 0.25 + extra_words * 0.1
-
     def segmentations(self, raw: str) -> tuple[SegmentationPath, ...]:
         cached = self._segmentation_cache.get(raw)
         if cached is not None:
@@ -328,7 +321,9 @@ class TextNormalizer:
                         )
             for end in range(start + 1, size + 1):
                 if len(paths[end]) > MAX_PATHS_PER_POSITION:
-                    paths[end] = prune_segmentation_paths(paths[end])
+                    paths[end] = sorted(paths[end], key=lambda item: item.base_cost)[
+                        :MAX_PATHS_PER_POSITION
+                    ]
         result = tuple(paths[size])
         if len(self._segmentation_cache) >= 512:
             self._segmentation_cache.clear()
@@ -362,27 +357,6 @@ class TextNormalizer:
             self._candidate_cache.clear()
         self._candidate_cache[source] = result
         return result
-
-
-def prune_segmentation_paths(paths: list[SegmentationPath]) -> list[SegmentationPath]:
-    cheapest = sorted(paths, key=lambda item: item.base_cost)
-    kept: list[SegmentationPath] = []
-    seen: set[tuple[int, tuple[str, ...]]] = set()
-    for word_count in range(1, MAX_EXACT_SPLIT_WORDS + 1):
-        candidates = (path for path in cheapest if len(path.words) == word_count)
-        for path in list(candidates)[:PRESERVED_PATHS_PER_WORD_COUNT]:
-            key = (path.edits, path.words)
-            if key not in seen:
-                kept.append(path)
-                seen.add(key)
-    for path in cheapest:
-        if len(kept) >= MAX_PATHS_PER_POSITION:
-            break
-        key = (path.edits, path.words)
-        if key not in seen:
-            kept.append(path)
-            seen.add(key)
-    return kept
 
 
 @lru_cache(maxsize=1)

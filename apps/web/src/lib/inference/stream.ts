@@ -19,14 +19,13 @@ import type {
   RecognitionContext,
   RecognitionState,
   RecognizeOut,
-  InferenceMode,
   StreamCtrl,
   WireDecodeTrace,
   WireFinalizeTrace,
 } from "@/types/inference";
 import { toDetectionPrediction } from "@/types/inference";
 
-export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
+export function createStreamCtrl(): StreamCtrl {
   type RequestPhase =
     | { kind: "idle" }
     | { kind: "decode"; id: number; epoch: number }
@@ -112,11 +111,11 @@ export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
     pendingFinalize = null;
     ended = false;
     resetRecognition();
-    void clearInferenceSession(mode).catch(() => undefined);
+    void clearInferenceSession().catch(() => undefined);
   };
 
   const start = () => {
-    void prepareInferenceStream(mode).catch(() => undefined);
+    void prepareInferenceStream().catch(() => undefined);
   };
 
   const dispose = () => {
@@ -125,7 +124,7 @@ export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
     requestPhase = { kind: "idle" };
     pendingFinalize = null;
     resetRecognition();
-    closeInferenceStream(mode);
+    closeInferenceStream();
   };
 
   const updateMotion = (frame: Frame, acceptedAt: number) => {
@@ -183,8 +182,7 @@ export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
     const id = ++requestID;
     requestPhase = { kind: "decode", id, epoch: batchEpoch };
     try {
-      const result = await recognizeFrames(mode, {
-        input: "frames",
+      const result = await recognizeFrames({
         frames: batch,
         state,
         context: decodeContext(idleFrames),
@@ -251,8 +249,7 @@ export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
   ) => {
     let result: RecognizeOut;
     try {
-      result = await recognizeFrames(mode, {
-        input: "frames",
+      result = await recognizeFrames({
         frames: pending.frames,
         state: activeState,
         context: pending.context,

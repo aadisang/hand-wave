@@ -1,11 +1,7 @@
 from inference.generated.schemas import (
     DecodeTrace,
-    Emission,
-    EmissionRecognizeIn,
     EndpointReason,
-    FinalizeRecognizeIn,
     FinalizeTrace,
-    FrameRecognizeIn,
     HealthOut,
     LandmarkFrameItem,
     PredictIn,
@@ -17,27 +13,13 @@ from inference.generated.schemas import (
     RecognitionSource,
     RecognitionState,
     RecognitionTrace,
+    RecognizeIn,
     RecognizeOut,
     Span,
-    StreamEmissionRecognizeRequest,
-    StreamFinalizeRecognizeRequest,
-    StreamFrameRecognizeRequest,
-    StreamPingRequest,
-    StreamResetRequest,
-)
-from inference.generated.schemas import (
-    RecognizeIn as RecognizeRequestBody,
-)
-from inference.generated.schemas import (
-    StreamRequest as StreamRequestBody,
 )
 
 N_FEATURES = 162
 LandmarkFrame = LandmarkFrameItem
-RecognizeIn = FrameRecognizeIn | EmissionRecognizeIn | FinalizeRecognizeIn
-StreamRecognizeRequest = (
-    StreamFrameRecognizeRequest | StreamEmissionRecognizeRequest | StreamFinalizeRecognizeRequest
-)
 __all__ = [
     "LandmarkFrame",
     "N_FEATURES",
@@ -45,12 +27,8 @@ __all__ = [
     "PredictOut",
     "Prediction",
     "DecodeTrace",
-    "Emission",
-    "EmissionRecognizeIn",
     "EndpointReason",
-    "FinalizeRecognizeIn",
     "FinalizeTrace",
-    "FrameRecognizeIn",
     "HealthOut",
     "RecognitionContext",
     "RecognitionCount",
@@ -59,16 +37,8 @@ __all__ = [
     "RecognitionState",
     "RecognitionTrace",
     "RecognizeIn",
-    "RecognizeRequestBody",
     "RecognizeOut",
     "Span",
-    "StreamEmissionRecognizeRequest",
-    "StreamFinalizeRecognizeRequest",
-    "StreamFrameRecognizeRequest",
-    "StreamPingRequest",
-    "StreamRecognizeRequest",
-    "StreamRequestBody",
-    "StreamResetRequest",
     "frame_values",
 ]
 

@@ -26,12 +26,6 @@ deploy = [
     "aiohttp>=3.14.3",
     "modal>=1.0.0",
 ]
-export = [
-    "coremltools>=9.0,<10",
-    "onnx>=1.22,<2",
-    "onnxruntime>=1.28,<2",
-    "onnxscript>=0.6,<1",
-]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,6 +1,5 @@
 #include "Base.xcconfig"
 HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
-HANDWAVE_DEVICE_INFERENCE_URL = http:/$()/localhost:8000
 
 #include? "HandWave.xcconfig"
 

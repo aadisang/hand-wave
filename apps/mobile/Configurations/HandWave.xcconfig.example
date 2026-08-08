@@ -8,4 +8,3 @@ DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
 // Debug builds use this local inference URL. Release always uses handwave.sh.
 HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
-HANDWAVE_DEVICE_INFERENCE_URL = http:/$()/localhost:8000

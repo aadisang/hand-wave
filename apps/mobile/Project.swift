@@ -27,7 +27,6 @@ let infoPlist: [String: Plist.Value] = [
     "TeamID": "$(DEVELOPMENT_TEAM)",
   ],
   "HandWaveInferenceURL": "$(HANDWAVE_INFERENCE_URL)",
-  "HandWaveDeviceInferenceURL": "$(HANDWAVE_DEVICE_INFERENCE_URL)",
   "ITSAppUsesNonExemptEncryption": false,
   "NSAppTransportSecurity": [
     "NSAllowsLocalNetworking": true
