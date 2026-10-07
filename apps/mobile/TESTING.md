@@ -12,50 +12,32 @@ This inventory was written before changing the tests.
 | --- | --- |
 | A built app uses a missing or wrong backend address. | The real `InferClient` reads the built app configuration, connects to the configured service (TLS normally; loopback HTTP in simulator E2E), and records backend identity. A missing address fails the live run. |
 | The client repeats frames, loses a stream cursor, or carries a previous phrase into a new connection. | The real client sends overlapping windows, a window with a lost cursor, a final request, and a new connection. Check the real service's buffered frame counts and finalization trace. |
-| Warmup never exits because socket I/O does not stop at its deadline. | Keep the existing isolated timeout test. A healthy remote service cannot reliably create a permanently blocked transport. The fixture deliberately models I/O that only ends when the socket closes. |
+| Warmup, recognition, or reset hangs because a send or receive does not stop at its deadline. | All exchanges share the same deadline. Keep the existing isolated timeout test: it requires the timeout error to survive socket closure. A healthy remote service cannot reliably create a permanently blocked transport. The fixture deliberately models I/O that only ends when the socket closes. |
 | An immediate connection error waits for the whole warmup deadline before reaching the user. | Keep the existing immediate-I/O-failure deadline test. The remote happy path does not force this race. |
 | Opening a physical camera crashes because a nominal 60 FPS duration is slightly outside its hardware limits. | Keep the existing fractional-frame-duration regression. A simulator has no physical capture formats; a device run covers only that device's formats. |
 | Camera capture, MediaPipe, hand selection, model recognition, displayed text, or speech is wrong. | Requires the physical-device flow below. Synthetic landmark requests do not cover these parts or prove recognition accuracy. This is an explicit coverage gap. |
 | Glasses pairing, frame orientation, camera switching, or background/foreground recovery fails. | Requires the physical-device flow below. Simulator navigation is not evidence for this path. |
-
-## Removed tests
-
-Remove helper arithmetic, enum/string mappings, URL/envelope encoding, synthetic
-landmark transforms, model-file sizes, frame-stat subtraction, and mocked
-`InferSession` assertions. They do not verify that the user can recognize signs.
-Remove the deadline success case, the cancellation case that never checks its
-claimed immediate-return behavior, and the ordinary camera-duration case: they
-add no unique, reliable failure coverage. Do not describe removal as new E2E coverage. Vision and
-session behavior still need the physical flow.
 
 ## Automated live client/service flow
 
 This is a client/service integration flow, not a camera-to-speech E2E test. It uses
 the real app configuration, Swift client, network, service, and deployed model.
 Input landmarks are synthetic. The assertions verify protocol state, not words.
+Run it through `pnpm test`; commands and evidence verification are in
+[the shared testing guide](../../tests/README.md).
 
-Keep `pnpm dev:mobile` running in a separate terminal, then run from the repo root:
-
-```sh
-moon run mobile:test
-```
-
-The runner writes a unique directory under `apps/mobile/Derived/Evidence/` with
-`Tests.xcresult`, `xcodebuild.log`, `summary.json`, exported attachments, and
-`run.json`. The runner requires the expected test count with zero skipped tests.
-The manifest starts as `running` and changes only when the command completes. The result bundle keeps a JSON
-attachment containing the endpoint, backend deployment ID, input frames, actual
-responses, and completed steps, including when a later step fails. Open it with
-`open apps/mobile/Derived/Evidence/<run>/Tests.xcresult`.
-
-A live run fails when its endpoint is absent. CI can explicitly run only the three
-isolated regression tests with `scripts/test.sh isolated`; that result must not
-be reported as a live pass. `scripts/test.sh live Release` verifies the configured
-Release build. Both modes save the same artifacts. Set `IOS_DESTINATION` to use a
-specific simulator or connected device. `IOS_EVIDENCE_DIR` selects the output
-directory. The root E2E runner uses `E2E_INFERENCE_URL` as an explicit build-only
-override and `HANDWAVE_DEPLOYMENT_ID` to reject a stale service. HTTP is accepted
-only for loopback on a simulator; normal app configuration remains unchanged.
+`scripts/test.sh live` refuses to start without `HANDWAVE_DEPLOYMENT_ID`, so a
+stale or wrong service cannot pass. It requires the expected test count with
+zero skipped tests. Its evidence directory holds `Tests.xcresult`,
+`xcodebuild.log`, `summary.json`, exported attachments, and `run.json`, which
+starts as `running` and changes only when the command completes. The result
+bundle keeps a JSON attachment with the endpoint, backend deployment ID, input
+frames, actual responses, and completed steps, including when a later step fails.
+`scripts/test.sh isolated` runs only the three regression tests above; that
+result must not be reported as a live pass. The Release workflow runs
+`scripts/test.sh live Release` against the release backend. `E2E_INFERENCE_URL`
+is an explicit build-only endpoint override; HTTP is accepted only for loopback
+on a simulator.
 
 Project generation uses local sources without a Tuist account. An explicit
 `TUIST_TOKEN` opts into the existing Tuist cloud project.

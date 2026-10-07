@@ -62,9 +62,8 @@ func milliseconds(
 final class WearableDiagnosticsObserver {
   private let wearables: WearablesInterface
   private var deviceStateToken: AnyListenerToken?
+  private var lastDeviceState: DeviceState?
   private var generation = 0
-  private var linkToken: AnyListenerToken?
-  private var compatibilityToken: AnyListenerToken?
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -76,11 +75,10 @@ final class WearableDiagnosticsObserver {
   ) async {
     generation &+= 1
     let selection = generation
-    let tokens = [deviceStateToken, linkToken, compatibilityToken].compactMap { $0 }
+    let token = deviceStateToken
     deviceStateToken = nil
-    linkToken = nil
-    compatibilityToken = nil
-    for token in tokens { await token.cancel() }
+    lastDeviceState = nil
+    await token?.cancel()
     guard generation == selection else { return }
 
     guard let identifier else {
@@ -89,22 +87,22 @@ final class WearableDiagnosticsObserver {
     }
 
     if let device = wearables.deviceForIdentifier(identifier) {
-      AppLog.wearables.notice(
-        "Active glasses available link=\(device.linkState.diagnosticName, privacy: .public) compatibility=\(device.compatibility().diagnosticName, privacy: .public)"
-      )
-      linkToken = device.addLinkStateListener { state in
-        AppLog.wearables.notice(
-          "Glasses link state=\(state.diagnosticName, privacy: .public)"
-        )
-      }
-      compatibilityToken = device.addCompatibilityListener { compatibility in
-        AppLog.wearables.notice(
-          "Glasses compatibility=\(compatibility.diagnosticName, privacy: .public)"
-        )
-      }
+      AppLog.wearables.notice("Active glasses available")
+      // SDK 1.0 delivers the current state immediately, then every change.
       deviceStateToken = device.addDeviceStateListener { [weak self] state in
         Task { @MainActor [weak self] in
           guard let self, generation == selection else { return }
+          if lastDeviceState?.linkState != state.linkState {
+            AppLog.wearables.notice(
+              "Glasses link state=\(state.linkState.diagnosticName, privacy: .public)"
+            )
+          }
+          if lastDeviceState?.compatibility != state.compatibility {
+            AppLog.wearables.notice(
+              "Glasses compatibility=\(state.compatibility.diagnosticName, privacy: .public)"
+            )
+          }
+          lastDeviceState = state
           guard onThermalLevel(state.thermalLevel) else { return }
           AppLog.wearables.notice(
             "Glasses thermal state level=\(state.thermalLevel.diagnosticName, privacy: .public)"

@@ -219,21 +219,18 @@ def run(args: argparse.Namespace) -> int:
         if backend_log is not None:
             backend_log.close()
         report["completed_at"] = datetime.now(UTC).isoformat()
-        report["evidence_sha256"] = {}
+        checksums: dict[str, str] = {}
         try:
-            report["evidence_sha256"] = {
+            checksums = {
                 str(path.relative_to(output)): digest(path)
-                for path in sorted(output.rglob("*"))
+                for path in output.rglob("*")
                 if path.is_file()
             }
         except OSError as exc:
             report["status"] = "failed"
             report["evidence_error"] = str(exc)
         (output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
-        checksums = {
-            **report["evidence_sha256"],
-            "report.json": digest(output / "report.json"),
-        }
+        checksums["report.json"] = digest(output / "report.json")
         (output / "SHA256SUMS").write_text(
             "".join(
                 f"{checksum}  {name}\n" for name, checksum in sorted(checksums.items())

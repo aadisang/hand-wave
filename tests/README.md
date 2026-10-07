@@ -51,15 +51,22 @@ To use a running isolated Modal development service instead, start
 `pnpm test --backend-manifest .handwave/development.json`.
 
 Each run writes a new directory under `artifacts/e2e`. `report.json` records the
-inputs, commands, status, and SHA-256 of each evidence file. Backend transcripts,
-browser traces/screenshots/reports, and the native `.xcresult` remain available
-even when a check fails. CI uploads the directory on success and failure.
-Run `shasum -a 256 -c SHA256SUMS` from the evidence directory to verify its files.
+inputs, commands, backend identity, and status; a run is passed only when its
+status is `passed` and the command exits zero. Each step keeps its log.
+`backend/transcript.json` holds every protocol request, response, and check.
+Browser traces, video, screenshots, and reports, and the native `.xcresult` and
+`run.json`, remain available even when a check fails. CI uploads the directory
+on success and failure. Run `shasum -a 256 -c SHA256SUMS` from the evidence
+directory to verify its files, including `report.json`.
 For a dirty local run, check out the recorded revision in a separate checkout,
 apply `working-tree.patch` with `git apply`, and extract `untracked-source.tar.gz`
 there. `source.json` identifies the exact input files and hashes. CI uses a clean
 revision; its patch and untracked archive contain no source changes.
 
-The small retained isolated regression suites and their specific failure modes
-are documented in each application's testing inventory. They run separately
-from E2E and cannot stand in for it.
+## Isolated regressions
+
+The small retained isolated suites run separately from E2E and cannot stand in
+for it. Their specific failure modes are documented in each application's
+testing inventory. Run them with
+`pnpm exec moon run web:testIsolated inference:test` and, on a Mac,
+`bash apps/mobile/scripts/test.sh isolated Debug`.

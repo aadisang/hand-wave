@@ -69,7 +69,7 @@ jobs:
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
-        run: uv run --frozen --group deploy python -m tools.release --revision "$GITHUB_SHA"
+        run: uv run --frozen --group deploy python -m tools.release
 
       - name: Build the paired web app
         env:

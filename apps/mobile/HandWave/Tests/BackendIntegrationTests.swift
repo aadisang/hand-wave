@@ -28,23 +28,22 @@ final class BackendIntegrationTests: XCTestCase {
     let configured = try XCTUnwrap(
       Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String)
     let url = try XCTUnwrap(URL(string: configured))
-    XCTAssertNotNil(url.host, "Start pnpm dev:mobile or supply the explicit test endpoint.")
+    _ = try XCTUnwrap(url.host(), "Start pnpm dev:mobile or supply the explicit test endpoint.")
     evidence["endpoint"] = configured
+    let expected = try XCTUnwrap(
+      Bundle(for: Self.self).object(
+        forInfoDictionaryKey: "HandWaveExpectedDeploymentID") as? String)
+    XCTAssertFalse(expected.isEmpty, "Supply HANDWAVE_DEPLOYMENT_ID to reject a stale backend.")
+    evidence["expected_deployment_id"] = expected
     let (health, response) = try await URLSession.shared.data(
       from: url.appendingPathComponent("v1/health"))
     XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
     let healthObject = try XCTUnwrap(JSONSerialization.jsonObject(with: health) as? [String: Any])
     evidence["health"] = healthObject
     XCTAssertEqual(healthObject["ok"] as? Bool, true)
-    XCTAssertFalse(try XCTUnwrap(healthObject["deployment_id"] as? String).isEmpty)
-    if let expected = Bundle(for: Self.self).object(
-      forInfoDictionaryKey: "HandWaveExpectedDeploymentID") as? String, !expected.isEmpty
-    {
-      evidence["expected_deployment_id"] = expected
-      XCTAssertEqual(
-        healthObject["deployment_id"] as? String, expected,
-        "The endpoint runs a different backend revision.")
-    }
+    XCTAssertEqual(
+      try XCTUnwrap(healthObject["deployment_id"] as? String), expected,
+      "The endpoint runs a different backend revision.")
 
     let client = InferClient()
     addTeardownBlock { await client.resetStream() }

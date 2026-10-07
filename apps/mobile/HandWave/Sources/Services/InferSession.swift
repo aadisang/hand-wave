@@ -51,7 +51,7 @@ actor InferSession {
     let context: InferenceRecognitionContext
   }
 
-  private let client: InferAPI
+  private let client = InferClient()
   private let timing = StreamTiming()
   private var eventHandler: EventHandler?
   private var recognitionState: InferenceRecognitionState?
@@ -75,10 +75,6 @@ actor InferSession {
   private var epoch = 0
   private var requestID = 0
   private var requestTask: Task<Void, Never>?
-
-  init(client: InferAPI = InferClient()) {
-    self.client = client
-  }
 
   func setEventHandler(_ handler: @escaping EventHandler) {
     eventHandler = handler

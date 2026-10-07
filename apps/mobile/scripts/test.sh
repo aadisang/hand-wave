@@ -6,6 +6,10 @@ mode="${1:-live}"
 configuration="${2:-Debug}"
 case "$mode" in live|isolated) ;; *) echo "Usage: $0 [live|isolated] [Debug|Release]" >&2; exit 2 ;; esac
 case "$configuration" in Debug|Release) ;; *) echo "Invalid configuration: $configuration" >&2; exit 2 ;; esac
+if [[ "$mode" == live && -z "${HANDWAVE_DEPLOYMENT_ID:-}" ]]; then
+  echo "Live mode requires HANDWAVE_DEPLOYMENT_ID to reject a stale or wrong backend" >&2
+  exit 2
+fi
 
 evidence_dir="${IOS_EVIDENCE_DIR:-$PWD/Derived/Evidence/$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 destination="${IOS_DESTINATION:-platform=iOS Simulator,name=iPhone 17 Pro,OS=latest}"

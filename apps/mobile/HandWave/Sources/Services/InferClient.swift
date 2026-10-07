@@ -1,58 +1,27 @@
 import Foundation
 
-protocol InferAPI: Sendable {
-  func warmConnection() async throws(InferenceFailure)
-  func recognize(
-    frames: [LandmarkFrame],
-    state: InferenceRecognitionState?,
-    context: InferenceRecognitionContext,
-    finalize: Bool
-  ) async throws(InferenceFailure) -> InferenceRecognizeOut
-  func resetStream() async
-}
-
-extension InferAPI {
-  func warmConnection() async throws(InferenceFailure) {}
-  func resetStream() async {}
-}
-
-actor InferClient: InferAPI {
-  private final class WebSocketOwner: @unchecked Sendable {
-    let task: URLSessionWebSocketTask
-    let url: URL
-
-    init(task: URLSessionWebSocketTask, url: URL) {
-      self.task = task
-      self.url = url
-    }
-  }
-
+actor InferClient {
   private static let handshakeTimeout: Duration = .seconds(120)
   // Native model work keeps running after a client timeout. Leave enough time
   // for a queued decode instead of dropping a result that may still arrive.
   private static let inferenceTimeout: Duration = .seconds(30)
+  private static let retryDelay: TimeInterval = 5
 
-  private let baseURLs: [URL]
-  private let webSocketSession: URLSession
-  private var webSocketOwner: WebSocketOwner?
-  private var connectionTask: Task<Result<WebSocketOwner, InferenceFailure>, Never>?
+  private let baseURL = InferClient.configuredURL
+  private var webSocket: URLSessionWebSocketTask?
+  private var connectionTask: Task<Result<URLSessionWebSocketTask, InferenceFailure>, Never>?
   private var connectionGeneration = 0
   private var isWebSocketReady = false
   private var sequence = 0
   private var lastSentTimestampMs: Int?
   private var needsResync = true
-  private var warmupThrottle = WarmupThrottle()
-
-  init(
-    baseURLs: [URL] = InferClient.configuredURLs,
-    webSocketSession: URLSession = InferClient.webSocketSession
-  ) {
-    self.baseURLs = baseURLs
-    self.webSocketSession = webSocketSession
-  }
+  /// Failures anywhere on the stream are recorded here, but the delay is only
+  /// enforced when warming: `Recognizer` retries warmup from its frame loop, and
+  /// this delay is what keeps that loop from hammering an unhealthy backend.
+  private var retryAfter = Date.distantPast
 
   func warmConnection() async throws(InferenceFailure) {
-    let wait = warmupThrottle.remainingDelay(at: Date())
+    let wait = retryAfter.timeIntervalSinceNow
     if wait > 0 {
       do {
         try await Task.sleep(for: .seconds(wait))
@@ -62,9 +31,9 @@ actor InferClient: InferAPI {
     }
     do {
       try await connectWebSocket()
-      warmupThrottle.clear()
+      retryAfter = .distantPast
     } catch {
-      if error != .cancelled { warmupThrottle.recordFailure(at: Date()) }
+      recordFailure(error)
       throw error
     }
   }
@@ -83,10 +52,7 @@ actor InferClient: InferAPI {
         finalize: finalize
       )
     } catch {
-      if error != .cancelled { warmupThrottle.recordFailure(at: Date()) }
-      AppLog.inference.error(
-        "WebSocket inference failed: \(error.localizedDescription, privacy: .private)"
-      )
+      recordFailure(error)
       throw error
     }
   }
@@ -95,7 +61,15 @@ actor InferClient: InferAPI {
     // Closing makes reset unconditional even when the network is already stale.
     // The next recognition request reconnects with the complete active window.
     closeWebSocket()
-    warmupThrottle.clear()
+    retryAfter = .distantPast
+  }
+
+  private func recordFailure(_ failure: InferenceFailure) {
+    guard failure != .cancelled else { return }
+    retryAfter = Date().addingTimeInterval(Self.retryDelay)
+    AppLog.inference.error(
+      "WebSocket inference failed: \(String(describing: failure), privacy: .private)"
+    )
   }
 
   private func recognizeOverWebSocket(
@@ -104,7 +78,7 @@ actor InferClient: InferAPI {
     context: InferenceRecognitionContext,
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
-    let owner = try await connectWebSocket()
+    let task = try await connectWebSocket()
     do {
       if Self.cursorWasLost(
         in: frames,
@@ -112,7 +86,7 @@ actor InferClient: InferAPI {
         requiresResync: needsResync
       ) {
         sequence &+= 1
-        try await resetRecognition(owner: owner)
+        try await resetRecognition(on: task)
       }
       sequence &+= 1
       let requestSequence = sequence
@@ -130,11 +104,7 @@ actor InferClient: InferAPI {
         context: context,
         finalize: finalize
       )
-      try await sendWebSocket(request, owner: owner)
-      let response = try await receiveWebSocket(
-        from: owner,
-        timeout: Self.inferenceTimeout
-      )
+      let response = try await exchange(request, on: task, timeout: Self.inferenceTimeout)
       guard response.sequence == requestSequence else {
         throw InferenceFailure.unexpected("Out-of-order inference stream response.")
       }
@@ -147,7 +117,7 @@ actor InferClient: InferAPI {
       case .pong, .reset:
         throw InferenceFailure.unexpected("Invalid inference stream response.")
       }
-      guard owner === webSocketOwner, isWebSocketReady else {
+      guard task === webSocket, isWebSocketReady else {
         throw InferenceFailure.cancelled
       }
       if finalize {
@@ -158,26 +128,23 @@ actor InferClient: InferAPI {
       needsResync = false
       return result
     } catch let failure as InferenceFailure {
-      discardWebSocket(owner)
+      discardWebSocket(task)
       throw failure
     } catch {
-      discardWebSocket(owner)
+      discardWebSocket(task)
       throw .unexpected(error.localizedDescription)
     }
   }
 
-  private func resetRecognition(owner: WebSocketOwner) async throws(InferenceFailure) {
+  private func resetRecognition(on task: URLSessionWebSocketTask) async throws(InferenceFailure) {
     let requestSequence = sequence
-    try await sendWebSocket(
+    let response = try await exchange(
       InferenceStreamResetRequest(
         sequence: requestSequence,
         _protocol: 1,
         type: .reset
       ),
-      owner: owner
-    )
-    let response = try await receiveWebSocket(
-      from: owner,
+      on: task,
       timeout: Self.inferenceTimeout
     )
     guard case .reset = response, response.sequence == requestSequence else {
@@ -188,15 +155,15 @@ actor InferClient: InferAPI {
   }
 
   @discardableResult
-  private func connectWebSocket() async throws(InferenceFailure) -> WebSocketOwner {
-    if isWebSocketReady, let webSocketOwner { return webSocketOwner }
+  private func connectWebSocket() async throws(InferenceFailure) -> URLSessionWebSocketTask {
+    if isWebSocketReady, let webSocket { return webSocket }
     if let connectionTask {
       return try await finishConnection(connectionTask, generation: connectionGeneration)
     }
 
     connectionGeneration &+= 1
     let generation = connectionGeneration
-    let task = Task { [weak self] () -> Result<WebSocketOwner, InferenceFailure> in
+    let task = Task { [weak self] () -> Result<URLSessionWebSocketTask, InferenceFailure> in
       guard let self else { return .failure(.cancelled) }
       do {
         return .success(try await self.openWebSocket(generation: generation))
@@ -210,15 +177,16 @@ actor InferClient: InferAPI {
     return try await finishConnection(task, generation: generation)
   }
 
-  private func openWebSocket(generation: Int) async throws(InferenceFailure) -> WebSocketOwner {
+  private func openWebSocket(
+    generation: Int
+  ) async throws(InferenceFailure) -> URLSessionWebSocketTask {
     let url = try webSocketURL()
-    let task = webSocketSession.webSocketTask(with: url, protocols: ["handwave.v1"])
-    let owner = WebSocketOwner(task: task, url: url)
+    let task = Self.webSocketSession.webSocketTask(with: url, protocols: ["handwave.v1"])
     guard generation == connectionGeneration else {
       task.cancel(with: .goingAway, reason: nil)
       throw .cancelled
     }
-    webSocketOwner = owner
+    webSocket = task
     lastSentTimestampMs = nil
     needsResync = true
     task.resume()
@@ -226,101 +194,85 @@ actor InferClient: InferAPI {
     do {
       sequence &+= 1
       let requestSequence = sequence
-      let request = InferenceStreamPingRequest(
-        sequence: requestSequence,
-        _protocol: 1,
-        type: .ping
-      )
-      let response = try await withWebSocketDeadline(
-        timeout: Self.handshakeTimeout,
-        cancel: { owner.task.cancel(with: .goingAway, reason: nil) },
-        operation: {
-          try await self.sendWebSocket(request, owner: owner)
-          return try await self.readWebSocket(from: owner)
-        }
+      let response = try await exchange(
+        InferenceStreamPingRequest(
+          sequence: requestSequence,
+          _protocol: 1,
+          type: .ping
+        ),
+        on: task,
+        timeout: Self.handshakeTimeout
       )
       guard case .pong = response, response.sequence == requestSequence else {
         throw InferenceFailure.unexpected("Inference stream handshake failed.")
       }
-      guard generation == connectionGeneration, owner === webSocketOwner else {
+      guard generation == connectionGeneration, task === webSocket else {
         throw InferenceFailure.cancelled
       }
       AppLog.inference.notice("Inference WebSocket connected")
-      return owner
+      return task
     } catch let failure as InferenceFailure {
-      discardWebSocket(owner)
+      discardWebSocket(task)
       throw failure
     } catch {
-      discardWebSocket(owner)
+      discardWebSocket(task)
       throw .unexpected(error.localizedDescription)
     }
   }
 
   private func finishConnection(
-    _ task: Task<Result<WebSocketOwner, InferenceFailure>, Never>,
+    _ task: Task<Result<URLSessionWebSocketTask, InferenceFailure>, Never>,
     generation: Int
-  ) async throws(InferenceFailure) -> WebSocketOwner {
+  ) async throws(InferenceFailure) -> URLSessionWebSocketTask {
     let result = await task.value
     guard generation == connectionGeneration else { throw .cancelled }
     connectionTask = nil
     switch result {
-    case .success(let owner):
-      guard owner === webSocketOwner else { throw .cancelled }
+    case .success(let socket):
+      guard socket === webSocket else { throw .cancelled }
       isWebSocketReady = true
-      return owner
+      return socket
     case .failure(let failure):
       throw failure
     }
   }
 
-  private func sendWebSocket<Request: Encodable>(
-    _ request: Request,
-    owner: WebSocketOwner
-  ) async throws(InferenceFailure) {
-    guard owner === webSocketOwner else { throw .cancelled }
-    do {
-      let data = try JSONEncoder().encode(request)
-      guard let text = String(data: data, encoding: .utf8) else {
-        throw InferenceFailure.encodeRequestFailed("WebSocket JSON was not UTF-8.")
-      }
-      try await owner.task.send(.string(text))
-    } catch let failure as InferenceFailure {
-      throw failure
-    } catch {
-      throw .requestFailed(owner.url, error.localizedDescription)
-    }
-  }
-
-  private func receiveWebSocket(
-    from owner: WebSocketOwner,
+  /// Sends one request and reads its response under a single deadline, so a
+  /// stop or timeout also releases a send that is blocked on a stalled socket.
+  private func exchange(
+    _ request: some Encodable,
+    on task: URLSessionWebSocketTask,
     timeout: Duration
   ) async throws(InferenceFailure) -> StreamResponsePayload {
-    guard owner === webSocketOwner else { throw .cancelled }
+    guard task === webSocket else { throw .cancelled }
+    let text: String
     do {
-      return try await withWebSocketDeadline(
+      text = String(decoding: try JSONEncoder().encode(request), as: UTF8.self)
+    } catch {
+      throw .encodeRequestFailed(error.localizedDescription)
+    }
+    do {
+      let response = try await withWebSocketDeadline(
         timeout: timeout,
-        cancel: { owner.task.cancel(with: .goingAway, reason: nil) },
+        cancel: { task.cancel(with: .goingAway, reason: nil) },
         operation: {
-          try await self.readWebSocket(from: owner)
+          try await task.send(.string(text))
+          let message = try await task.receive()
+          return try Self.decode(message)
         }
       )
+      guard task === webSocket else { throw InferenceFailure.cancelled }
+      return response
     } catch let failure as InferenceFailure {
       throw failure
     } catch {
-      throw .requestFailed(owner.url, error.localizedDescription)
+      throw .requestFailed(error.localizedDescription)
     }
   }
 
-  private func readWebSocket(
-    from owner: WebSocketOwner
-  ) async throws(InferenceFailure) -> StreamResponsePayload {
-    let message: URLSessionWebSocketTask.Message
-    do {
-      message = try await owner.task.receive()
-    } catch {
-      throw .requestFailed(owner.url, error.localizedDescription)
-    }
-
+  private static func decode(
+    _ message: URLSessionWebSocketTask.Message
+  ) throws(InferenceFailure) -> StreamResponsePayload {
     let data: Data
     switch message {
     case .data(let value): data = value
@@ -330,7 +282,7 @@ actor InferClient: InferAPI {
     do {
       return try StreamResponsePayload.decode(from: data)
     } catch {
-      throw .decodeResponseFailed(owner.url, error.localizedDescription)
+      throw .decodeResponseFailed(error.localizedDescription)
     }
   }
 
@@ -339,22 +291,22 @@ actor InferClient: InferAPI {
     connectionTask?.cancel()
     connectionTask = nil
     isWebSocketReady = false
-    webSocketOwner?.task.cancel(with: .goingAway, reason: nil)
-    webSocketOwner = nil
+    webSocket?.cancel(with: .goingAway, reason: nil)
+    webSocket = nil
     lastSentTimestampMs = nil
     needsResync = true
   }
 
-  private func discardWebSocket(_ owner: WebSocketOwner) {
-    owner.task.cancel(with: .goingAway, reason: nil)
-    guard owner === webSocketOwner else { return }
+  private func discardWebSocket(_ task: URLSessionWebSocketTask) {
+    task.cancel(with: .goingAway, reason: nil)
+    guard task === webSocket else { return }
     isWebSocketReady = false
-    webSocketOwner = nil
+    webSocket = nil
     lastSentTimestampMs = nil
     needsResync = true
   }
 
-  static func unsentFrames(
+  private static func unsentFrames(
     _ frames: [LandmarkFrame],
     after timestampMs: Int?,
     requiresResync: Bool
@@ -363,7 +315,7 @@ actor InferClient: InferAPI {
     return frames.filter { $0.timestampMs > timestampMs }
   }
 
-  static func cursorWasLost(
+  private static func cursorWasLost(
     in frames: [LandmarkFrame],
     after timestampMs: Int?,
     requiresResync: Bool
@@ -373,23 +325,17 @@ actor InferClient: InferAPI {
   }
 
   private func webSocketURL() throws(InferenceFailure) -> URL {
-    for baseURL in baseURLs where baseURL.isUsableBackend {
-      if let url = baseURL.webSocketURL(path: "/v1/stream") {
-        return url
-      }
-    }
-    if let localURL = baseURLs.first(where: { !$0.isUsableBackend }) {
-      throw .localhostOnDevice(localURL)
-    }
-    throw .missingBaseURL
+    guard let baseURL else { throw .missingBaseURL }
+    guard baseURL.isUsableBackend else { throw .localhostOnDevice(baseURL) }
+    guard let url = baseURL.webSocketURL(path: "/v1/stream") else { throw .missingBaseURL }
+    return url
   }
 
-  private static var configuredURLs: [URL] {
+  private static var configuredURL: URL? {
     guard let value = Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String,
-      !value.contains("$("), let url = URL(string: value),
-      ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host() != nil
-    else { return [] }
-    return [url]
+      let url = URL(string: value), url.host() != nil
+    else { return nil }
+    return url
   }
 
   private static let webSocketSession: URLSession = {
@@ -399,12 +345,6 @@ actor InferClient: InferAPI {
     configuration.timeoutIntervalForResource = 3_600
     return URLSession(configuration: configuration)
   }()
-}
-
-struct WebSocketResponseTimeout: Error, LocalizedError {
-  var errorDescription: String? {
-    "The inference server did not respond in time. Check your connection and try again."
-  }
 }
 
 /// Covers connection establishment as well as I/O. Cancelling a task group alone
@@ -420,7 +360,7 @@ func withWebSocketDeadline<Value: Sendable>(
       group.addTask { try await operation() }
       group.addTask {
         try await Task.sleep(for: timeout)
-        throw WebSocketResponseTimeout()
+        throw InferenceFailure.timedOut
       }
       do {
         guard let result = try await group.next() else { throw CancellationError() }
@@ -439,26 +379,6 @@ func withWebSocketDeadline<Value: Sendable>(
   }
 }
 
-/// Failures anywhere on the stream are recorded here, but the delay is only
-/// enforced when warming: `Recognizer` retries warmup from its frame loop, and
-/// this throttle is what keeps that loop from hammering an unhealthy backend.
-struct WarmupThrottle: Sendable {
-  private static let retryDelay: TimeInterval = 5
-  private(set) var retryAfter = Date.distantPast
-
-  mutating func recordFailure(at date: Date) {
-    retryAfter = date.addingTimeInterval(Self.retryDelay)
-  }
-
-  mutating func clear() {
-    retryAfter = .distantPast
-  }
-
-  func remainingDelay(at date: Date) -> TimeInterval {
-    max(0, retryAfter.timeIntervalSince(date))
-  }
-}
-
 extension URL {
   fileprivate var isUsableBackend: Bool {
     guard let host = host(percentEncoded: false)?.lowercased() else { return true }
@@ -470,7 +390,7 @@ extension URL {
     #endif
   }
 
-  func webSocketURL(path: String) -> URL? {
+  fileprivate func webSocketURL(path: String) -> URL? {
     guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
       return nil
     }

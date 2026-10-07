@@ -82,23 +82,6 @@ tasks:
       - "Tuist/**/*"
       - "HandWave/**/*"
 
-  test:
-    # A configured suite calls a live backend whose state is not a file input.
-    options:
-      cache: false
-    command: "./scripts/test.sh live Debug"
-    deps:
-      - "pods"
-    inputs:
-      - "/packages/contract/config.json"
-      - "moon.yml"
-      - "Podfile"
-      - "Podfile.lock"
-      - "Project.swift"
-      - "Workspace.swift"
-      - "Tuist/**/*"
-      - "HandWave/**/*"
-
   edit:
     command: "tuist edit"
     preset: "utility"
