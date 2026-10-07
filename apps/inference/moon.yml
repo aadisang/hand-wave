@@ -27,6 +27,8 @@ tasks:
       mergeArgs: 'replace'
     deps:
       - 'contract:generate'
+    inputs:
+      - 'models/**/*'
 
   dev:
     command: 'uv run --frozen --group deploy python -m tools.dev'
