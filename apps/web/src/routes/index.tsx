@@ -3,16 +3,19 @@ import { useEffect } from "react";
 import { Stage } from "@/components/session/stage-view";
 import { preloadLandmarker } from "@/hooks/use-landmarks";
 import { warmInference } from "@/lib/inference/client";
+import { useInferenceModeStore } from "@/stores/inference-mode-store";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
 function Home() {
+  const inferenceMode = useInferenceModeStore((state) => state.mode);
+
   useEffect(() => {
     void preloadLandmarker().catch(() => undefined);
-    void warmInference();
-  }, []);
+    void warmInference(inferenceMode).catch(() => undefined);
+  }, [inferenceMode]);
 
   return (
     <div className="dark flex h-svh flex-col overflow-hidden bg-background p-3 text-foreground">

@@ -1,25 +1,39 @@
+import type { InferenceMode } from "@/types/inference";
+
 export type InferenceConnectionStatus =
   | "idle"
   | "connecting"
   | "ready"
   | "error";
 
-let status: InferenceConnectionStatus = "idle";
-const listeners = new Set<() => void>();
+const statuses: Record<InferenceMode, InferenceConnectionStatus> = {
+  remote: "idle",
+  device: "idle",
+};
+const listeners: Record<InferenceMode, Set<() => void>> = {
+  remote: new Set(),
+  device: new Set(),
+};
 
-export function getInferenceConnectionStatus() {
-  return status;
+export function getInferenceConnectionStatus(mode: InferenceMode) {
+  return statuses[mode];
 }
 
-export function subscribeInferenceConnection(listener: () => void) {
-  listeners.add(listener);
+export function subscribeInferenceConnection(
+  mode: InferenceMode,
+  listener: () => void,
+) {
+  listeners[mode].add(listener);
   return () => {
-    listeners.delete(listener);
+    listeners[mode].delete(listener);
   };
 }
 
-export function setInferenceConnectionStatus(next: InferenceConnectionStatus) {
-  if (status === next) return;
-  status = next;
-  listeners.forEach((listener) => listener());
+export function setInferenceConnectionStatus(
+  mode: InferenceMode,
+  next: InferenceConnectionStatus,
+) {
+  if (statuses[mode] === next) return;
+  statuses[mode] = next;
+  listeners[mode].forEach((listener) => listener());
 }

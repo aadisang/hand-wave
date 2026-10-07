@@ -36,6 +36,7 @@ tasks:
       - "/packages/contract/config.json"
       - "/packages/contract/src/**/*"
       - "/pnpm-lock.yaml"
+      - "public/**/*"
       - "src/**/*"
       - "vite.config.ts"
       - "tsconfig.json"

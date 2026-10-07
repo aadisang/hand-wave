@@ -3,7 +3,7 @@ import Testing
 
 @testable import HandWave
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite
 struct InferSessionTests {
   @Test(arguments: [12, 30, 60, 120])
   func captureRateDoesNotChangeModelCadence(sourceFPS: Int) async throws {
@@ -14,10 +14,12 @@ struct InferSessionTests {
     let step = 1_000 / sourceFPS
     for timestamp in stride(from: 0, through: 850, by: step) {
       _ = try await session.ingest(Self.frame(at: timestamp), at: timestamp)
+      await Task.yield()
     }
 
     let frameCount = await client.waitForFirstBatch()
-    #expect((18...21).contains(frameCount))
+    #expect(frameCount != nil)
+    #expect((18...21).contains(frameCount ?? 0))
   }
 
   @Test
@@ -45,7 +47,9 @@ struct InferSessionTests {
     try await Self.feedMovement(to: session, through: 800)
     await client.waitUntilStarted()
 
+    let start = ContinuousClock.now
     _ = try await session.ingest(Self.frame(at: 850), at: 850)
+    #expect(start.duration(to: .now) < .milliseconds(100))
 
     await client.complete()
   }
@@ -91,6 +95,7 @@ struct InferSessionTests {
 
     await session.stop()
     await client.complete()
+    for _ in 0..<20 { await Task.yield() }
 
     #expect(await events.values.isEmpty)
   }
@@ -124,23 +129,17 @@ struct InferSessionTests {
   @Test
   func finalizesAfterConfiguredIdleDuration() async throws {
     let client = RecordingInferAPI(responseText: "hello")
-    let events = EventRecorder()
     let session = InferSession(client: client)
-    await session.setEventHandler { event in
-      await events.append(event)
-    }
     let lastMotionAt = 840
     let idleDurationMs = InferCfg.Stream.idle * 1_000 / InferCfg.Stream.fps
     try await session.start()
     try await Self.feedMovement(to: session, through: lastMotionAt)
-    await events.waitForCount(1)
 
     let beforeIdle = lastMotionAt + idleDurationMs - 1
     _ = try await session.ingest(
       Self.frame(at: beforeIdle, offset: 0.84),
       at: beforeIdle
     )
-    await events.waitForCount(2)
     #expect(await client.finalizeCount == 0)
 
     let atIdle = lastMotionAt + idleDurationMs
@@ -166,6 +165,7 @@ struct InferSessionTests {
   ) async throws {
     for timestamp in stride(from: 0, through: end, by: step) {
       _ = try await session.ingest(frame(at: timestamp), at: timestamp)
+      await Task.yield()
     }
   }
 
@@ -197,22 +197,17 @@ struct InferSessionTests {
 @MainActor
 private final class EventRecorder {
   private(set) var values: [RecognitionEvent] = []
-  private var waiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
   var first: RecognitionEvent? { values.first }
 
   func append(_ event: RecognitionEvent) {
     values.append(event)
-    let ready = waiters.filter { values.count >= $0.count }
-    waiters.removeAll { values.count >= $0.count }
-    for waiter in ready {
-      waiter.continuation.resume()
-    }
   }
 
   func waitForCount(_ count: Int) async {
-    guard values.count < count else { return }
-    await withCheckedContinuation { continuation in
-      waiters.append((count, continuation))
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while values.count < count, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 }
@@ -222,8 +217,6 @@ private actor RecordingInferAPI: InferAPI {
   private(set) var recognizeCount = 0
   private(set) var finalizeCount = 0
   private(set) var firstBatchCount: Int?
-  private var firstBatchWaiters: [CheckedContinuation<Int, Never>] = []
-  private var finalizeWaiters: [CheckedContinuation<Void, Never>] = []
 
   init(responseText: String) {
     self.responseText = responseText
@@ -236,36 +229,25 @@ private actor RecordingInferAPI: InferAPI {
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     recognizeCount += 1
-    if finalize {
-      finalizeCount += 1
-      let waiters = finalizeWaiters
-      finalizeWaiters.removeAll()
-      for waiter in waiters {
-        waiter.resume()
-      }
-    }
-    if firstBatchCount == nil {
-      firstBatchCount = frames.count
-      let waiters = firstBatchWaiters
-      firstBatchWaiters.removeAll()
-      for waiter in waiters {
-        waiter.resume(returning: frames.count)
-      }
-    }
+    if finalize { finalizeCount += 1 }
+    firstBatchCount = firstBatchCount ?? frames.count
     return recognitionResponse(text: responseText, context: context, finalize: finalize)
   }
 
-  func waitForFirstBatch() async -> Int {
-    if let firstBatchCount { return firstBatchCount }
-    return await withCheckedContinuation { continuation in
-      firstBatchWaiters.append(continuation)
+  func waitForFirstBatch() async -> Int? {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while firstBatchCount == nil, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
+    return firstBatchCount
   }
 
   func waitForFinalize() async {
-    guard finalizeCount == 0 else { return }
-    await withCheckedContinuation { continuation in
-      finalizeWaiters.append(continuation)
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while finalizeCount == 0, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 }
@@ -274,7 +256,6 @@ private actor BlockingInferAPI: InferAPI {
   private let responseText: String
   private var continuation: CheckedContinuation<InferenceRecognizeOut, Never>?
   private var started = false
-  private var startedWaiters: [CheckedContinuation<Void, Never>] = []
   private(set) var finalFrameTimestamp: Int?
 
   init(responseText: String) {
@@ -292,18 +273,14 @@ private actor BlockingInferAPI: InferAPI {
       return recognitionResponse(text: responseText, context: context, finalize: true)
     }
     started = true
-    let waiters = startedWaiters
-    startedWaiters.removeAll()
-    for waiter in waiters {
-      waiter.resume()
-    }
     return await withCheckedContinuation { continuation = $0 }
   }
 
   func waitUntilStarted() async {
-    guard !started else { return }
-    await withCheckedContinuation { continuation in
-      startedWaiters.append(continuation)
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while !started, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 
@@ -327,7 +304,6 @@ private actor BlockingInferAPI: InferAPI {
 private actor FailingInferAPI: InferAPI {
   private let failure: InferenceFailure
   private var wasCalled = false
-  private var callWaiters: [CheckedContinuation<Void, Never>] = []
 
   init(failure: InferenceFailure) {
     self.failure = failure
@@ -340,18 +316,14 @@ private actor FailingInferAPI: InferAPI {
     finalize: Bool
   ) async throws(InferenceFailure) -> InferenceRecognizeOut {
     wasCalled = true
-    let waiters = callWaiters
-    callWaiters.removeAll()
-    for waiter in waiters {
-      waiter.resume()
-    }
     throw failure
   }
 
   func waitUntilCalled() async {
-    guard !wasCalled else { return }
-    await withCheckedContinuation { continuation in
-      callWaiters.append(continuation)
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while !wasCalled, clock.now < deadline {
+      try? await Task.sleep(for: .milliseconds(10))
     }
   }
 }

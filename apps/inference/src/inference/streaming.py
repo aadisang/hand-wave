@@ -21,14 +21,14 @@ from inference.schemas import (
     StreamResetRequest,
 )
 
-PROTOCOL_VERSION = 2
-SUBPROTOCOL = "handwave.v2"
+PROTOCOL_VERSION = 1
+SUBPROTOCOL = "handwave.v1"
 WINDOW_FRAMES = 192
 
 
 class StreamMessage(BaseModel):
     sequence: int = Field(ge=0)
-    protocol: Literal[2] = PROTOCOL_VERSION
+    protocol: Literal[1] = PROTOCOL_VERSION
 
 
 StreamRequest = StreamPingRequest | StreamResetRequest | StreamRecognizeRequest

@@ -4,20 +4,28 @@ import {
   getInferenceConnectionStatus,
   subscribeInferenceConnection,
 } from "@/lib/inference/connection";
-import type { Frame, StreamCtrl } from "@/types/inference";
+import type { Frame, InferenceMode, StreamCtrl } from "@/types/inference";
 
-export function useInfer(live: boolean, boundary: number) {
+export function useInfer(live: boolean, boundary: number, mode: InferenceMode) {
   const ctrlRef = useRef<StreamCtrl | null>(null);
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeInferenceConnection(mode, listener),
+    [mode],
+  );
+  const getSnapshot = useCallback(
+    () => getInferenceConnectionStatus(mode),
+    [mode],
+  );
   const connectionStatus = useSyncExternalStore(
-    subscribeInferenceConnection,
-    getInferenceConnectionStatus,
-    getInferenceConnectionStatus,
+    subscribe,
+    getSnapshot,
+    getSnapshot,
   );
 
   useEffect(() => {
     if (!live) return;
 
-    const ctrl = createStreamCtrl();
+    const ctrl = createStreamCtrl(mode);
     ctrlRef.current = ctrl;
     void ctrl.start();
 
@@ -25,7 +33,7 @@ export function useInfer(live: boolean, boundary: number) {
       ctrlRef.current = null;
       ctrl.dispose();
     };
-  }, [live]);
+  }, [live, mode]);
 
   useEffect(() => {
     ctrlRef.current?.reset();
@@ -37,6 +45,7 @@ export function useInfer(live: boolean, boundary: number) {
 
   return {
     accept,
+    connectionStatus,
     status: live ? connectionStatus : "idle",
   };
 }

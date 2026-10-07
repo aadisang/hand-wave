@@ -21,18 +21,7 @@ enum InferenceEndpoint: Equatable, Sendable {
   case device
 }
 
-protocol EmissionTransport: Sendable {
-  func warmConnection() async throws(InferenceFailure)
-  func recognize(
-    emission: InferenceEmission,
-    state: InferenceRecognitionState?,
-    context: InferenceRecognitionContext,
-    finalize: Bool
-  ) async throws(InferenceFailure) -> InferenceRecognizeOut
-  func resetStream() async
-}
-
-actor InferClient: InferAPI, EmissionTransport {
+actor InferClient: InferAPI {
   private enum RecognitionInput: Sendable {
     case frames([LandmarkFrame])
     case emission(InferenceEmission)
@@ -176,7 +165,7 @@ actor InferClient: InferAPI, EmissionTransport {
           try await sendWebSocket(
             InferenceStreamFinalizeRecognizeRequest(
               sequence: requestSequence,
-              _protocol: InferenceStreamProtocol.version,
+              _protocol: 1,
               type: .recognize,
               state: needsResync ? state : nil,
               context: context,
@@ -188,7 +177,7 @@ actor InferClient: InferAPI, EmissionTransport {
           try await sendWebSocket(
             InferenceStreamFrameRecognizeRequest(
               sequence: requestSequence,
-              _protocol: InferenceStreamProtocol.version,
+              _protocol: 1,
               type: .recognize,
               state: needsResync ? state : nil,
               context: context,
@@ -203,7 +192,7 @@ actor InferClient: InferAPI, EmissionTransport {
         try await sendWebSocket(
           InferenceStreamEmissionRecognizeRequest(
             sequence: requestSequence,
-            _protocol: InferenceStreamProtocol.version,
+            _protocol: 1,
             type: .recognize,
             state: needsResync ? state : nil,
             context: context,
@@ -259,7 +248,7 @@ actor InferClient: InferAPI, EmissionTransport {
     try await sendWebSocket(
       InferenceStreamResetRequest(
         sequence: requestSequence,
-        _protocol: InferenceStreamProtocol.version,
+        _protocol: 1,
         type: .reset
       ),
       owner: owner
@@ -300,7 +289,7 @@ actor InferClient: InferAPI, EmissionTransport {
 
   private func openWebSocket(generation: Int) async throws(InferenceFailure) -> WebSocketOwner {
     let url = try webSocketURL()
-    let task = webSocketSession.webSocketTask(with: url, protocols: [InferenceStreamProtocol.subprotocolName])
+    let task = webSocketSession.webSocketTask(with: url, protocols: ["handwave.v1"])
     let owner = WebSocketOwner(task: task, url: url)
     guard generation == connectionGeneration else {
       task.cancel(with: .goingAway, reason: nil)
@@ -316,7 +305,7 @@ actor InferClient: InferAPI, EmissionTransport {
       let requestSequence = sequence
       let request = InferenceStreamPingRequest(
         sequence: requestSequence,
-        _protocol: InferenceStreamProtocol.version,
+        _protocol: 1,
         type: .ping
       )
       let response = try await withWebSocketDeadline(

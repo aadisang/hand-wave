@@ -1,10 +1,5 @@
 import Foundation
 
-enum InferenceStreamProtocol {
-  static let version = 2
-  static let subprotocolName = "handwave.v2"
-}
-
 enum StreamResponsePayload: Sendable {
   case pong(InferenceStreamPongResponse)
   case reset(InferenceStreamResetResponse)
@@ -23,9 +18,6 @@ enum StreamResponsePayload: Sendable {
   static func decode(from data: Data) throws -> Self {
     let decoder = JSONDecoder()
     let header = try decoder.decode(StreamResponseHeader.self, from: data)
-    guard header.protocolVersion == InferenceStreamProtocol.version else {
-      throw StreamProtocolError.unsupportedVersion(header.protocolVersion)
-    }
     switch header.type {
     case InferenceStreamPongResponse.InferenceType.pong.rawValue:
       return .pong(try decoder.decode(InferenceStreamPongResponse.self, from: data))
@@ -43,22 +35,8 @@ enum StreamResponsePayload: Sendable {
 
 private struct StreamResponseHeader: Decodable {
   let type: String
-  let protocolVersion: Int
-
-  enum CodingKeys: String, CodingKey {
-    case type
-    case protocolVersion = "protocol"
-  }
 }
 
-private enum StreamProtocolError: Error, LocalizedError {
+private enum StreamProtocolError: Error {
   case unknownType(String)
-  case unsupportedVersion(Int)
-
-  var errorDescription: String? {
-    switch self {
-    case .unknownType(let type): "Unknown inference response: \(type)."
-    case .unsupportedVersion: "The app and inference server need matching updates."
-    }
-  }
 }

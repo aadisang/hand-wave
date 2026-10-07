@@ -11,7 +11,7 @@ enum InferenceMode: String, CaseIterable, Identifiable, Sendable {
   case device
 
   var id: Self { self }
-  var title: String { self == .remote ? "Cloud" : "Phone + Cloud" }
+  var title: String { self == .remote ? "Cloud" : "On Device" }
   var systemImage: String { self == .remote ? "icloud" : "iphone" }
 
   static var selected: Self {

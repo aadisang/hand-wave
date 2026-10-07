@@ -31,11 +31,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { duration, easeOut } from "@/lib/motion";
+import type { InferenceConnectionStatus } from "@/lib/inference/connection";
 import { cn } from "@/lib/utils";
 import type { CaptureSession } from "@/types/capture";
+import type { InferenceMode } from "@/types/inference";
 import { useDevStore } from "@/stores/dev-store";
 import { useLandmarksStore } from "@/stores/landmarks-store";
 import { CameraSelect } from "./camera-select";
+import { InferenceModeSelect } from "./inference-mode-select";
 
 const repositoryUrl = "https://github.com/sinarck/hand-wave";
 
@@ -48,6 +51,9 @@ type Props = {
   capture: CaptureSession;
   full: boolean;
   onFull: () => void;
+  mode: InferenceMode;
+  modeStatus: InferenceConnectionStatus;
+  setMode: (mode: InferenceMode) => void;
   /** Whether recent stage activity should keep the controls on screen. */
   revealed: boolean;
 };
@@ -56,6 +62,9 @@ export const StreamToolbar = memo(function StreamToolbar({
   capture,
   full,
   onFull,
+  mode,
+  modeStatus,
+  setMode,
   revealed,
 }: Props) {
   const devEnabled = useDevStore((s) => s.enabled);
@@ -67,13 +76,15 @@ export const StreamToolbar = memo(function StreamToolbar({
   const startCamera = useCallback(() => start("camera"), [start]);
   const isCapturing = state.status === "live" || state.status === "starting";
   const isCamera = isCapturing && state.kind === "camera";
+  const stopLabel = isCamera ? "Stop camera" : "Stop sharing";
   const landmarksLabel = drawLandmarks ? "Hide landmarks" : "Show landmarks";
   const devLabel = devEnabled ? "Hide dev panel" : "Show dev panel";
   const fullLabel = full ? "Exit fullscreen" : "Enter fullscreen";
 
   useHotkey(
     "Space",
-    () => {
+    (event) => {
+      if (!acceptGlobalHotkey(event)) return;
       if (isCapturing) {
         stop();
       } else {
@@ -83,20 +94,35 @@ export const StreamToolbar = memo(function StreamToolbar({
     {
       enabled: state.status !== "starting",
       ignoreInputs: true,
-      preventDefault: true,
+      preventDefault: false,
       requireReset: true,
+      stopPropagation: false,
     },
   );
-  useHotkey("F", onFull, {
-    ignoreInputs: true,
-    preventDefault: true,
-    requireReset: true,
-  });
-  useHotkey("D", toggleDev, {
-    ignoreInputs: true,
-    preventDefault: true,
-    requireReset: true,
-  });
+  useHotkey(
+    "F",
+    (event) => {
+      if (acceptGlobalHotkey(event)) onFull();
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      requireReset: true,
+      stopPropagation: false,
+    },
+  );
+  useHotkey(
+    "D",
+    (event) => {
+      if (acceptGlobalHotkey(event)) toggleDev();
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      requireReset: true,
+      stopPropagation: false,
+    },
+  );
 
   const shouldReduceMotion = useReducedMotion();
   const [hover, setHover] = useState(false);
@@ -155,11 +181,11 @@ export const StreamToolbar = memo(function StreamToolbar({
             >
               <ToolbarGroup className="shrink-0 justify-center">
                 {isCapturing ? (
-                  <ControlTooltip key="stop-sharing" label="Stop sharing">
+                  <ControlTooltip key={stopLabel} label={stopLabel}>
                     <TooltipTrigger
                       render={
                         <Button
-                          aria-label="Stop sharing"
+                          aria-label={stopLabel}
                           onClick={stop}
                           size="icon-sm"
                           variant="destructive"
@@ -212,6 +238,13 @@ export const StreamToolbar = memo(function StreamToolbar({
                   setCameraId={setCameraId}
                 />
               )}
+
+              <InferenceModeSelect
+                mode={mode}
+                onOpenChange={setSelectOpen}
+                setMode={setMode}
+                status={modeStatus}
+              />
 
               <ToolbarSeparator orientation="vertical" />
 
@@ -286,6 +319,21 @@ export const StreamToolbar = memo(function StreamToolbar({
     </div>
   );
 });
+
+function acceptGlobalHotkey(event: KeyboardEvent) {
+  const target = event.target;
+  if (
+    target instanceof Element &&
+    target.closest(
+      "a, button, input, select, textarea, [contenteditable], [role=combobox], [role=listbox], [role=option]",
+    )
+  ) {
+    return false;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
 
 function ControlTooltip({
   children,

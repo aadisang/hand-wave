@@ -1,12 +1,12 @@
 import { env } from "@/config/env";
-import { setInferenceConnectionStatus } from "@/lib/inference/connection";
+import type { InferenceConnectionStatus } from "@/lib/inference/connection";
 import type { components } from "@/lib/inference/generated/openapi";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 import { WebSocket as PartySocket } from "partysocket";
 
 const warmupTimeoutMs = 120_000;
-const streamProtocol = 2;
-const streamSubprotocol = "handwave.v2";
+const streamProtocol = 1;
+const streamSubprotocol = "handwave.v1";
 const reconnectCode = 4000;
 
 type StreamResponse = components["schemas"]["StreamResponse"];
@@ -34,6 +34,10 @@ type ConnectionAttempt = {
   promise: Promise<SocketOwner>;
 };
 
+type StatusSink = (status: InferenceConnectionStatus) => void;
+
+const ignoreStatus: StatusSink = () => undefined;
+
 export class InferenceSocket {
   private owner: SocketOwner | null = null;
   private connectionAttempt: ConnectionAttempt | null = null;
@@ -42,6 +46,11 @@ export class InferenceSocket {
   private lastSentFrame: Frame | null = null;
   private needsResync = true;
   private requestQueue: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly baseURL = env.VITE_INFERENCE_URL,
+    private readonly setStatus: StatusSink = ignoreStatus,
+  ) {}
 
   prepare(timeoutMs = warmupTimeoutMs) {
     return this.open(timeoutMs).then(() => undefined);
@@ -83,7 +92,7 @@ export class InferenceSocket {
     this.needsResync = true;
     if (owner)
       this.discardOwner(owner, new Error("Inference stream was reset"));
-    setInferenceConnectionStatus("idle");
+    this.setStatus("idle");
   }
 
   private async recognizeNow(
@@ -96,34 +105,53 @@ export class InferenceSocket {
       throw new Error("Inference stream was reset");
     }
 
-    const frames = payload.frames ?? [];
-    const { delta, resync, cursorLost } = streamFrameDelta(
-      frames,
-      this.lastSentFrame,
-      this.needsResync,
-    );
-    if (cursorLost) {
-      await this.resetOwner(owner, timeoutMs);
-    }
-    if (delta.length === 0 && !payload.finalize) {
-      throw new Error("Inference request had no new frames");
-    }
-    const request: StreamRequestBody = delta.length === 0
-      ? {
+    let request: StreamRequestBody;
+    let nextFrame: Frame | null = null;
+    if (payload.input === "frames") {
+      const { delta, resync, cursorLost } = streamFrameDelta(
+        payload.frames,
+        this.lastSentFrame,
+        this.needsResync,
+      );
+      if (cursorLost) await this.resetOwner(owner, timeoutMs);
+      if (delta.length === 0) {
+        if (!payload.finalize) {
+          throw new Error("Inference request did not contain new frames");
+        }
+        request = {
           type: "recognize",
           protocol: streamProtocol,
           input: "finalize",
           state: resync ? payload.state : undefined,
           context: payload.context,
-        }
-      : {
-          ...payload,
+        };
+      } else {
+        request = {
           type: "recognize",
           protocol: streamProtocol,
           input: "frames",
           frames: compactFrames(delta),
           state: resync ? payload.state : undefined,
+          context: payload.context,
+          finalize: payload.finalize,
         };
+        nextFrame = payload.finalize ? null : (payload.frames.at(-1) ?? null);
+      }
+    } else if (payload.input === "emission") {
+      request = {
+        ...payload,
+        type: "recognize",
+        protocol: streamProtocol,
+        state: this.needsResync ? payload.state : undefined,
+      };
+    } else {
+      request = {
+        ...payload,
+        type: "recognize",
+        protocol: streamProtocol,
+        state: this.needsResync ? payload.state : undefined,
+      };
+    }
     const response = await this.exchange(owner, request, timeoutMs);
     if (response.type === "error") {
       throw new Error(response.detail);
@@ -131,7 +159,7 @@ export class InferenceSocket {
     if (response.type !== "result") {
       const error = new Error("Invalid inference stream response");
       this.discardOwner(owner, error);
-      setInferenceConnectionStatus("error");
+      this.setStatus("error");
       throw error;
     }
     if (generation !== this.generation || owner !== this.owner) {
@@ -139,7 +167,7 @@ export class InferenceSocket {
     }
 
     this.needsResync = false;
-    this.lastSentFrame = payload.finalize ? null : (frames.at(-1) ?? null);
+    this.lastSentFrame = nextFrame;
     return response.result;
   }
 
@@ -184,7 +212,7 @@ export class InferenceSocket {
     }
     if (this.connectionAttempt) return this.connectionAttempt.promise;
 
-    setInferenceConnectionStatus("connecting");
+    this.setStatus("connecting");
     const owner = this.owner ?? this.createOwner();
 
     const attempt: ConnectionAttempt = {
@@ -201,7 +229,7 @@ export class InferenceSocket {
 
   private createOwner(): SocketOwner {
     const socket = new PartySocket(
-      inferenceWebSocketURL().toString(),
+      inferenceWebSocketURL(this.baseURL).toString(),
       [streamSubprotocol],
       {
         WebSocket: globalThis.WebSocket,
@@ -238,14 +266,14 @@ export class InferenceSocket {
       if (owner !== this.owner)
         throw new Error("Inference stream was replaced");
       owner.ready = true;
-      setInferenceConnectionStatus("ready");
+      this.setStatus("ready");
       return owner;
     } catch (cause) {
       const error = asError(cause, "Inference WebSocket connection failed");
       const wasCurrentOwner = owner === this.owner;
       this.interruptOwner(owner, error);
       if (wasCurrentOwner) {
-        setInferenceConnectionStatus("error");
+        this.setStatus("error");
         if (owner.socket.readyState === PartySocket.OPEN) {
           owner.socket.reconnect(reconnectCode, "handshake failed");
         }
@@ -291,7 +319,7 @@ export class InferenceSocket {
     owner.socket.addEventListener("open", () => {
       if (owner.closed || owner !== this.owner) return;
       owner.ready = false;
-      setInferenceConnectionStatus("connecting");
+      this.setStatus("connecting");
     });
     owner.socket.addEventListener("message", (event) => {
       try {
@@ -309,7 +337,7 @@ export class InferenceSocket {
           owner,
           asError(cause, "Invalid inference stream response"),
         );
-        setInferenceConnectionStatus("error");
+        this.setStatus("error");
       }
     });
     owner.socket.addEventListener("error", () => {
@@ -318,13 +346,13 @@ export class InferenceSocket {
         new Error("Inference WebSocket request failed"),
       );
       if (!owner.closed && owner === this.owner) {
-        setInferenceConnectionStatus("error");
+        this.setStatus("error");
       }
     });
     owner.socket.addEventListener("close", () => {
       this.interruptOwner(owner, new Error("Inference WebSocket closed"));
       if (!owner.closed && owner === this.owner) {
-        setInferenceConnectionStatus("connecting");
+        this.setStatus("connecting");
       }
     });
   }
@@ -383,7 +411,7 @@ export class InferenceSocket {
     owner.socket.close(1000, "stream closed");
     if (this.owner !== owner) return;
     this.owner = null;
-    setInferenceConnectionStatus("idle");
+    this.setStatus("idle");
   }
 }
 

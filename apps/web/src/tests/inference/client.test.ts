@@ -4,7 +4,7 @@ import {
   inferenceWebSocketURL,
   streamFrameDelta,
 } from "@/lib/inference/socket";
-import type { Frame, RecognizeIn } from "@/types/inference";
+import type { Frame, FrameRecognizeIn } from "@/types/inference";
 
 describe("inference WebSocket client", () => {
   afterEach(() => {
@@ -62,12 +62,30 @@ describe("inference WebSocket client", () => {
     };
     socket.receive({
       type: "pong",
-      protocol: 2,
+      protocol: 1,
       sequence: request.sequence,
     });
 
     await Promise.all([first, second]);
     expect(secondReady).toBe(true);
+    client.close();
+  });
+
+  test("reports connection state through its own status sink", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const setStatus = vi.fn();
+    const client = new InferenceSocket("http://localhost:8000", setStatus);
+
+    const connection = client.prepare();
+    const socket = await fakeSocket(0);
+    expect(setStatus).toHaveBeenLastCalledWith("connecting");
+
+    socket.open();
+    await Promise.resolve();
+    respondToPing(socket);
+    await connection;
+
+    expect(setStatus).toHaveBeenLastCalledWith("ready");
     client.close();
   });
 
@@ -89,7 +107,7 @@ describe("inference WebSocket client", () => {
     };
     secondSocket.receive({
       type: "pong",
-      protocol: 2,
+      protocol: 1,
       sequence: ping.sequence,
     });
 
@@ -147,7 +165,7 @@ describe("inference WebSocket client", () => {
     expect(request.type).toBe("reset");
     socket.receive({
       type: "reset",
-      protocol: 2,
+      protocol: 1,
       sequence: request.sequence,
     });
 
@@ -186,7 +204,7 @@ describe("inference WebSocket client", () => {
       expect(lastRequest(socket).type).toBe("reset");
     });
     const reset = lastRequest(socket);
-    socket.receive({ type: "reset", protocol: 2, sequence: reset.sequence });
+    socket.receive({ type: "reset", protocol: 1, sequence: reset.sequence });
     await respondToRecognition(socket);
     await second;
 
@@ -195,6 +213,71 @@ describe("inference WebSocket client", () => {
       .filter((request) => request.type === "recognize");
     expect(recognizeRequests).toHaveLength(2);
     expect(recognizeRequests[1]?.frames).toHaveLength(2);
+    client.close();
+  });
+
+  test("sends local emissions without landmark frames", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket("https://decoder.example");
+    const request = client.recognize(
+      {
+        input: "emission",
+        emission: {
+          values: [Array(60).fill(-1)],
+          frame_confidence: 0.8,
+        },
+        context: {
+          idle_frames: 0,
+          missing_frames: 0,
+          segment_frames: 18,
+          motion: 0.1,
+        },
+      },
+      1_000,
+    );
+    const socket = await fakeSocket(0);
+    socket.open();
+    await Promise.resolve();
+    respondToPing(socket);
+    await vi.waitFor(() => {
+      expect(lastRequest(socket).type).toBe("recognize");
+    });
+    const payload = JSON.parse(socket.sent.at(-1) ?? "null") as Record<
+      string,
+      unknown
+    >;
+
+    expect(payload.frames).toBeUndefined();
+    expect(payload.emission).toMatchObject({ frame_confidence: 0.8 });
+    await respondToRecognition(socket);
+    await request;
+    client.close();
+  });
+
+  test("sends a finalize-only request when no new frames arrived", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const client = new InferenceSocket();
+    const frames = [frame(0), frame(1)];
+
+    const first = client.recognize(recognizePayload(frames), 1_000);
+    const socket = await fakeSocket(0);
+    socket.open();
+    await Promise.resolve();
+    respondToPing(socket);
+    await respondToRecognition(socket);
+    await first;
+
+    const final = client.recognize(
+      { ...recognizePayload(frames), finalize: true },
+      1_000,
+    );
+    await vi.waitFor(() => {
+      expect(lastRequest(socket).input).toBe("finalize");
+    });
+
+    expect(lastRequest(socket)).not.toHaveProperty("frames");
+    await respondToRecognition(socket);
+    await final;
     client.close();
   });
 });
@@ -254,7 +337,7 @@ function respondToPing(socket: FakeWebSocket) {
   const request = lastRequest(socket);
   socket.receive({
     type: "pong",
-    protocol: 2,
+    protocol: 1,
     sequence: request.sequence,
   });
 }
@@ -266,7 +349,7 @@ async function respondToRecognition(socket: FakeWebSocket) {
   const request = lastRequest(socket);
   socket.receive({
     type: "result",
-    protocol: 2,
+    protocol: 1,
     sequence: request.sequence,
     result: {
       state: {
@@ -284,13 +367,16 @@ async function respondToRecognition(socket: FakeWebSocket) {
 
 function lastRequest(socket: FakeWebSocket) {
   return JSON.parse(socket.sent.at(-1) ?? "null") as {
+    [key: string]: unknown;
+    input?: string;
     sequence: number;
     type: string;
   };
 }
 
-function recognizePayload(frames: Frame[]): RecognizeIn {
+function recognizePayload(frames: Frame[]): FrameRecognizeIn {
   return {
+    input: "frames",
     frames,
     context: {
       idle_frames: 0,

@@ -210,8 +210,8 @@ model StreamEnvelope {
   @minValue(0)
   sequence: int32;
 
-  @minValue(2)
-  @maxValue(2)
+  @minValue(1)
+  @maxValue(1)
   protocol: int32;
 }
 

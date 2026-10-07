@@ -1,6 +1,5 @@
 import {
   clearInferenceSession,
-  closeInferenceStream,
   prepareInferenceStream,
   recognizeFrames,
 } from "@/lib/inference/client";
@@ -19,13 +18,14 @@ import type {
   RecognitionContext,
   RecognitionState,
   RecognizeOut,
+  InferenceMode,
   StreamCtrl,
   WireDecodeTrace,
   WireFinalizeTrace,
 } from "@/types/inference";
 import { toDetectionPrediction } from "@/types/inference";
 
-export function createStreamCtrl(): StreamCtrl {
+export function createStreamCtrl(mode: InferenceMode): StreamCtrl {
   type RequestPhase =
     | { kind: "idle" }
     | { kind: "decode"; id: number; epoch: number }
@@ -111,11 +111,11 @@ export function createStreamCtrl(): StreamCtrl {
     pendingFinalize = null;
     ended = false;
     resetRecognition();
-    void clearInferenceSession().catch(() => undefined);
+    void clearInferenceSession(mode).catch(() => undefined);
   };
 
   const start = () => {
-    void prepareInferenceStream().catch(() => undefined);
+    void prepareInferenceStream(mode).catch(() => undefined);
   };
 
   const dispose = () => {
@@ -124,7 +124,7 @@ export function createStreamCtrl(): StreamCtrl {
     requestPhase = { kind: "idle" };
     pendingFinalize = null;
     resetRecognition();
-    closeInferenceStream();
+    void clearInferenceSession(mode).catch(() => undefined);
   };
 
   const updateMotion = (frame: Frame, acceptedAt: number) => {
@@ -182,7 +182,7 @@ export function createStreamCtrl(): StreamCtrl {
     const id = ++requestID;
     requestPhase = { kind: "decode", id, epoch: batchEpoch };
     try {
-      const result = await recognizeFrames({
+      const result = await recognizeFrames(mode, {
         input: "frames",
         frames: batch,
         state,
@@ -208,8 +208,10 @@ export function createStreamCtrl(): StreamCtrl {
     } catch {
       if (isActiveRequest("decode", id, batchEpoch)) {
         requestPhase = { kind: "idle" };
-        pendingFinalize = null;
-        resetRecognition();
+        clearHold();
+        setPrediction(null);
+        if (pendingFinalize) startFinalization();
+        else lastDecodeAt = 0;
       }
       return;
     }
@@ -234,7 +236,7 @@ export function createStreamCtrl(): StreamCtrl {
     if (!pending || pending.epoch !== epoch) return;
     const activeState = state;
     state = null;
-    if (!activeState) {
+    if (!activeState && pending.frames.length === 0) {
       setPrediction(null);
       return;
     }
@@ -244,13 +246,13 @@ export function createStreamCtrl(): StreamCtrl {
   };
 
   const finalizeRemote = async (
-    activeState: RecognitionState,
+    activeState: RecognitionState | null,
     pending: PendingFinalize,
     id: number,
   ) => {
     let result: RecognizeOut;
     try {
-      result = await recognizeFrames({
+      result = await recognizeFrames(mode, {
         input: "frames",
         frames: pending.frames,
         state: activeState,

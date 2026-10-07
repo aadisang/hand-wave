@@ -6,14 +6,6 @@ on:
       - main
     tags:
       - "ios-v*"
-    paths:
-      - ".github/actions/setup-contract/**"
-      - ".github/actions/setup-tuist/**"
-      - ".github/workflows/testflight.yml"
-      - "apps/mobile/**"
-      - "package.json"
-      - "packages/contract/**"
-      - "pnpm-lock.yaml"
   workflow_dispatch:
     inputs:
       changelog:
@@ -38,7 +30,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          lfs: true
 
       - name: Verify release source
         shell: bash
@@ -90,8 +81,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          lfs: true
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.5.app

@@ -46,8 +46,8 @@ struct DevMenuView: View {
 
           Text(
             inferenceMode == .device
-              ? "Runs the model on this phone. Sends model scores to the cloud to decode text. Internet required."
-              : "Sends landmarks to the cloud to recognize signs. Camera images stay on this phone."
+              ? "Runs the model on this phone. Text checks still use the network."
+              : "Runs the model and text checks in the cloud."
           )
           .font(.footnote)
           .foregroundStyle(.secondary)

@@ -106,11 +106,13 @@ export function useCaptureSession(): CaptureSession {
   useEffect(() => {
     if (!intent) return;
 
+    const request = intent;
     let cancelled = false;
     let active: MediaStream | null = null;
 
-    void openStream(intent)
-      .then((next) => {
+    async function startStream() {
+      try {
+        const next = await openStream(request);
         if (cancelled) {
           stopStream(next.stream);
           return;
@@ -118,9 +120,9 @@ export function useCaptureSession(): CaptureSession {
 
         active = next.stream;
         setMachine((current) =>
-          current.intent === intent
+          current.intent === request
             ? {
-                intent,
+                intent: request,
                 phase: "live",
                 stream: next.stream,
                 frameRate: next.frameRate,
@@ -128,7 +130,7 @@ export function useCaptureSession(): CaptureSession {
             : current,
         );
 
-        if (intent.kind === "camera") {
+        if (request.kind === "camera") {
           const resolvedCameraId = next.stream
             .getVideoTracks()[0]
             .getSettings().deviceId;
@@ -140,15 +142,17 @@ export function useCaptureSession(): CaptureSession {
         next.stream.getVideoTracks().forEach((track) => {
           track.onended = () => setMachine({ intent: null, phase: "idle" });
         });
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setMachine({
           intent: null,
           phase: "error",
-          message: captureErrorMessage(intent.kind, err),
+          message: captureErrorMessage(request.kind, err),
         });
-      });
+      }
+    }
+
+    void startStream();
 
     return () => {
       cancelled = true;

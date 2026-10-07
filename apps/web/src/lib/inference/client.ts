@@ -1,8 +1,19 @@
 import createClient from "openapi-fetch";
 import { env } from "@/config/env";
+import {
+  setInferenceConnectionStatus,
+  type InferenceConnectionStatus,
+} from "@/lib/inference/connection";
 import type { paths } from "@/lib/inference/generated/openapi";
 import { compactFrames, InferenceSocket } from "@/lib/inference/socket";
-import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
+import { inferLocally, prepareLocalModel } from "@/lib/inference/local-model";
+import type {
+  Emission,
+  Frame,
+  FrameRecognizeIn,
+  InferenceMode,
+  RecognizeOut,
+} from "@/types/inference";
 
 class StatusError extends Error {
   constructor(readonly status: number) {
@@ -17,9 +28,23 @@ const predictTimeoutMs = 12_000;
 const streamTimeoutMs = 30_000;
 const warmupTimeoutMs = 120_000;
 const landmarkFrameSize = 162;
+const deviceInferenceURL =
+  env.VITE_DEVICE_INFERENCE_URL ??
+  (import.meta.env.PROD
+    ? "https://sinarck--decoder.modal.run"
+    : env.VITE_INFERENCE_URL);
 const warmupFrame: Frame = Array(landmarkFrameSize).fill(0);
-const inferenceSocket = new InferenceSocket();
+const remoteSocket = new InferenceSocket(env.VITE_INFERENCE_URL, (status) =>
+  setInferenceConnectionStatus("remote", status),
+);
+let deviceModelStatus: InferenceConnectionStatus = "idle";
+let deviceTransportStatus: InferenceConnectionStatus = "idle";
+const deviceSocket = new InferenceSocket(deviceInferenceURL, (status) => {
+  deviceTransportStatus = status;
+  publishDeviceStatus();
+});
 let warmup: Promise<void> | null = null;
+let deviceWarmup: Promise<void> | null = null;
 
 export async function predictFrames(
   frames: Frame[],
@@ -43,13 +68,16 @@ export async function predictFrames(
 }
 
 export function recognizeFrames(
-  payload: RecognizeIn,
+  mode: InferenceMode,
+  payload: FrameRecognizeIn,
   timeoutMs = streamTimeoutMs,
 ): Promise<RecognizeOut> {
-  return inferenceSocket.recognize(payload, timeoutMs);
+  if (mode === "remote") return remoteSocket.recognize(payload, timeoutMs);
+  return recognizeWithLocalModel(payload, timeoutMs);
 }
 
-export function warmInference() {
+export function warmInference(mode: InferenceMode) {
+  if (mode === "device") return prepareDeviceInference();
   // Warm the model without reserving a long-lived WebSocket for an idle page.
   warmup ??= predictFrames([warmupFrame], warmupTimeoutMs)
     .then(() => undefined)
@@ -60,14 +88,81 @@ export function warmInference() {
   return warmup;
 }
 
-export function prepareInferenceStream() {
-  return inferenceSocket.prepare();
+export async function prepareInferenceStream(mode: InferenceMode) {
+  if (mode === "device") {
+    await prepareDeviceInference();
+    return;
+  }
+  await remoteSocket.prepare();
 }
 
-export function clearInferenceSession() {
-  return inferenceSocket.clearRecognition(streamTimeoutMs);
+export function clearInferenceSession(mode: InferenceMode) {
+  return socketFor(mode).clearRecognition(streamTimeoutMs);
 }
 
-export function closeInferenceStream() {
-  inferenceSocket.close();
+async function recognizeWithLocalModel(
+  payload: FrameRecognizeIn,
+  timeoutMs: number,
+) {
+  let emission: Emission;
+  try {
+    emission = await inferLocally(payload.frames);
+    deviceModelStatus = "ready";
+    publishDeviceStatus();
+  } catch (error) {
+    deviceModelStatus = "error";
+    publishDeviceStatus();
+    throw error;
+  }
+  return deviceSocket.recognize(
+    {
+      input: "emission",
+      emission,
+      state: payload.state,
+      context: payload.context,
+      finalize: payload.finalize,
+    },
+    timeoutMs,
+  );
+}
+
+function socketFor(mode: InferenceMode) {
+  return mode === "device" ? deviceSocket : remoteSocket;
+}
+
+function prepareDeviceInference() {
+  if (deviceModelStatus !== "ready") deviceModelStatus = "connecting";
+  publishDeviceStatus();
+  deviceWarmup ??= Promise.all([prepareLocalModel(), deviceSocket.prepare()])
+    .then(() => {
+      deviceModelStatus = "ready";
+      publishDeviceStatus();
+    })
+    .catch((error: unknown) => {
+      deviceModelStatus = "error";
+      publishDeviceStatus();
+      throw error;
+    })
+    .then(() => undefined)
+    .finally(() => {
+      deviceWarmup = null;
+    });
+  return deviceWarmup;
+}
+
+function publishDeviceStatus() {
+  let status: InferenceConnectionStatus;
+  if (deviceModelStatus === "error" || deviceTransportStatus === "error") {
+    status = "error";
+  } else if (
+    deviceModelStatus === "ready" &&
+    deviceTransportStatus === "ready"
+  ) {
+    status = "ready";
+  } else if (deviceModelStatus === "idle" && deviceTransportStatus === "idle") {
+    status = "idle";
+  } else {
+    status = "connecting";
+  }
+  setInferenceConnectionStatus("device", status);
 }
