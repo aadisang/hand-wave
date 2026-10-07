@@ -1,7 +1,29 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Page,
+  type TestInfo,
+  type Worker,
+} from "@playwright/test";
 
 const backendURL = process.env.VITE_INFERENCE_URL!;
 const deploymentId = process.env.HANDWAVE_DEPLOYMENT_ID!;
+
+test.beforeEach(async ({ browser }, testInfo) => {
+  const session = await browser.newBrowserCDPSession();
+  try {
+    const [version, system] = await Promise.all([
+      session.send("Browser.getVersion"),
+      session.send("SystemInfo.getInfo"),
+    ]);
+    await testInfo.attach("browser-system", {
+      body: JSON.stringify({ version, system }, null, 2),
+      contentType: "application/json",
+    });
+  } finally {
+    await session.detach();
+  }
+});
 
 test.afterEach(async ({ page }, testInfo) => {
   // Save the last visible state before unloading the real MediaPipe workers.
@@ -89,6 +111,7 @@ test("camera reaches the real backend, runs both detectors, and restarts cleanly
     ).toBeVisible();
     expect(evidence.errors).toEqual([]);
   } finally {
+    await attachWorkers(page, testInfo);
     await testInfo.attach("session-evidence", {
       body: JSON.stringify(evidence, null, 2),
       contentType: "application/json",
@@ -138,12 +161,51 @@ test("camera permission denial gives an error and can be retried", async ({
     ).toBeVisible();
     expect(evidence.errors).toEqual([]);
   } finally {
+    await attachWorkers(page, testInfo);
     await testInfo.attach("session-evidence", {
       body: JSON.stringify(evidence, null, 2),
       contentType: "application/json",
     });
   }
 });
+
+async function attachWorkers(page: Page, testInfo: TestInfo) {
+  const workers = await Promise.all(page.workers().map(inspectWorker));
+  await testInfo.attach("worker-resources", {
+    body: JSON.stringify(workers, null, 2),
+    contentType: "application/json",
+  });
+}
+
+async function inspectWorker(worker: Worker) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const state = await Promise.race([
+      worker
+        .evaluate(() => ({
+          moduleFactory: typeof (globalThis as Record<string, unknown>)
+            .ModuleFactory,
+          resources: performance
+            .getEntriesByType("resource")
+            .map((entry) => entry.toJSON()),
+        }))
+        .catch((error: Error) => ({ error: error.message })),
+      new Promise((resolve) => {
+        timer = setTimeout(
+          () =>
+            resolve({
+              error:
+                "Worker did not answer a diagnostic read within two seconds",
+            }),
+          2_000,
+        );
+      }),
+    ]);
+    return { url: worker.url(), state };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function screenshot(page: Page, testInfo: TestInfo, name: string) {
   const path = testInfo.outputPath(`${name}.png`);
@@ -157,17 +219,29 @@ function observeSession(page: Page) {
     deploymentId,
     health: null as unknown,
     errors: [] as string[],
-    console: [] as { text: string; url: string }[],
+    console: [] as { type: string; text: string; url: string }[],
+    workers: [] as { url: string; createdAt: string; closedAt?: string }[],
     sockets: [] as string[],
     replies: [] as unknown[],
     handshakes: 0,
     closedSockets: 0,
   };
   page.on("pageerror", (error) => evidence.errors.push(error.message));
+  page.on("worker", (worker) => {
+    const event = {
+      url: worker.url(),
+      createdAt: new Date().toISOString(),
+      closedAt: undefined as string | undefined,
+    };
+    evidence.workers.push(event);
+    worker.on("close", () => {
+      event.closedAt = new Date().toISOString();
+    });
+  });
   page.on("console", (message) => {
-    if (message.type() !== "error") return;
     const { url } = message.location();
-    evidence.console.push({ text: message.text(), url });
+    evidence.console.push({ type: message.type(), text: message.text(), url });
+    if (message.type() !== "error") return;
     // Vercel injects analytics only on its hosted service. Keep this expected
     // local 404 in the artifact, but fail on all application errors.
     if (url === "http://localhost:3000/_vercel/insights/script.js") return;
