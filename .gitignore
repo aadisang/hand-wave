@@ -48,3 +48,4 @@ apps/inference/src/inference/generated/tunings.py
 .lazyweb/
 .codex/
 .handwave/
+/artifacts/

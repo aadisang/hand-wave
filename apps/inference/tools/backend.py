@@ -79,15 +79,39 @@ async def verify_backend(url: str, deployment_id: str) -> None:
                         "segment_frames": 24,
                         "motion": 0.0,
                     },
-                    "finalize": True,
+                    "finalize": False,
                 }
             )
             result = await socket.receive_json()
             if result.get("type") != "result" or result.get("sequence") != 2:
                 raise RuntimeError(f"Inference smoke test failed: {result}")
-            await socket.send_json({"type": "reset", "sequence": 3, "protocol": 1})
+            trace = result.get("result", {}).get("trace", {})
+            if not trace.get("prediction") or trace.get("decode", {}).get("buffered_frames") != 24:
+                raise RuntimeError("Inference smoke test did not execute the model")
+            await socket.send_json(
+                {
+                    "type": "recognize",
+                    "sequence": 3,
+                    "protocol": 1,
+                    "context": {
+                        "idle_frames": 0,
+                        "missing_frames": 0,
+                        "segment_frames": 24,
+                        "motion": 0.0,
+                    },
+                    "finalize": True,
+                }
+            )
+            finalized = await socket.receive_json()
+            if (
+                finalized.get("type") != "result"
+                or finalized.get("sequence") != 3
+                or not finalized.get("result", {}).get("trace", {}).get("finalize")
+            ):
+                raise RuntimeError(f"Inference finalize failed: {finalized}")
+            await socket.send_json({"type": "reset", "sequence": 4, "protocol": 1})
             reset = await socket.receive_json()
-            if reset != {"type": "reset", "sequence": 3, "protocol": 1}:
+            if reset != {"type": "reset", "sequence": 4, "protocol": 1}:
                 raise RuntimeError(f"Inference reset failed: {reset}")
 
 

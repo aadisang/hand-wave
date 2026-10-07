@@ -111,18 +111,21 @@ let project = Project(
       product: .unitTests,
       bundleId: "sh.handwave.HandWaveTests",
       deploymentTargets: .iOS("26.0"),
-      infoPlist: .default,
+      infoPlist: .extendingDefault(with: [
+        "HandWaveExpectedDeploymentID": "$(HANDWAVE_DEPLOYMENT_ID)"
+      ]),
       buildableFolders: ["HandWave/Tests"],
       dependencies: [.target(name: "HandWave")],
       settings: .settings(
         base: [
+          "HANDWAVE_DEPLOYMENT_ID": "",
           "FRAMEWORK_SEARCH_PATHS": [
             "$(inherited)",
             "$(PROJECT_DIR)/Pods/MediaPipeTasksCommon/frameworks",
             "$(PROJECT_DIR)/Pods/MediaPipeTasksVision/frameworks",
             "$(BUILT_PRODUCTS_DIR)/XCFrameworkIntermediates/MediaPipeTasksCommon",
             "$(BUILT_PRODUCTS_DIR)/XCFrameworkIntermediates/MediaPipeTasksVision",
-          ]
+          ],
         ]
       )
     ),

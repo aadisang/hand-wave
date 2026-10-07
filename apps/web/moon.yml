@@ -45,7 +45,7 @@ tasks:
     outputs:
       - ".output"
 
-  test:
+  testIsolated:
     command: "pnpm exec vitest run"
     deps:
       - "contract:generate"
@@ -59,6 +59,16 @@ tasks:
       - "vitest.config.ts"
       - "package.json"
       - "moon.yml"
+
+  test:
+    command: "pnpm exec playwright test"
+    deps:
+      - "contract:generate"
+    options:
+      cache: false
+    outputs:
+      - "test-results"
+      - "playwright-report"
 
   preview:
     command: "pnpm exec vite preview"

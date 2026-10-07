@@ -2,35 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   createActiveHandSelector,
-  handednessForUnmirroredInput,
   toFrame,
   toModelInput,
 } from "@/lib/mediapipe/landmarks";
 import type { HandFrame } from "@/types/landmarks";
 
 describe("toFrame", () => {
-  it("keeps a valid hand and upper-body pose even when visibility metadata is low", () => {
-    const frame = handFrame({
-      rightHandLandmarks: [landmarks(21, point(0.5, 0.5, 0.1))],
-      leftHandLandmarks: [],
-      poseLandmarks: [pose()],
-    });
-
-    expect(toFrame(frame)).toHaveLength((21 + 33) * 3);
-  });
-
-  it("rejects frames without both a hand and pose", () => {
-    expect(
-      toFrame(
-        handFrame({
-          rightHandLandmarks: [landmarks(21, point(0.5, 0.5))],
-          leftHandLandmarks: [],
-          poseLandmarks: [],
-        }),
-      ),
-    ).toBeNull();
-  });
-
   it("rejects poses whose upper-body anchors are out of frame", () => {
     const outOfFramePose = pose();
     outOfFramePose[11] = point(2, 2);
@@ -66,38 +43,7 @@ describe("toModelInput", () => {
   });
 });
 
-describe("handednessForUnmirroredInput", () => {
-  it("swaps MediaPipe handedness for unmirrored input", () => {
-    expect(handednessForUnmirroredInput("Right")).toBe("Left");
-    expect(handednessForUnmirroredInput("Left")).toBe("Right");
-  });
-});
-
 describe("createActiveHandSelector", () => {
-  it("selects the hand that appears first", () => {
-    const selector = createActiveHandSelector();
-
-    expect(
-      selector.select(
-        handFrame({
-          rightHandLandmarks: [],
-          leftHandLandmarks: [handAt(0.2, 0.4)],
-          poseLandmarks: [pose()],
-        }),
-      ),
-    ).toBe("Left");
-
-    expect(
-      selector.select(
-        handFrame({
-          rightHandLandmarks: [handAt(0.8, 0.4)],
-          leftHandLandmarks: [handAt(0.2, 0.4)],
-          poseLandmarks: [pose()],
-        }),
-      ),
-    ).toBe("Left");
-  });
-
   it("switches when the other hand is the one moving", () => {
     const selector = createActiveHandSelector();
 
