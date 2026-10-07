@@ -33,8 +33,9 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/main"
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      - name: Set up iOS simulator
+        id: simulator
+        uses: ./.github/actions/setup-ios-simulator
 
       - name: Set up Tuist
         uses: ./.github/actions/setup-tuist
@@ -67,7 +68,7 @@ jobs:
             -workspace HandWave.xcworkspace \
             -scheme HandWave \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -destination '${{ steps.simulator.outputs.destination }}' \
             -derivedDataPath Derived/TestFlightVerification
 
   release:
@@ -95,8 +96,9 @@ jobs:
         with:
           lfs: true
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      - name: Set up iOS simulator
+        id: simulator
+        uses: ./.github/actions/setup-ios-simulator
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@003a5c4d8d6321bd302e38f6f0ec593f77f06600 # v1
@@ -143,7 +145,7 @@ jobs:
             -scheme HandWave \
             -configuration Release \
             ENABLE_TESTABILITY=YES \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -destination '${{ steps.simulator.outputs.destination }}' \
             -derivedDataPath Derived/ReleaseVerification
 
       - name: Import distribution certificate
