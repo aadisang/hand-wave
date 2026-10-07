@@ -42,6 +42,9 @@ local inference process for backend, browser, and native checks. It generates
 the native workspace before running the simulator suite. Set `IOS_DESTINATION`
 to an Xcode simulator destination when needed. Use `pnpm test --web-only` where
 the iOS toolchain is unavailable; the report records that reduced scope.
+Use `--native-only` to omit the browser. CI runs the browser on Ubuntu and the
+native client on macOS in parallel, with a separate real backend for each job
+from the same commit. Local `pnpm test` runs both clients against one backend.
 
 To use a running isolated Modal development service instead, start
 `pnpm dev:mobile` in another terminal and run

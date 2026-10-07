@@ -15,7 +15,40 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          lfs: true
+      - uses: ./.github/actions/setup-contract
+      - name: Install test dependencies
+        run: |
+          uv sync --frozen --project apps/inference --group deploy
+          pnpm --filter @hand-wave/web exec playwright install --with-deps chromium
+      - name: Static checks
+        run: |
+          pnpm exec moon run web:lint web:typecheck inference:lint inference:formatCheck inference:typecheck contract:generatedCheck
+          uv run --project apps/inference --frozen ruff check scripts/e2e.py
+          uv run --project apps/inference --frozen ruff format --check scripts/e2e.py
+          uv run --project apps/inference --frozen --group deploy pyright scripts/e2e.py
+      - name: Real service and production browser
+        run: pnpm test --web-only --output artifacts/e2e/browser
+      - name: Documented isolated regressions
+        run: pnpm exec moon run web:testIsolated inference:test
+      - name: Save repeatable browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-evidence-${{ github.sha }}
+          path: artifacts/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+  native:
     runs-on: macos-26
     timeout-minutes: 40
     steps:
@@ -27,33 +60,24 @@ jobs:
         id: simulator
       - uses: ./.github/actions/setup-tuist
       - uses: ./.github/actions/setup-contract
-      - name: Install test dependencies
-        run: |
-          uv sync --frozen --project apps/inference --group deploy
-          pnpm --filter @hand-wave/web exec playwright install chromium
-      - name: Static checks
-        run: |
-          pnpm exec moon run web:lint web:typecheck inference:lint inference:formatCheck inference:typecheck contract:generatedCheck
-          uv run --project apps/inference --frozen ruff check scripts/e2e.py
-          uv run --project apps/inference --frozen ruff format --check scripts/e2e.py
-          uv run --project apps/inference --frozen --group deploy pyright scripts/e2e.py
-      - name: Real service, browser, and native client
+      - name: Install backend dependencies
+        run: uv sync --frozen --project apps/inference --group deploy
+      - name: Real service and native client
         env:
           IOS_DESTINATION: ${{ steps.simulator.outputs.destination }}
           TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
-        run: pnpm test --output artifacts/e2e/ci
-      - name: Documented isolated regressions
+        run: pnpm test --native-only --output artifacts/e2e/native
+      - name: Documented native regressions
         env:
           IOS_DESTINATION: ${{ steps.simulator.outputs.destination }}
           IOS_EVIDENCE_DIR: ${{ github.workspace }}/artifacts/isolated/mobile
-        run: |
-          pnpm exec moon run web:testIsolated inference:test
-          bash apps/mobile/scripts/test.sh isolated Debug
-      - name: Save repeatable test evidence
+        run: bash apps/mobile/scripts/test.sh isolated Debug
+      - name: Save repeatable native evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-evidence-${{ github.sha }}
+          name: native-evidence-${{ github.sha }}
           path: artifacts/
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
