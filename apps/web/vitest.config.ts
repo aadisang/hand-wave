@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    env: { VITE_INFERENCE_URL: "https://inference.invalid" },
     include: ["src/tests/**/*.test.ts"],
   },
 });
