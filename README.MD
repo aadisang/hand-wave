@@ -6,9 +6,11 @@ Sign recognition for web and iOS, backed by a small Python inference service.
 
 ## Setup
 
-Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, and moon.
+Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, moon, and Git LFS.
 
 ```sh
+git lfs install
+git lfs pull
 pnpm install
 uv sync --project apps/inference --group deploy
 ```
