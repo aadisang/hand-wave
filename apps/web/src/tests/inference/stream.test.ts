@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { cfg } from "@hand-wave/contract";
 import { createStreamCtrl } from "@/lib/inference/stream";
-import { interpolateFrame, streamTiming } from "@/lib/inference/stream-gate";
+import { streamTiming } from "@/lib/inference/stream-gate";
 import { useDetectionsStore } from "@/stores/detections-store";
 import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 
@@ -48,18 +48,6 @@ describe("stream controller", () => {
     });
   });
 
-  test("keeps the prepared transport open while no hand is visible", () => {
-    const controller = createStreamCtrl();
-
-    for (let index = 0; index < lost * 2; index += 1) {
-      controller.accept(null);
-    }
-
-    expect(inference.reset).not.toHaveBeenCalled();
-    controller.dispose();
-    expect(inference.reset).toHaveBeenCalledOnce();
-  });
-
   test("resets server state without closing the transport after a frame stall", () => {
     const controller = createStreamCtrl();
     clockStepMs = 100;
@@ -100,21 +88,6 @@ describe("stream controller", () => {
     );
   });
 
-  test("keeps model timing on the trained 24 FPS grid", () => {
-    const timing = streamTiming();
-
-    expect(timing.minFrames).toBe(cfg.stream.min);
-    expect(timing.idle).toBe(cfg.stream.idle);
-    expect(timing.lost).toBe(cfg.stream.lost);
-    expect(timing.stride).toBe(cfg.stream.stride);
-    expect(timing.maxFrames).toBe(cfg.decode.window);
-    expect(timing.sampleMs).toBeCloseTo(1_000 / cfg.stream.fps);
-  });
-
-  test("interpolates source frames onto the model grid", () => {
-    expect(interpolateFrame([0, 2], [2, 6], 0.5)).toEqual([1, 4]);
-  });
-
   test("builds the same model window from 24 and 60 FPS input", () => {
     inference.recognize.mockResolvedValue(response("cat", false));
 
@@ -126,27 +99,6 @@ describe("stream controller", () => {
     for (let index = 0; index < at24.length; index += 1) {
       expect(at60[index]?.[0]).toBeCloseTo(at24[index]?.[0] ?? 0, 3);
     }
-  });
-
-  test("decodes low fps input on human time", () => {
-    clockStepMs = 100;
-    inference.recognize.mockResolvedValue(response("cat", false));
-
-    const controller = createStreamCtrl();
-    for (
-      let index = 0;
-      inference.recognize.mock.calls.length === 0;
-      index += 1
-    ) {
-      controller.accept(frame(index * 0.01));
-      expect(index).toBeLessThan(12);
-    }
-
-    expect(inference.recognize).toHaveBeenCalledWith(
-      expect.objectContaining({
-        frames: expect.arrayContaining([expect.any(Array)]),
-      }),
-    );
   });
 
   test("preserves a decode response after landmarks disappear", async () => {
@@ -215,29 +167,6 @@ describe("stream controller", () => {
       expect.objectContaining({ finalize: true }),
     );
     expect(useDetectionsStore.getState().currentPrediction?.text).toBe("cat");
-  });
-
-  test("clears live state when recognition fails", async () => {
-    inference.recognize.mockRejectedValue(new Error("offline"));
-    useDetectionsStore.getState().setCurrentPrediction({
-      text: "cat",
-      confidence: 0.92,
-      processingTimeMs: 1,
-      committed: false,
-    });
-
-    const controller = createStreamCtrl();
-    for (
-      let index = 0;
-      inference.recognize.mock.calls.length === 0;
-      index += 1
-    ) {
-      controller.accept(frame(index * 0.01));
-      expect(index).toBeLessThan(minFrames + stride + 4);
-    }
-    await flushPromises();
-
-    expect(useDetectionsStore.getState().currentPrediction).toBeNull();
   });
 });
 

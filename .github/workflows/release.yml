@@ -17,59 +17,8 @@ permissions:
 
 jobs:
   verify:
-    name: Verify
-    runs-on: macos-26
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          lfs: true
-
-      - name: Verify release source
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$GITHUB_REF" = "refs/heads/main"
-
-      - name: Set up iOS simulator
-        id: simulator
-        uses: ./.github/actions/setup-ios-simulator
-
-      - name: Set up Tuist
-        uses: ./.github/actions/setup-tuist
-
-      - name: Set up contract
-        uses: ./.github/actions/setup-contract
-
-      - name: Check web and inference
-        env:
-          VITE_INFERENCE_URL: https://inference.invalid
-        run: |
-          uv sync --frozen --project apps/inference --group deploy
-          pnpm exec moon run web:lint web:typecheck web:test web:build inference:lint inference:typecheck inference:test contract:generatedCheck
-
-      - name: Generate workspace
-        working-directory: apps/mobile
-        env:
-          TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
-        run: |
-          tuist install
-          tuist generate --no-open
-          pod install
-
-      - name: Test
-        working-directory: apps/mobile
-        env:
-          TUIST_TOKEN: ${{ secrets.TUIST_TOKEN }}
-        run: |
-          tuist xcodebuild test \
-            -workspace HandWave.xcworkspace \
-            -scheme HandWave \
-            -configuration Debug \
-            -destination '${{ steps.simulator.outputs.destination }}' \
-            -derivedDataPath Derived/TestFlightVerification
+    uses: ./.github/workflows/checks.yml
+    secrets: inherit
 
   release:
     name: Publish verified release
@@ -84,6 +33,7 @@ jobs:
     steps:
       - name: Check web release configuration
         run: |
+          test "$GITHUB_REF" = "refs/heads/main"
           for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::Configure $name in the testflight GitHub environment before releasing."
@@ -138,15 +88,21 @@ jobs:
           pod install
 
       - name: Test the release client against its backend
-        working-directory: apps/mobile
-        run: |
-          xcodebuild test \
-            -workspace HandWave.xcworkspace \
-            -scheme HandWave \
-            -configuration Release \
-            ENABLE_TESTABILITY=YES \
-            -destination '${{ steps.simulator.outputs.destination }}' \
-            -derivedDataPath Derived/ReleaseVerification
+        env:
+          E2E_INFERENCE_URL: ${{ steps.backend.outputs.url }}
+          HANDWAVE_DEPLOYMENT_ID: ${{ steps.backend.outputs.deployment_id }}
+          IOS_DESTINATION: ${{ steps.simulator.outputs.destination }}
+          IOS_EVIDENCE_DIR: ${{ github.workspace }}/artifacts/release/mobile
+        run: bash apps/mobile/scripts/test.sh live Release
+
+      - name: Save release verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-evidence-${{ github.sha }}
+          path: artifacts/release/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Import distribution certificate
         uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7

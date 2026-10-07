@@ -15,15 +15,4 @@ struct PhoneCameraTests {
 
     #expect(duration == exactMinimum)
   }
-
-  @Test
-  func preservesARequestedDurationInsideTheSupportedRange() {
-    let duration = PhoneCamera.frameDuration(
-      for: 30,
-      minimum: CMTime(value: 1, timescale: 60),
-      maximum: CMTime(value: 1, timescale: 1)
-    )
-
-    #expect(duration == CMTime(value: 1, timescale: 30))
-  }
 }

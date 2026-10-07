@@ -30,6 +30,13 @@ tasks:
     inputs:
       - 'models/**/*'
 
+  e2e:
+    command: 'uv run --frozen --group deploy python -m tools.e2e'
+    deps:
+      - 'contract:generate'
+    options:
+      cache: false
+
   dev:
     command: 'uv run --frozen --group deploy python -m tools.dev'
     deps:

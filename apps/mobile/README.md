@@ -28,14 +28,20 @@ Camera images stay on the phone; the app sends landmarks for cloud recognition.
 Connection failures show the actual error and retry automatically. The full
 initial connection attempt has a 120-second deadline for a cloud cold start.
 
-Generate dependencies and open the workspace from the repository root:
+Project generation needs no Tuist login. Set `TUIST_TOKEN` only to opt into the
+existing cloud project. Generate dependencies and open the workspace from the
+repository root:
 
 ```sh
 moon run mobile:open
 ```
 
-Run the iOS tests with:
+Keep `pnpm dev:mobile` running, then run the live client/service check with:
 
 ```sh
 moon run mobile:test
 ```
+
+The check saves a repeatable `.xcresult` evidence bundle. It does not verify camera
+input, sign accuracy, or speech. See [TESTING.md](TESTING.md) for coverage, the three
+retained regression checks, artifact paths, and the physical-device E2E gate.

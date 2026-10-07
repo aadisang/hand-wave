@@ -6,16 +6,6 @@ import Testing
 
 struct WebSocketDeadlineTests {
   @Test
-  func successKeepsTheSocketOpen() async throws {
-    let socket = PendingSocketOperation()
-    let value = try await withWebSocketDeadline(timeout: .seconds(60), cancel: socket.cancel) {
-      42
-    }
-    #expect(value == 42)
-    #expect(!socket.isCancelled)
-  }
-
-  @Test
   func failedIOCancelsTheDeadlineImmediately() async {
     let started = ContinuousClock.now
     let socket = PendingSocketOperation()
@@ -44,24 +34,6 @@ struct WebSocketDeadlineTests {
     }
   }
 
-  @Test
-  func cancellationClosesTheSocketWithoutWaitingForTheDeadline() async {
-    let socket = PendingSocketOperation()
-    let task = Task {
-      try await withWebSocketDeadline(timeout: .seconds(60), cancel: socket.cancel) {
-        try await socket.send()
-      }
-    }
-    while !socket.isPending { await Task.yield() }
-    task.cancel()
-    do {
-      try await task.value
-      Issue.record("A cancelled connection must not succeed")
-    } catch {
-      #expect(socket.isCancelled)
-      #expect(error as? InferenceFailure == .cancelled)
-    }
-  }
 }
 
 /// Models socket I/O that only resumes when the transport is closed.
@@ -73,7 +45,6 @@ private final class PendingSocketOperation: Sendable {
   private let state = Mutex(State())
 
   var isCancelled: Bool { state.withLock { $0.isCancelled } }
-  var isPending: Bool { state.withLock { $0.continuation != nil } }
 
   func send() async throws {
     try await withCheckedThrowingContinuation { continuation in

@@ -84,19 +84,7 @@ tasks:
     # A configured suite calls a live backend whose state is not a file input.
     options:
       cache: false
-    command:
-      - "xcodebuild"
-      - "test"
-      - "-workspace"
-      - "HandWave.xcworkspace"
-      - "-scheme"
-      - "HandWave"
-      - "-configuration"
-      - "Debug"
-      - "-destination"
-      - "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"
-      - "-derivedDataPath"
-      - "Derived/Test"
+    command: "./scripts/test.sh live Debug"
     deps:
       - "pods"
     inputs:

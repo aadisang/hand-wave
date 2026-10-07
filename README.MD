@@ -103,6 +103,14 @@ the internet; `dev` isolation does not make them authenticated.
 Local Python debugging is still available with `moon run inference:local`; it is
 not the normal phone development path.
 
+## Testing
+
+Run `pnpm test` for the real backend, production browser app, and native client
+suite. Each run saves repeatable evidence under `artifacts/e2e`, including
+protocol transcripts, browser traces/video, native result bundles, source
+identity, and SHA-256 checksums. See [the testing policy and commands](tests/README.md)
+for setup, retained isolated regressions, and physical-device coverage gaps.
+
 ## Releases
 
 The **Release** GitHub workflow is manually started from `main`. Merging runs CI;
