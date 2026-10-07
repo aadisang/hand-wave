@@ -420,11 +420,19 @@ func withWebSocketDeadline<Value: Sendable>(
       group.addTask { try await operation() }
       group.addTask {
         try await Task.sleep(for: timeout)
-        cancel()
         throw WebSocketResponseTimeout()
       }
-      guard let result = try await group.next() else { throw CancellationError() }
-      return result
+      do {
+        guard let result = try await group.next() else { throw CancellationError() }
+        try Task.checkCancellation()
+        return result
+      } catch {
+        // Select the failure before closing the socket, since closing it can
+        // release pending I/O with a different transport error.
+        cancel()
+        if Task.isCancelled { throw InferenceFailure.cancelled }
+        throw error
+      }
     }
   } onCancel: {
     cancel()
