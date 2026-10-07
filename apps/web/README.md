@@ -20,7 +20,5 @@ pnpm test --web-only
 ```
 
 This runs the real local model service and browser journeys against a production
-build. Install Chromium first with
-`pnpm --filter @hand-wave/web exec playwright install chromium`.
-See [test scope and evidence](tests/TESTING.md) for artifacts, retained isolated
-regressions, and checks against an existing Modal development backend.
+build. See [the shared testing guide](../../tests/README.md) for setup, commands,
+and evidence, and [test scope](tests/TESTING.md) for retained isolated regressions.

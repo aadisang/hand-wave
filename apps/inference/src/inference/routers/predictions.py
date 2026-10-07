@@ -1,4 +1,4 @@
-from os import getenv
+from os import environ
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -41,7 +41,7 @@ async def predict(
 
 @router.get("/health", response_model=HealthOut)
 async def health() -> HealthOut:
-    return HealthOut(ok=True, deployment_id=getenv("HANDWAVE_DEPLOYMENT_ID", "local"))
+    return HealthOut(ok=True, deployment_id=environ["HANDWAVE_DEPLOYMENT_ID"])
 
 
 @router.post("/recognize", response_model=RecognizeOut)

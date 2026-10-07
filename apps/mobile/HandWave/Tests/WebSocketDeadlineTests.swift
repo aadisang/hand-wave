@@ -5,6 +5,8 @@ import Testing
 @testable import HandWave
 
 struct WebSocketDeadlineTests {
+  // Kept: without cancelAll, a refused connection waits out the whole deadline.
+  // The live flow never forces that race.
   @Test
   func failedIOCancelsTheDeadlineImmediately() async {
     let started = ContinuousClock.now
@@ -20,6 +22,8 @@ struct WebSocketDeadlineTests {
     }
   }
 
+  // Kept: a healthy live service cannot stall socket I/O until only closing the socket
+  // releases it, which is the hang this deadline prevents.
   @Test
   func timeoutUnblocksAnUnresponsiveSend() async {
     let socket = PendingSocketOperation()
@@ -30,7 +34,7 @@ struct WebSocketDeadlineTests {
       Issue.record("An unresponsive send must time out")
     } catch {
       #expect(socket.isCancelled)
-      #expect(error is WebSocketResponseTimeout)
+      #expect(error as? InferenceFailure == .timedOut)
     }
   }
 

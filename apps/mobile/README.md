@@ -36,12 +36,8 @@ repository root:
 moon run mobile:open
 ```
 
-Keep `pnpm dev:mobile` running, then run the live client/service check with:
-
-```sh
-moon run mobile:test
-```
-
-The check saves a repeatable `.xcresult` evidence bundle. It does not verify camera
-input, sign accuracy, or speech. See [TESTING.md](TESTING.md) for coverage, the three
-retained regression checks, artifact paths, and the physical-device E2E gate.
+`pnpm test` runs the live client/service check against a real local backend and
+saves a repeatable `.xcresult` evidence bundle; see
+[the shared testing guide](../../tests/README.md). It does not verify camera input,
+sign accuracy, or speech. See [TESTING.md](TESTING.md) for coverage, the three
+retained regression checks, and the physical-device E2E gate.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -63,56 +64,35 @@ async def verify_backend(url: str, deployment_id: str) -> None:
         async with client.ws_connect(
             f"wss://{urlsplit(url).netloc}/v1/stream", protocols=["handwave.v1"]
         ) as socket:
-            await socket.send_json({"type": "ping", "sequence": 1, "protocol": 1})
-            pong = await socket.receive_json()
-            if pong != {"type": "pong", "sequence": 1, "protocol": 1}:
-                raise RuntimeError(f"Invalid inference handshake: {pong}")
-            await socket.send_json(
-                {
-                    "type": "recognize",
-                    "sequence": 2,
-                    "protocol": 1,
-                    "frames": [[0.0] * 162 for _ in range(24)],
-                    "context": {
-                        "idle_frames": 0,
-                        "missing_frames": 0,
-                        "segment_frames": 24,
-                        "motion": 0.0,
-                    },
-                    "finalize": False,
-                }
+            if socket.protocol != "handwave.v1":
+                raise RuntimeError("Inference service did not negotiate handwave.v1")
+
+            async def exchange(request: str, sequence: int, reply: str, **fields: Any) -> Any:
+                await socket.send_json(
+                    {"type": request, "sequence": sequence, "protocol": 1, **fields}
+                )
+                response = await socket.receive_json()
+                envelope = (
+                    {key: value for key, value in response.items() if key != "result"}
+                    if reply == "result"
+                    else response
+                )
+                if envelope != {"type": reply, "sequence": sequence, "protocol": 1}:
+                    raise RuntimeError(f"Inference {request} failed: {response}")
+                return response.get("result", {}).get("trace", {})
+
+            context = {"idle_frames": 0, "missing_frames": 0, "segment_frames": 24, "motion": 0.0}
+            await exchange("ping", 1, "pong")
+            frames = [[0.0] * 162 for _ in range(24)]
+            trace = await exchange(
+                "recognize", 2, "result", frames=frames, context=context, finalize=False
             )
-            result = await socket.receive_json()
-            if result.get("type") != "result" or result.get("sequence") != 2:
-                raise RuntimeError(f"Inference smoke test failed: {result}")
-            trace = result.get("result", {}).get("trace", {})
             if not trace.get("prediction") or trace.get("decode", {}).get("buffered_frames") != 24:
                 raise RuntimeError("Inference smoke test did not execute the model")
-            await socket.send_json(
-                {
-                    "type": "recognize",
-                    "sequence": 3,
-                    "protocol": 1,
-                    "context": {
-                        "idle_frames": 0,
-                        "missing_frames": 0,
-                        "segment_frames": 24,
-                        "motion": 0.0,
-                    },
-                    "finalize": True,
-                }
-            )
-            finalized = await socket.receive_json()
-            if (
-                finalized.get("type") != "result"
-                or finalized.get("sequence") != 3
-                or not finalized.get("result", {}).get("trace", {}).get("finalize")
-            ):
-                raise RuntimeError(f"Inference finalize failed: {finalized}")
-            await socket.send_json({"type": "reset", "sequence": 4, "protocol": 1})
-            reset = await socket.receive_json()
-            if reset != {"type": "reset", "sequence": 4, "protocol": 1}:
-                raise RuntimeError(f"Inference reset failed: {reset}")
+            trace = await exchange("recognize", 3, "result", context=context, finalize=True)
+            if not trace.get("finalize"):
+                raise RuntimeError("Inference finalize did not execute the decoder")
+            await exchange("reset", 4, "reset")
 
 
 def write_manifest(path: Path, url: str, deployment_id: str, environment: str) -> None:

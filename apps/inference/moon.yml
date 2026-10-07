@@ -30,21 +30,8 @@ tasks:
     inputs:
       - 'models/**/*'
 
-  e2e:
-    command: 'uv run --frozen --group deploy python -m tools.e2e'
-    deps:
-      - 'contract:generate'
-    options:
-      cache: false
-
   dev:
     command: 'uv run --frozen --group deploy python -m tools.dev'
-    deps:
-      - 'contract:generate'
-    preset: 'server'
-
-  local:
-    command: 'uv run --frozen uvicorn inference.main:app --reload --port 8000'
     deps:
       - 'contract:generate'
     preset: 'server'

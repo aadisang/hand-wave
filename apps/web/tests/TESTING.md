@@ -1,7 +1,5 @@
 # Web test scope
 
-Written before this test cleanup. No product code changes are part of the cleanup.
-
 ## Failures that matter
 
 | Failure                                                                                                                                | Evidence that can detect it                                                                                                     |
@@ -22,28 +20,17 @@ does not reproduce this network event. A live Chromium check with
 `context.setOffline(true)` left the existing WebSocket open after three seconds,
 so that control does not replace the isolated fault test.
 
-## Removed checks
+Vitest runs only these listed exceptions; a fake MediaPipe constructor cannot
+prove the shipped worker loads, so worker startup stays in browser E2E.
 
-Remove arithmetic/configuration checks, basic getters/resets, diagnostic FPS tests,
-mocked WASM factory tests, and connection lifecycle checks covered by the browser
-journeys. A fake MediaPipe constructor cannot prove the shipped worker loads.
-Deleted 26 of the 39 checks. No new isolated tests are added. Vitest remains
-only for the 13 listed exceptions.
+## Browser evidence
 
-## Repeatable browser evidence
-
-Run `pnpm dev:mobile` from the repository root to start an isolated backend. In
-another terminal, run `pnpm --filter @hand-wave/web test:e2e`. The runner reads
-`.handwave/development.json`; CI can instead set `VITE_INFERENCE_URL` and
-`HANDWAVE_DEPLOYMENT_ID`. It builds and starts the production app on port 3000
-and refuses to reuse an unknown server. Install Chromium once with
-`pnpm --filter @hand-wave/web exec playwright install chromium`.
-
-Every run writes `playwright-report/index.html`, `playwright-report/results.json`,
-and per-test traces, screenshots, console errors, and endpoint evidence in
-`test-results/`. Open the report with `pnpm --filter @hand-wave/web exec playwright
-show-report`. Set `HANDWAVE_E2E_OUTPUT` to put both folders under one run directory.
-Upload both folders even when tests fail.
+Run browser E2E through `pnpm test`; it supplies the backend URL and deployment
+ID. Commands and evidence verification are in
+[the shared testing guide](../../../tests/README.md). Playwright builds and starts
+the production app on port 3000 and refuses to reuse an unknown server. Each run
+keeps the HTML and JSON reports, per-test traces with console output, video,
+screenshots, and endpoint/session evidence, including when tests fail.
 
 The browser uses Chromium's synthetic camera, SwiftShader software graphics, real
 MediaPipe assets, and the real inference service. No application module or API response is mocked. These tests
@@ -51,18 +38,3 @@ prove startup and capture lifecycle; they do **not** prove sign-recognition
 accuracy. A licensed, labeled sign-video fixture is required before removing the
 remaining signal-processing and timing exceptions. Physical camera, screen-share
 picker, Safari, and mobile browser behavior still require separate device checks.
-
-## CI worker-startup failure (2026-10-07)
-
-The a86e945 CI artifact shows a working camera and backend handshake. Both
-MediaPipe loaders, WASM binaries, and model downloads return 200 and finish in
-less than four seconds. The video continues to present frames, but Hand FPS,
-Pose FPS, and the app's Presented FPS remain zero for 60 seconds. The app starts
-its frame callback only after both worker `warm()` calls return. No worker-ready
-or model initialization message appears in the captured console.
-
-Do not treat this as a slow network or raise the assertion timeout. Record the
-browser's native GPU information, worker lifecycle, and worker resource timings
-on the next run to distinguish failed graphics initialization from a blocked
-worker. These are observations of the shipped workers; no worker, model, or API
-response is replaced. Keep the real detector-output assertion unchanged.

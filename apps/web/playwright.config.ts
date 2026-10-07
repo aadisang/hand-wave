@@ -1,26 +1,13 @@
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const backend = process.env.VITE_INFERENCE_URL
-  ? {
-      url: process.env.VITE_INFERENCE_URL,
-      deployment_id: process.env.HANDWAVE_DEPLOYMENT_ID,
-    }
-  : JSON.parse(
-      readFileSync(
-        new URL("../../.handwave/development.json", import.meta.url),
-        "utf8",
-      ),
-    );
-if (!backend.url || !backend.deployment_id) {
+const { VITE_INFERENCE_URL: backendURL, HANDWAVE_DEPLOYMENT_ID: deploymentId } =
+  process.env;
+if (!backendURL || !deploymentId) {
   throw new Error(
-    "Start pnpm dev:mobile, or set VITE_INFERENCE_URL and HANDWAVE_DEPLOYMENT_ID.",
+    "Run browser E2E through pnpm test, which sets VITE_INFERENCE_URL and HANDWAVE_DEPLOYMENT_ID.",
   );
 }
-process.env.VITE_INFERENCE_URL = backend.url;
-process.env.HANDWAVE_DEPLOYMENT_ID = backend.deployment_id;
 
 const artifactRoot = process.env.HANDWAVE_E2E_OUTPUT ?? ".";
 
@@ -34,14 +21,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   outputDir: resolve(artifactRoot, "test-results"),
   metadata: {
-    revision: execFileSync("git", ["rev-parse", "HEAD"], {
-      encoding: "utf8",
-    }).trim(),
-    workingTree: execFileSync("git", ["status", "--porcelain"], {
-      encoding: "utf8",
-    }),
-    backend: backend.url,
-    deploymentId: backend.deployment_id,
+    backend: backendURL,
+    deploymentId,
     camera: "Chromium synthetic video; no sign-accuracy claim",
   },
   reporter: [
@@ -66,8 +47,6 @@ export default defineConfig({
     launchOptions: {
       args: [
         "--use-fake-device-for-media-stream",
-        "--enable-logging=stderr",
-        "--log-level=1",
         "--use-gl=angle",
         "--use-angle=swiftshader",
         "--enable-unsafe-swiftshader",
@@ -82,6 +61,6 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: false,
     timeout: 90_000,
-    env: { VITE_INFERENCE_URL: backend.url, PORT: "3000" },
+    env: { VITE_INFERENCE_URL: backendURL, PORT: "3000" },
   },
 });

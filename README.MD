@@ -100,9 +100,6 @@ removes generated endpoint settings. If development is not running, Debug shows
 an error instead of connecting to production. These endpoints are reachable over
 the internet; `dev` isolation does not make them authenticated.
 
-Local Python debugging is still available with `moon run inference:local`; it is
-not the normal phone development path.
-
 ## Testing
 
 Run `pnpm test` for the real backend, production browser app, and native client

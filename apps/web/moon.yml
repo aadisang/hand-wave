@@ -60,16 +60,6 @@ tasks:
       - "package.json"
       - "moon.yml"
 
-  test:
-    command: "pnpm test:e2e"
-    deps:
-      - "contract:generate"
-    options:
-      cache: false
-    outputs:
-      - "test-results"
-      - "playwright-report"
-
   preview:
     command: "pnpm exec vite preview"
     preset: "server"
