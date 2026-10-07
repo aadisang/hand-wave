@@ -51,3 +51,18 @@ prove startup and capture lifecycle; they do **not** prove sign-recognition
 accuracy. A licensed, labeled sign-video fixture is required before removing the
 remaining signal-processing and timing exceptions. Physical camera, screen-share
 picker, Safari, and mobile browser behavior still require separate device checks.
+
+## CI worker-startup failure (2026-10-07)
+
+The a86e945 CI artifact shows a working camera and backend handshake. Both
+MediaPipe loaders, WASM binaries, and model downloads return 200 and finish in
+less than four seconds. The video continues to present frames, but Hand FPS,
+Pose FPS, and the app's Presented FPS remain zero for 60 seconds. The app starts
+its frame callback only after both worker `warm()` calls return. No worker-ready
+or model initialization message appears in the captured console.
+
+Do not treat this as a slow network or raise the assertion timeout. Record the
+browser's native GPU information, worker lifecycle, and worker resource timings
+on the next run to distinguish failed graphics initialization from a blocked
+worker. These are observations of the shipped workers; no worker, model, or API
+response is replaced. Keep the real detector-output assertion unchanged.

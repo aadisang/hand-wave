@@ -61,7 +61,7 @@ tasks:
       - "moon.yml"
 
   test:
-    command: "pnpm exec playwright test"
+    command: "pnpm test:e2e"
     deps:
       - "contract:generate"
     options:

@@ -66,6 +66,8 @@ export default defineConfig({
     launchOptions: {
       args: [
         "--use-fake-device-for-media-stream",
+        "--enable-logging=stderr",
+        "--log-level=1",
         "--use-gl=angle",
         "--use-angle=swiftshader",
         "--enable-unsafe-swiftshader",
