@@ -40,6 +40,7 @@ struct WebSocketDeadlineTests {
       Issue.record("An unresponsive send must time out")
     } catch {
       #expect(socket.isCancelled)
+      #expect(error is WebSocketResponseTimeout)
     }
   }
 
@@ -51,12 +52,14 @@ struct WebSocketDeadlineTests {
         try await socket.send()
       }
     }
+    while !socket.isPending { await Task.yield() }
     task.cancel()
     do {
       try await task.value
       Issue.record("A cancelled connection must not succeed")
     } catch {
       #expect(socket.isCancelled)
+      #expect(error as? InferenceFailure == .cancelled)
     }
   }
 }
@@ -70,6 +73,7 @@ private final class PendingSocketOperation: Sendable {
   private let state = Mutex(State())
 
   var isCancelled: Bool { state.withLock { $0.isCancelled } }
+  var isPending: Bool { state.withLock { $0.continuation != nil } }
 
   func send() async throws {
     try await withCheckedThrowingContinuation { continuation in
@@ -78,7 +82,7 @@ private final class PendingSocketOperation: Sendable {
         state.continuation = continuation
         return false
       }
-      if cancelled { continuation.resume(throwing: CancellationError()) }
+      if cancelled { continuation.resume(throwing: URLError(.networkConnectionLost)) }
     }
   }
 
@@ -89,6 +93,6 @@ private final class PendingSocketOperation: Sendable {
       state.continuation = nil
       return continuation
     }
-    continuation?.resume(throwing: CancellationError())
+    continuation?.resume(throwing: URLError(.networkConnectionLost))
   }
 }
