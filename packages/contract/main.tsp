@@ -61,6 +61,7 @@ model PredictOut {
 
 model HealthOut {
   ok: boolean;
+  deployment_id: string;
 }
 
 enum RecognitionSource {

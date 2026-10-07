@@ -1,4 +1,6 @@
 #include "Base.xcconfig"
 #include? "HandWave.xcconfig"
 
-HANDWAVE_INFERENCE_URL = https:/$()/sinarck--hand-wave-inference.modal.run
+// Generated from the backend verified by the release workflow.
+HANDWAVE_INFERENCE_URL =
+#include? "ReleaseEndpoint.xcconfig"

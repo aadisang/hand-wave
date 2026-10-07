@@ -1,0 +1,28 @@
+name: Web and inference
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: ./.github/actions/setup-contract
+      - name: Check web and inference
+        env:
+          VITE_INFERENCE_URL: https://inference.invalid
+        run: |
+          uv sync --frozen --project apps/inference --group deploy
+          pnpm exec moon run web:lint web:typecheck web:test web:build inference:lint inference:formatCheck inference:typecheck inference:test contract:generatedCheck

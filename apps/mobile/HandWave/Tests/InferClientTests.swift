@@ -6,6 +6,14 @@ import Testing
 @Suite
 struct InferClientTests {
   @Test
+  func missingEndpointDoesNotConnectToProduction() async {
+    let client = InferClient(baseURLs: [])
+    await #expect(throws: InferenceFailure.missingBaseURL) {
+      try await client.warmConnection()
+    }
+  }
+
+  @Test
   func convertsBackendURLsToWebSocketURLs() {
     #expect(
       URL(string: "http://localhost:8000")?.webSocketURL(path: "/v1/stream")

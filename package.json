@@ -6,14 +6,15 @@
     "contract:regen": "moon run contract:cleanGenerated --force && moon run contract:generate --force",
     "check": "moon run :formatCheck :lint :typecheck :test contract:generatedCheck",
     "check:affected": "moon run :formatCheck :lint :typecheck :test --affected",
-    "dev": "moon run :dev --quiet",
+    "dev": "moon run inference:dev",
     "fix": "moon run :format :lintFix",
     "format": "moon run :format",
     "format:check": "moon run :formatCheck",
     "lint": "moon run :lint",
     "lint:fix": "moon run :lintFix",
     "test": "moon run :test",
-    "typecheck": "moon run :typecheck"
+    "typecheck": "moon run :typecheck",
+    "dev:mobile": "moon run inference:dev -- --backend-only"
   },
   "devDependencies": {
     "@moonrepo/cli": "2.3.5"
