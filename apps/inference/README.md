@@ -4,7 +4,8 @@ FastAPI inference service for Hand Wave.
 
 The iOS and browser clients use `wss://<host>/v1/stream` with the `handwave.v1` subprotocol. Each
 connection retains its rolling frame window and recognition state; reconnects resynchronize from the
-active window. `POST /v1/recognize` remains available as a fallback.
+active window. `POST /v1/recognize` is also available for direct HTTP API calls;
+the clients do not switch to it when a WebSocket fails.
 
 ## Modal
 
@@ -30,6 +31,11 @@ Deploy the persistent endpoint:
 moon run inference:modalDeploy
 ```
 
-After deploy, set the web app's `VITE_INFERENCE_URL` and the iOS build setting
-`HANDWAVE_INFERENCE_URL` to the Modal endpoint printed by the CLI. The iOS client converts the
-configured `https` URL to `wss` automatically.
+The web app's `VITE_INFERENCE_URL` and the iOS build setting `HANDWAVE_INFERENCE_URL`
+name this service. They are public endpoint configuration, not credentials.
+The iOS Release configuration pins the production Modal address; Debug can use
+a local override. Changing the production service address requires an app rebuild.
+Both clients convert the configured `https` URL to `wss` for streaming.
+
+See [compute and network boundaries](../../README.MD#compute-and-network-boundaries)
+for data flow, configuration, and current access-control limits.
