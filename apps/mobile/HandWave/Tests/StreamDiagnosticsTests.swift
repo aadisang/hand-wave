@@ -42,12 +42,13 @@ struct StreamDiagnosticsTests {
       (.deviceNotConnected("device"), "device_not_connected"),
       (.timeout, "timeout"),
       (.videoStreamingError, "video_streaming_error"),
+      (.audioStreamingError, "audio_streaming_error"),
+      (.photoCaptureFailed, "photo_capture_failed"),
       (.permissionDenied, "permission_denied"),
       (.hingesClosed, "hinges_closed"),
-      (.thermalCritical, "thermal_critical"),
-      (.thermalEmergency, "thermal_emergency"),
-      (.peakPowerShutdown, "peak_power_shutdown"),
-      (.batteryCritical, "battery_critical"),
+      (.thermalHot, "thermal_hot"),
+      (.peakPowerLimit, "peak_power_limit"),
+      (.batteryLow, "battery_low"),
     ]
 
     for (error, name) in errors {
@@ -71,6 +72,8 @@ struct StreamDiagnosticsTests {
       (.batteryCritical, "battery_critical"),
       (.datAppOnTheGlassesUpdateRequired, "dat_app_update_required"),
       (.dwaUnavailable, "dwa_unavailable"),
+      (.insufficientSDKVersion, "insufficient_sdk_version"),
+      (.dwaOutOfStuRange, "dwa_out_of_stu_range"),
     ]
 
     for (error, name) in errors {

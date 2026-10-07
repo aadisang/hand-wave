@@ -1,6 +1,6 @@
 import Foundation
 
-enum StreamResponsePayload {
+enum StreamResponsePayload: Sendable {
   case pong(InferenceStreamPongResponse)
   case reset(InferenceStreamResetResponse)
   case result(InferenceStreamResultResponse)

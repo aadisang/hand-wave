@@ -40,6 +40,9 @@ enum StreamFailure: Error, LocalizedError, Sendable {
     case .batteryCritical: "Glasses battery low."
     case .datAppOnTheGlassesUpdateRequired: "Update DAT in Meta AI."
     case .dwaUnavailable: "DAT unavailable. Reconnect in Meta AI."
+    case .insufficientSDKVersion: "Update Hand Wave to connect to your glasses."
+    case .dwaOutOfStuRange: "Check for a glasses update in Meta AI."
+    @unknown default: error.localizedDescription
     }
   }
 }
@@ -48,7 +51,7 @@ extension DeviceSessionError {
   fileprivate var stopsSession: Bool {
     switch self {
     case .thermalCritical, .thermalEmergency, .peakPowerShutdown, .batteryCritical,
-      .datAppOnTheGlassesUpdateRequired:
+      .datAppOnTheGlassesUpdateRequired, .insufficientSDKVersion:
       true
     default:
       false
@@ -98,7 +101,7 @@ final class StreamModel {
   @ObservationIgnored private let speech = SpeechCoordinator()
   @ObservationIgnored private let wearableDiagnostics: WearableDiagnosticsObserver
   @ObservationIgnored private var deviceSession: DeviceSession?
-  @ObservationIgnored private var glassesStream: MWDATCamera.Stream?
+  @ObservationIgnored private var glassesCamera: MWDATCamera.Camera?
   @ObservationIgnored private var stateToken: AnyListenerToken?
   @ObservationIgnored private var frameToken: AnyListenerToken?
   @ObservationIgnored private var errorToken: AnyListenerToken?
@@ -247,16 +250,16 @@ final class StreamModel {
     sessionErrorTask = nil
     frameTask = nil
 
-    let stream = glassesStream
+    let camera = glassesCamera
     let session = deviceSession
-    glassesStream = nil
+    glassesCamera = nil
     deviceSession = nil
     streamStarted = false
     startError = nil
 
     await phoneCamera.stop()
     let stats = await pipeline.stop()
-    stream?.stop()
+    camera?.stop()
     session?.stop()
 
     latestFrame = nil
@@ -388,10 +391,11 @@ final class StreamModel {
     AppLog.stream.notice(
       "Adding glasses camera stream run=\(run) codec=raw resolution=low fps=30"
     )
-    guard let stream = try session.addStream(config: configuration) else {
+    guard let camera = try session.addCamera(config: configuration) else {
       throw StreamFailure.camera("Stream settings rejected.")
     }
-    glassesStream = stream
+    glassesCamera = camera
+    let stream = camera.stream
     AppLog.stream.notice("Glasses camera stream added run=\(run)")
 
     stateToken = stream.statePublisher.listen { [weak self] state in
@@ -485,14 +489,7 @@ final class StreamModel {
     if overlayFrame != output.overlay {
       overlayFrame = output.overlay
     }
-    backendMessage =
-      output.backendFailure.flatMap { failure in
-        switch failure {
-        case .badStatus(_, let status): "Backend HTTP \(status)"
-        case .cancelled: nil
-        default: "Backend warming up"
-        }
-      } ?? nil
+    backendMessage = output.backendFailure?.errorDescription
     let nextFramingMessage =
       output.needsPose
       ? "Stand back."

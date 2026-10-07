@@ -51,10 +51,10 @@ private struct StreamContent: View {
   let stop: () async -> Void
 
   private var overlayPresentation: OverlayPresentation {
+    if backendMessage != nil { return .backend }
     if speakingText != nil { return .speaking }
     if current != nil { return .prediction }
     if framingMessage != nil { return .framing }
-    if backendMessage != nil { return .backend }
     return .absent
   }
 
@@ -83,7 +83,15 @@ private struct StreamContent: View {
       .ignoresSafeArea()
 
       VStack(spacing: 0) {
-        if let speakingText {
+        if let backendMessage {
+          Text(backendMessage)
+            .font(.appFootnote)
+            .foregroundStyle(.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .glassEffect(.regular, in: .capsule)
+        } else if let speakingText {
           PredictionOverlay(
             text: speakingText,
             isSpeaking: true,
@@ -97,13 +105,6 @@ private struct StreamContent: View {
           )
         } else if let framingMessage {
           FramingHint(message: framingMessage)
-        } else if let backendMessage {
-          Text(backendMessage)
-            .font(.appFootnote)
-            .foregroundStyle(.textSecondary)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm)
-            .glassEffect(.regular, in: .capsule)
         }
         Spacer(minLength: 0)
         ControlBar(

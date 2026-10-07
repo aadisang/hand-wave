@@ -1,3 +1,4 @@
 META_APP_ID = 0
 CLIENT_TOKEN =
 DEVELOPMENT_TEAM =
+HANDWAVE_INFERENCE_URL = https:/$()/sinarck--hand-wave-inference.modal.run

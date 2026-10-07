@@ -27,8 +27,6 @@ actor InferClient: InferAPI {
     }
   }
 
-  private static let productionURL = URL(string: "https://handwave.sh")!
-  private static let localURL = URL(string: "http://localhost:8000")!
   private static let handshakeTimeout: Duration = .seconds(120)
   // Native model work keeps running after a client timeout. Leave enough time
   // for a queued decode instead of dropping a result that may still arrive.
@@ -228,17 +226,18 @@ actor InferClient: InferAPI {
     do {
       sequence &+= 1
       let requestSequence = sequence
-      try await sendWebSocket(
-        InferenceStreamPingRequest(
-          sequence: requestSequence,
-          _protocol: 1,
-          type: .ping
-        ),
-        owner: owner
+      let request = InferenceStreamPingRequest(
+        sequence: requestSequence,
+        _protocol: 1,
+        type: .ping
       )
-      let response = try await receiveWebSocket(
-        from: owner,
-        timeout: Self.handshakeTimeout
+      let response = try await withWebSocketDeadline(
+        timeout: Self.handshakeTimeout,
+        cancel: { owner.task.cancel(with: .goingAway, reason: nil) },
+        operation: {
+          try await self.sendWebSocket(request, owner: owner)
+          return try await self.readWebSocket(from: owner)
+        }
       )
       guard case .pong = response, response.sequence == requestSequence else {
         throw InferenceFailure.unexpected("Inference stream handshake failed.")
@@ -297,23 +296,27 @@ actor InferClient: InferAPI {
     timeout: Duration
   ) async throws(InferenceFailure) -> StreamResponsePayload {
     guard owner === webSocketOwner else { throw .cancelled }
-    let message: URLSessionWebSocketTask.Message
     do {
-      message = try await withThrowingTaskGroup(of: URLSessionWebSocketTask.Message.self) { group in
-        group.addTask { try await owner.task.receive() }
-        group.addTask {
-          try await Task.sleep(for: timeout)
-          owner.task.cancel(with: .goingAway, reason: nil)
-          throw WebSocketResponseTimeout()
+      return try await withWebSocketDeadline(
+        timeout: timeout,
+        cancel: { owner.task.cancel(with: .goingAway, reason: nil) },
+        operation: {
+          try await self.readWebSocket(from: owner)
         }
-        guard let first = try await group.next() else {
-          throw WebSocketResponseTimeout()
-        }
-        group.cancelAll()
-        return first
-      }
+      )
     } catch let failure as InferenceFailure {
       throw failure
+    } catch {
+      throw .requestFailed(owner.url, error.localizedDescription)
+    }
+  }
+
+  private func readWebSocket(
+    from owner: WebSocketOwner
+  ) async throws(InferenceFailure) -> StreamResponsePayload {
+    let message: URLSessionWebSocketTask.Message
+    do {
+      message = try await owner.task.receive()
     } catch {
       throw .requestFailed(owner.url, error.localizedDescription)
     }
@@ -382,25 +385,51 @@ actor InferClient: InferAPI {
   }
 
   private static var configuredURLs: [URL] {
-    let configured = (Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String)
-      .flatMap { $0.contains("$(") ? nil : URL(string: $0) }
-    #if DEBUG
-    return [configured ?? localURL]
-    #else
-    return [configured ?? productionURL]
-    #endif
+    guard let value = Bundle.main.object(forInfoDictionaryKey: "HandWaveInferenceURL") as? String,
+      !value.contains("$("), let url = URL(string: value),
+      ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host() != nil
+    else { return [] }
+    return [url]
   }
 
   private static let webSocketSession: URLSession = {
     let configuration = URLSessionConfiguration.default
-    configuration.waitsForConnectivity = true
-    configuration.timeoutIntervalForRequest = 4
+    configuration.waitsForConnectivity = false
+    configuration.timeoutIntervalForRequest = 120
     configuration.timeoutIntervalForResource = 3_600
     return URLSession(configuration: configuration)
   }()
 }
 
-private struct WebSocketResponseTimeout: Error {}
+struct WebSocketResponseTimeout: Error, LocalizedError {
+  var errorDescription: String? {
+    "The inference server did not respond in time. Check your connection and try again."
+  }
+}
+
+/// Covers connection establishment as well as I/O. Cancelling a task group alone
+/// does not unblock URLSession WebSocket I/O; close the socket on timeout or stop.
+func withWebSocketDeadline<Value: Sendable>(
+  timeout: Duration,
+  cancel: @escaping @Sendable () -> Void,
+  operation: @escaping @Sendable () async throws -> Value
+) async throws -> Value {
+  try await withTaskCancellationHandler {
+    try await withThrowingTaskGroup(of: Value.self) { group in
+      defer { group.cancelAll() }
+      group.addTask { try await operation() }
+      group.addTask {
+        try await Task.sleep(for: timeout)
+        cancel()
+        throw WebSocketResponseTimeout()
+      }
+      guard let result = try await group.next() else { throw CancellationError() }
+      return result
+    }
+  } onCancel: {
+    cancel()
+  }
+}
 
 /// Failures anywhere on the stream are recorded here, but the delay is only
 /// enforced when warming: `Recognizer` retries warmup from its frame loop, and
