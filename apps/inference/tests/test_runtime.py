@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from inference.ctc import VOCAB, CtcDecoderConfig, build_decoder, decode_alternatives
-from inference.runtime import HandwaveRuntime
 
 
 @dataclass(frozen=True)
@@ -41,21 +40,17 @@ def test_decoder_without_lm_is_explicit_fallback() -> None:
 
 
 def test_decode_alternatives_come_directly_from_beam_search() -> None:
-    runtime = object.__new__(HandwaveRuntime)
-    runtime.decoder = FakeDecoder(
-        [
-            FakeBeam("hell o", 0.0, -1.0, [("hell", (0, 4)), ("o", (5, 6))]),
-            FakeBeam("hello", -0.5, -2.0, [("hello", (0, 6))]),
-        ],
+    alternatives = decode_alternatives(
+        FakeDecoder(
+            [
+                FakeBeam("hell o", 0.0, -1.0, [("hell", (0, 4)), ("o", (5, 6))]),
+                FakeBeam("hello", -0.5, -2.0, [("hello", (0, 6))]),
+            ]
+        ),
+        np.zeros((1, 1), dtype=np.float32),
+        beam_width=50,
+        confidence_temperature=1.2,
     )
-    runtime.beam_width = 50
-    runtime.beam_prune_logp = -10
-    runtime.token_min_logp = -5
-    runtime.confidence_temperature = 1.2
-    runtime.hotwords = ()
-    runtime.hotword_weight = 10
-
-    alternatives = runtime._decode(np.zeros((1, 1), dtype=np.float32))
 
     assert alternatives[0].text == "hell o"
     assert alternatives[0].raw_text == "hell o"

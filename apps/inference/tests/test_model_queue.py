@@ -31,7 +31,7 @@ class BlockingRuntime:
 
 def test_cancelled_prediction_never_overlaps_the_next_runtime_call(monkeypatch) -> None:
     runtime = BlockingRuntime()
-    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _path: runtime)
+    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _path, **_kwargs: runtime)
     backend = CheckpointBackend(Path("unused.ckpt"))
     frame = LandmarkFrame(root=[0.0] * 162)
 

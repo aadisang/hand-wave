@@ -62,7 +62,7 @@ describe("inference WebSocket client", () => {
     };
     socket.receive({
       type: "pong",
-      protocol: 1,
+      protocol: 2,
       sequence: request.sequence,
     });
 
@@ -89,7 +89,7 @@ describe("inference WebSocket client", () => {
     };
     secondSocket.receive({
       type: "pong",
-      protocol: 1,
+      protocol: 2,
       sequence: ping.sequence,
     });
 
@@ -147,7 +147,7 @@ describe("inference WebSocket client", () => {
     expect(request.type).toBe("reset");
     socket.receive({
       type: "reset",
-      protocol: 1,
+      protocol: 2,
       sequence: request.sequence,
     });
 
@@ -186,7 +186,7 @@ describe("inference WebSocket client", () => {
       expect(lastRequest(socket).type).toBe("reset");
     });
     const reset = lastRequest(socket);
-    socket.receive({ type: "reset", protocol: 1, sequence: reset.sequence });
+    socket.receive({ type: "reset", protocol: 2, sequence: reset.sequence });
     await respondToRecognition(socket);
     await second;
 
@@ -254,7 +254,7 @@ function respondToPing(socket: FakeWebSocket) {
   const request = lastRequest(socket);
   socket.receive({
     type: "pong",
-    protocol: 1,
+    protocol: 2,
     sequence: request.sequence,
   });
 }
@@ -266,7 +266,7 @@ async function respondToRecognition(socket: FakeWebSocket) {
   const request = lastRequest(socket);
   socket.receive({
     type: "result",
-    protocol: 1,
+    protocol: 2,
     sequence: request.sequence,
     result: {
       state: {

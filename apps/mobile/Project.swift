@@ -27,18 +27,20 @@ let infoPlist: [String: Plist.Value] = [
     "TeamID": "$(DEVELOPMENT_TEAM)",
   ],
   "HandWaveInferenceURL": "$(HANDWAVE_INFERENCE_URL)",
+  "HandWaveDeviceInferenceURL": "$(HANDWAVE_DEVICE_INFERENCE_URL)",
   "ITSAppUsesNonExemptEncryption": false,
   "NSAppTransportSecurity": [
     "NSAllowsLocalNetworking": true
   ],
   "UIBackgroundModes": [
-    "bluetooth-peripheral",
+    "bluetooth-central",
     "external-accessory",
   ],
   "NSBluetoothAlwaysUsageDescription":
     "Hand Wave connects to your Meta wearable over Bluetooth.",
   "NSLocalNetworkUsageDescription":
-    "Hand Wave connects to the local inference server while recognizing signs.",
+    "Hand Wave connects to your glasses over Wi-Fi and to local inference servers.",
+  "NSBonjourServices": ["_bonjour._tcp"],
   "UISupportedExternalAccessoryProtocols": ["com.meta.ar.wearable"],
   "NSCameraUsageDescription":
     "Hand Wave uses your phone or Meta wearable camera to interpret signs.",

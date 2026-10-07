@@ -183,6 +183,7 @@ export function createStreamCtrl(): StreamCtrl {
     requestPhase = { kind: "decode", id, epoch: batchEpoch };
     try {
       const result = await recognizeFrames({
+        input: "frames",
         frames: batch,
         state,
         context: decodeContext(idleFrames),
@@ -250,6 +251,7 @@ export function createStreamCtrl(): StreamCtrl {
     let result: RecognizeOut;
     try {
       result = await recognizeFrames({
+        input: "frames",
         frames: pending.frames,
         state: activeState,
         context: pending.context,

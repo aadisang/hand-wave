@@ -3,7 +3,7 @@ import type { Prediction as DetectionPrediction } from "@/types/detections";
 
 export type Frame = components["schemas"]["LandmarkFrameItem"];
 export type InferOut = components["schemas"]["PredictOut"];
-export type RecognizeIn = components["schemas"]["RecognizeIn"];
+export type RecognizeIn = components["schemas"]["FrameRecognizeIn"];
 export type RecognizeOut = components["schemas"]["RecognizeOut"];
 export type RecognitionState = components["schemas"]["RecognitionState"];
 export type RecognitionContext = components["schemas"]["RecognitionContext"];

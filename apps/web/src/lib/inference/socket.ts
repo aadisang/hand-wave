@@ -5,8 +5,8 @@ import type { Frame, RecognizeIn, RecognizeOut } from "@/types/inference";
 import { WebSocket as PartySocket } from "partysocket";
 
 const warmupTimeoutMs = 120_000;
-const streamProtocol = 1;
-const streamSubprotocol = "handwave.v1";
+const streamProtocol = 2;
+const streamSubprotocol = "handwave.v2";
 const reconnectCode = 4000;
 
 type StreamResponse = components["schemas"]["StreamResponse"];
@@ -105,17 +105,26 @@ export class InferenceSocket {
     if (cursorLost) {
       await this.resetOwner(owner, timeoutMs);
     }
-    const response = await this.exchange(
-      owner,
-      {
-        ...payload,
-        type: "recognize",
-        protocol: streamProtocol,
-        frames: compactFrames(delta),
-        state: resync ? payload.state : undefined,
-      },
-      timeoutMs,
-    );
+    if (delta.length === 0 && !payload.finalize) {
+      throw new Error("Inference request had no new frames");
+    }
+    const request: StreamRequestBody = delta.length === 0
+      ? {
+          type: "recognize",
+          protocol: streamProtocol,
+          input: "finalize",
+          state: resync ? payload.state : undefined,
+          context: payload.context,
+        }
+      : {
+          ...payload,
+          type: "recognize",
+          protocol: streamProtocol,
+          input: "frames",
+          frames: compactFrames(delta),
+          state: resync ? payload.state : undefined,
+        };
+    const response = await this.exchange(owner, request, timeoutMs);
     if (response.type === "error") {
       throw new Error(response.detail);
     }

@@ -3,7 +3,13 @@ from collections.abc import Sequence
 
 from inference.model import ModelBackend
 from inference.recognition import SmoothConfig, accept_prediction, empty_state, finalize, recognize
-from inference.schemas import LandmarkFrame, Prediction, PredictOut, RecognitionContext, RecognizeIn
+from inference.schemas import (
+    FrameRecognizeIn,
+    LandmarkFrame,
+    Prediction,
+    PredictOut,
+    RecognitionContext,
+)
 
 
 def context() -> RecognitionContext:
@@ -155,7 +161,8 @@ def test_finalize_skips_endpoint_decode_for_committable_state() -> None:
 
     out = asyncio.run(
         recognize(
-            RecognizeIn(
+            FrameRecognizeIn(
+                input="frames",
                 frames=[LandmarkFrame([0.0] * 162)],
                 state=state,
                 context=context(),

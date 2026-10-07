@@ -61,7 +61,8 @@ func milliseconds(
 @MainActor
 final class WearableDiagnosticsObserver {
   private let wearables: WearablesInterface
-  private var deviceStateTask: Task<Void, Never>?
+  private var deviceStateToken: AnyListenerToken?
+  private var generation = 0
   private var linkToken: AnyListenerToken?
   private var compatibilityToken: AnyListenerToken?
 
@@ -73,12 +74,14 @@ final class WearableDiagnosticsObserver {
     _ identifier: DeviceIdentifier?,
     onThermalLevel: @escaping @MainActor (ThermalLevel) -> Bool
   ) async {
-    deviceStateTask?.cancel()
-    deviceStateTask = nil
-    await linkToken?.cancel()
-    await compatibilityToken?.cancel()
+    generation &+= 1
+    let selection = generation
+    let tokens = [deviceStateToken, linkToken, compatibilityToken].compactMap { $0 }
+    deviceStateToken = nil
     linkToken = nil
     compatibilityToken = nil
+    for token in tokens { await token.cancel() }
+    guard generation == selection else { return }
 
     guard let identifier else {
       AppLog.wearables.notice("Active glasses unavailable")
@@ -99,18 +102,17 @@ final class WearableDiagnosticsObserver {
           "Glasses compatibility=\(compatibility.diagnosticName, privacy: .public)"
         )
       }
+      deviceStateToken = device.addDeviceStateListener { [weak self] state in
+        Task { @MainActor [weak self] in
+          guard let self, generation == selection else { return }
+          guard onThermalLevel(state.thermalLevel) else { return }
+          AppLog.wearables.notice(
+            "Glasses thermal state level=\(state.thermalLevel.diagnosticName, privacy: .public)"
+          )
+        }
+      }
     } else {
       AppLog.wearables.notice("Active glasses available details=unavailable")
-    }
-
-    deviceStateTask = Task { [wearables] in
-      for await state in wearables.deviceStateStream(for: identifier) {
-        guard !Task.isCancelled else { return }
-        guard onThermalLevel(state.thermalLevel) else { continue }
-        AppLog.wearables.notice(
-          "Glasses thermal state level=\(state.thermalLevel.diagnosticName, privacy: .public)"
-        )
-      }
     }
   }
 }
@@ -151,10 +153,11 @@ extension StreamError {
     case .videoStreamingError: "video_streaming_error"
     case .permissionDenied: "permission_denied"
     case .hingesClosed: "hinges_closed"
-    case .thermalCritical: "thermal_critical"
-    case .thermalEmergency: "thermal_emergency"
-    case .peakPowerShutdown: "peak_power_shutdown"
-    case .batteryCritical: "battery_critical"
+    case .thermalHot: "thermal_hot"
+    case .peakPowerLimit: "peak_power_limit"
+    case .batteryLow: "battery_low"
+    case .audioStreamingError: "audio_streaming_error"
+    case .photoCaptureFailed: "photo_capture_failed"
     @unknown default: "unknown"
     }
   }
@@ -176,6 +179,9 @@ extension DeviceSessionError {
     case .batteryCritical: "battery_critical"
     case .datAppOnTheGlassesUpdateRequired: "dat_app_update_required"
     case .dwaUnavailable: "dwa_unavailable"
+    case .insufficientSDKVersion: "insufficient_sdk_version"
+    case .dwaOutOfStuRange: "dwa_out_of_stu_range"
+    @unknown default: "unknown"
     }
   }
 }

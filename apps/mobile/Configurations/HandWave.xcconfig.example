@@ -6,5 +6,7 @@ META_APP_ID = REPLACE_WITH_META_APP_ID
 CLIENT_TOKEN = REPLACE_WITH_CLIENT_TOKEN
 DEVELOPMENT_TEAM = REPLACE_WITH_TEAM_ID
 
-// Debug builds use this local inference URL. Release always uses handwave.sh.
-HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
+// Builds use the cloud service by default. Uncomment to use a local server.
+// On an iPhone, use your Mac's LAN address instead of localhost.
+// HANDWAVE_INFERENCE_URL = http:/$()/localhost:8000
+// HANDWAVE_DEVICE_INFERENCE_URL = http:/$()/localhost:8000

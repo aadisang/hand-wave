@@ -49,6 +49,7 @@ private struct Hero: View {
 
 private struct PrimaryAction: View {
   @Environment(AppModel.self) private var appModel
+  @AppStorage(AppSettingKey.inferenceMode) private var inferenceMode = InferenceMode.remote
 
   var body: some View {
     @Bindable var stream = appModel.stream
@@ -83,6 +84,7 @@ private struct PrimaryAction: View {
         .disabled(!state.canTap)
 
         SourceButton(source: $stream.source, isDisabled: appModel.stream.status != .idle)
+        InferenceModeButton(mode: $inferenceMode, isDisabled: appModel.stream.status != .idle)
       }
     }
   }
@@ -107,6 +109,29 @@ private struct PrimaryAction: View {
       return .waitingForDevice
     }
     return .waitingForActiveDevice
+  }
+}
+
+private struct InferenceModeButton: View {
+  @Binding var mode: InferenceMode
+  let isDisabled: Bool
+
+  var body: some View {
+    Button {
+      mode = mode == .remote ? .device : .remote
+    } label: {
+      Label(mode.title, systemImage: mode.systemImage)
+        .font(.system(size: 16, weight: .semibold))
+        .labelStyle(.iconOnly)
+        .frame(width: ActionButtonMetrics.iconSize, height: ActionButtonMetrics.iconSize)
+        .frame(width: ActionButtonMetrics.switchSize, height: ActionButtonMetrics.switchSize)
+    }
+    .buttonStyle(.glass)
+    .controlSize(.large)
+    .buttonBorderShape(.circle)
+    .disabled(isDisabled)
+    .accessibilityLabel("Recognition: \(mode.title)")
+    .accessibilityHint("Switches where the sign model runs")
   }
 }
 

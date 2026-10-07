@@ -63,7 +63,7 @@ struct InferClientTests {
   func encodesTheVersionedStreamEnvelope() throws {
     let request = InferenceStreamPingRequest(
       sequence: 7,
-      _protocol: 1,
+      _protocol: 2,
       type: .ping
     )
 
@@ -73,7 +73,15 @@ struct InferClientTests {
 
     #expect(object["type"] as? String == "ping")
     #expect(object["sequence"] as? Int == 7)
-    #expect(object["protocol"] as? Int == 1)
+    #expect(object["protocol"] as? Int == 2)
+  }
+
+  @Test
+  func rejectsAnOlderServerBeforeUsingItsResult() throws {
+    let old = Data(#"{"protocol":1,"sequence":1,"type":"pong"}"#.utf8)
+    #expect(throws: (any Error).self) { try StreamResponsePayload.decode(from: old) }
+    let current = Data(#"{"protocol":2,"sequence":1,"type":"pong"}"#.utf8)
+    #expect(try StreamResponsePayload.decode(from: current).sequence == 1)
   }
 
   private static func frame(at timestampMs: Int) -> LandmarkFrame {

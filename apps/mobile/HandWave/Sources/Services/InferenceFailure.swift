@@ -13,7 +13,7 @@ enum InferenceFailure: Error, Equatable, LocalizedError, Sendable {
   var errorDescription: String? {
     switch self {
     case .cancelled:
-      "Inference cancelled."
+      nil
     case .missingBaseURL:
       "Set the inference URL in HandWave.xcconfig."
     case .localhostOnDevice(let url):

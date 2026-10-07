@@ -1,41 +1,19 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
-from inference.ctc import (
-    VOCAB,
-    CtcDecoderConfig,
-    DecodedAlternative,
-    DecodedText,
-    allowed_token_ids,
-    blank_stats,
-    build_decoder,
-    decode_alternatives,
-    greedy_decode,
-    mask_emissions,
-)
+from inference.ctc import VOCAB, CtcDecoderConfig, DecodedText
+from inference.decoder import EmissionDecoder, RuntimeEmission
 from inference.features import frames_to_features
 from inference.network import load_model, resolve_device, sequence_confidence
-from inference.text_normalizer import normalize_prediction_text
 
 if TYPE_CHECKING:
     from inference.schemas import LandmarkFrame
-
-
-@dataclass(frozen=True)
-class RuntimeEmission:
-    emissions: np.ndarray
-    greedy_text: str
-    blank_ratio: float
-    tail_blank_ratio: float
-    tail_blank_frames: int
-    frame_confidence: float
 
 
 class HandwaveRuntime:
@@ -44,22 +22,19 @@ class HandwaveRuntime:
         checkpoint_path: str | Path,
         device: str = "auto",
         decoder_config: CtcDecoderConfig | None = None,
+        emission_decoder: EmissionDecoder | None = None,
     ) -> None:
-        decoder_config = decoder_config or CtcDecoderConfig.from_env()
         self.device = resolve_device(device)
         self.model = load_model(Path(checkpoint_path), self.device, vocab_size=len(VOCAB))
-        self.decoder = build_decoder(decoder_config)
-        self.beam_width = decoder_config.beam_width
-        self.beam_prune_logp = decoder_config.beam_prune_logp
-        self.token_min_logp = decoder_config.token_min_logp
-        self.confidence_temperature = decoder_config.confidence_temperature
-        self.hotwords = decoder_config.hotwords
-        self.hotword_weight = decoder_config.hotword_weight
-        self.allowed_token_ids = allowed_token_ids("abcdefghijklmnopqrstuvwxyz ")
+        self.emission_decoder = emission_decoder or EmissionDecoder(decoder_config)
 
     @torch.no_grad()
     def predict(self, frames: list[LandmarkFrame]) -> DecodedText:
-        return self.decode_emission(self.encode(frames))
+        emission = self.encode(frames)
+        return self.emission_decoder.decode_values(
+            emission.emissions,
+            emission.frame_confidence,
+        )
 
     @torch.no_grad()
     def encode(self, frames: list[LandmarkFrame]) -> RuntimeEmission:
@@ -68,42 +43,9 @@ class HandwaveRuntime:
         lengths = torch.tensor([features.shape[0]], device=self.device)
         log_probs, input_lengths = self.model(tensor, lengths)
         emissions = single_emission(log_probs, input_lengths)
-        emissions = mask_emissions(emissions, self.allowed_token_ids)
-        blanks = blank_stats(emissions)
         return RuntimeEmission(
             emissions=emissions,
-            greedy_text=greedy_decode(emissions),
-            blank_ratio=blanks.blank_ratio,
-            tail_blank_ratio=blanks.tail_blank_ratio,
-            tail_blank_frames=blanks.tail_blank_frames,
             frame_confidence=sequence_confidence(log_probs, input_lengths)[0],
-        )
-
-    def decode_emission(self, emission: RuntimeEmission) -> DecodedText:
-        emissions = emission.emissions
-        alternatives = self._decode(emissions)
-        best = alternatives[0] if alternatives else DecodedAlternative("", 0.0, 0.0, 0.0, "")
-        return DecodedText(
-            text=normalize_prediction_text(best.text),
-            confidence=best.confidence * emission.frame_confidence,
-            alternatives=alternatives,
-            spans=best.spans,
-            greedy_text=emission.greedy_text,
-            blank_ratio=emission.blank_ratio,
-            tail_blank_ratio=emission.tail_blank_ratio,
-            tail_blank_frames=emission.tail_blank_frames,
-        )
-
-    def _decode(self, emissions: np.ndarray) -> tuple[DecodedAlternative, ...]:
-        return decode_alternatives(
-            self.decoder,
-            emissions,
-            self.beam_width,
-            beam_prune_logp=self.beam_prune_logp,
-            token_min_logp=self.token_min_logp,
-            confidence_temperature=self.confidence_temperature,
-            hotwords=self.hotwords,
-            hotword_weight=self.hotword_weight,
         )
 
 

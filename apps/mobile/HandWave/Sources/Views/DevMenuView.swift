@@ -6,6 +6,7 @@ struct DevMenuView: View {
   @Environment(AppModel.self) private var appModel
   @AppStorage(AppSettingKey.showsLandmarks) private var showsLandmarks = true
   @AppStorage(AppSettingKey.showsPoseLandmarks) private var showsPoseLandmarks = false
+  @AppStorage(AppSettingKey.inferenceMode) private var inferenceMode = InferenceMode.remote
   @State private var isPreparingLogs = false
   @State private var isLogExporterPresented = false
   @State private var logDocument: LogDocument?
@@ -32,6 +33,24 @@ struct DevMenuView: View {
         Section("Landmark Overlay") {
           Toggle("Landmarks", isOn: $showsLandmarks)
           Toggle("Pose Landmarks", isOn: $showsPoseLandmarks)
+        }
+
+        Section("Recognition") {
+          Picker("Model", selection: $inferenceMode) {
+            ForEach(InferenceMode.allCases) { mode in
+              Text(mode.title).tag(mode)
+            }
+          }
+          .pickerStyle(.segmented)
+          .disabled(appModel.stream.isActive)
+
+          Text(
+            inferenceMode == .device
+              ? "Runs the model on this phone. Sends model scores to the cloud to decode text. Internet required."
+              : "Sends landmarks to the cloud to recognize signs. Camera images stay on this phone."
+          )
+          .font(.footnote)
+          .foregroundStyle(.secondary)
         }
 
         Section("Actions") {

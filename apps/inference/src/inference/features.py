@@ -30,7 +30,7 @@ def frames_to_features(frames: list[LandmarkFrame]) -> np.ndarray:
         )
     hand = landmarks[:, :N_HAND, :]
     mask = np.asarray(
-        np.isfinite(hand).reshape(hand.shape[0], -1).any(axis=1),
+        (~np.isnan(hand)).reshape(hand.shape[0], -1).any(axis=1),
         dtype=np.float32,
     )
     normalized = hand_relative_normalize(landmarks)
