@@ -23,7 +23,8 @@ tasks:
       - "moon.yml"
       - "Tuist/Package.swift"
       - "Tuist/Package.resolved"
-    preset: "utility"
+    options:
+      cache: false
 
   generate:
     command: "tuist generate --no-open"
@@ -51,7 +52,8 @@ tasks:
       - "Podfile"
       - "Podfile.lock"
       - "HandWave.xcodeproj"
-    preset: "utility"
+    options:
+      cache: false
 
   build:
     command:
