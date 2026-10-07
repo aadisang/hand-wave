@@ -59,7 +59,9 @@ def run(args: argparse.Namespace) -> int:
     output.mkdir(parents=True, exist_ok=False)
     report = {
         "started_at": datetime.now(UTC).isoformat(),
-        "scope": ["backend", "browser"] + ([] if args.web_only else ["native-client"]),
+        "scope": ["backend"]
+        + ([] if args.web_only else ["native-client"])
+        + ([] if args.native_only else ["browser"]),
         "limits": "Synthetic camera/landmarks; no sign-accuracy or physical-glasses claim.",
         "status": "failed",
         "steps": [],
@@ -188,8 +190,6 @@ def run(args: argparse.Namespace) -> int:
             ],
             cwd=ROOT / "apps/inference",
         )
-        environment["HANDWAVE_E2E_OUTPUT"] = str(output / "browser")
-        command("browser", ["pnpm", "--filter", "@hand-wave/web", "test:e2e"])
         if not args.web_only:
             command("native-workspace", ["pnpm", "exec", "moon", "run", "mobile:pods"])
             environment.update(
@@ -200,6 +200,9 @@ def run(args: argparse.Namespace) -> int:
                 ["bash", "apps/mobile/scripts/test.sh", "live", "Debug"],
                 timeout=1200,
             )
+        if not args.native_only:
+            environment["HANDWAVE_E2E_OUTPUT"] = str(output / "browser")
+            command("browser", ["pnpm", "--filter", "@hand-wave/web", "test:e2e"])
         report["status"] = "passed"
     except (Exception, KeyboardInterrupt) as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
@@ -242,8 +245,12 @@ def run(args: argparse.Namespace) -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument(
         "--web-only", action="store_true", help="Omit the native simulator suite"
+    )
+    scope.add_argument(
+        "--native-only", action="store_true", help="Omit the browser suite"
     )
     parser.add_argument(
         "--backend-manifest", type=Path, help="Use a running Modal dev backend"
