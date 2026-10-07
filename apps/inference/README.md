@@ -1,41 +1,33 @@
 # Hand Wave Inference
 
-FastAPI inference service for Hand Wave.
+FastAPI inference service shared by the iOS and browser clients.
 
-The iOS and browser clients use `wss://<host>/v1/stream` with the `handwave.v1` subprotocol. Each
-connection retains its rolling frame window and recognition state; reconnects resynchronize from the
-active window. `POST /v1/recognize` is also available for direct HTTP API calls;
-the clients do not switch to it when a WebSocket fails.
+Both clients use `wss://<host>/v1/stream` with `handwave.v1`. Each connection holds
+its rolling landmark window and recognition state. Reconnects resynchronize from
+the active window. `/v1/health` reports readiness and the deployment ID; release
+verification checks that ID before accepting the endpoint.
 
-## Modal
+## Development
 
-The Modal app wraps the existing `inference.main:app` ASGI application. It packages the local
-`inference` package and the checkpoint under `models/`, then points the runtime at that checkpoint
-with `MODEL_DIR=/models`.
+Run `pnpm dev` at the repository root, or `pnpm dev:mobile` without Vite. The
+launcher uses Modal's native `serve` command in the `dev` environment, hot reloads
+source changes, and configures both clients after a real streaming smoke test.
+It keeps one development container warm, with a maximum of one. Stop the command
+to stop the temporary cloud app and clear generated client settings.
 
-Before deploying, authenticate the Modal CLI:
+For local Python debugging only, use `moon run inference:local`. This runs the
+same FastAPI app and model on this computer without Modal.
 
-```sh
-uv run --group deploy modal setup
-```
+## Release
 
-Develop against an ephemeral Modal endpoint:
+Use the manual Release workflow from `main`. The `tools.release` command creates
+or reuses a backend named `hand-wave-<full Git SHA>` in Modal's `main` environment.
+It rejects a dirty checkout or a revision other than HEAD, verifies the real
+model and protocol, and generates the release manifest and iOS endpoint setting.
+The workflow builds both clients from that same commit and backend address.
 
-```sh
-moon run inference:modalServe
-```
+Do not deploy `modal_app.py` directly or replace a published backend with new
+code. Modal settings, model assets, code, and dependencies belong to the release
+commit. Previous clients retain their original service until they are retired.
 
-Deploy the persistent endpoint:
-
-```sh
-moon run inference:modalDeploy
-```
-
-The web app's `VITE_INFERENCE_URL` and the iOS build setting `HANDWAVE_INFERENCE_URL`
-name this service. They are public endpoint configuration, not credentials.
-The iOS Release configuration pins the production Modal address; Debug can use
-a local override. Changing the production service address requires an app rebuild.
-Both clients convert the configured `https` URL to `wss` for streaming.
-
-See [compute and network boundaries](../../README.MD#compute-and-network-boundaries)
-for data flow, configuration, and current access-control limits.
+See [development and releases](../../README.MD#development) for setup and limits.

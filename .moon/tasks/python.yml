@@ -7,6 +7,7 @@ fileGroups:
   sources:
     - 'src/**/*.py'
     - 'tests/**/*.py'
+    - 'tools/**/*.py'
     - '*.py'
   configs:
     - 'pyproject.toml'

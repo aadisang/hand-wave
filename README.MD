@@ -9,12 +9,13 @@ Sign recognition for web and iOS, backed by a small Python inference service.
 Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, and moon.
 
 ```sh
-cp .env.example .env
 pnpm install
-uv sync --project apps/inference
+uv sync --project apps/inference --group deploy
 ```
 
-Don't forget to set `VITE_INFERENCE_URL` in `.env`.
+Authenticate Modal once with `uv run --project apps/inference --group deploy modal setup`.
+The workspace needs a `dev` environment, created once with
+`uv run --project apps/inference --group deploy modal environment create dev`.
 
 ## Compute and network boundaries
 
@@ -53,20 +54,25 @@ configuration, not a credential or a switch between local and cloud inference.
 | iOS | `HANDWAVE_INFERENCE_URL` | Xcode writes `HandWaveInferenceURL` into the app's Info.plist; `InferClient` reads it. |
 | Web | `VITE_INFERENCE_URL` | Vite includes the value in the browser bundle. |
 
-The production inference address is
-`https://sinarck--hand-wave-inference.modal.run`. Clients convert `https` to `wss`
-for streaming. The value must name the inference service, not the website.
-An iOS Debug build can use a local development server; a physical phone needs
-that server's LAN address. Release uses the production service. The spelling
-`https:/$()/...` in an Xcode configuration expands to `https://...`; it prevents
-Xcode from treating `//` as a comment.
+The development launcher obtains its URL from Modal and writes the ignored
+`apps/mobile/Configurations/DebugEndpoint.xcconfig`. It supplies the same URL to
+Vite through its process environment. Debug has no production default. The
+launcher removes the generated setting when it stops; already-built Debug apps
+can reconnect to the same development URL after a restart.
+
+The release workflow creates a backend named for the full Git commit and writes
+`ReleaseEndpoint.xcconfig` from the verified deployment. The web build receives
+that exact URL too. Credentials remain separate in `HandWave.xcconfig`; that file
+cannot override either generated endpoint. The spelling `https:/$()/...` in an
+Xcode configuration expands to `https://...` without starting a comment.
 
 ### Current limits
 
 This split keeps image processing close to the camera and lets both clients use
 the same recognition model and decoder. It still requires an internet connection.
-Modal has no configured minimum warm capacity, so a cold start can delay the first
-result. Client deadlines bound the wait; they do not make the server start faster.
+The development launcher keeps one container warm while running. Release backends
+can scale to zero when idle, so a cold start can delay the first result. Client
+deadlines bound the wait; they do not make the server start faster.
 
 The inference API currently has no application authentication or per-user quota.
 Its CORS configuration controls browser HTTP access, not API authorization or
@@ -80,6 +86,52 @@ On-device sign-recognition experiments are isolated on `dev/on-device-inference`
 ```sh
 pnpm dev
 ```
+
+This command generates the contract, runs `modal serve` in the isolated `dev`
+environment, verifies a real recognition request, configures iOS Debug, and starts
+Vite. Code changes use Modal's native hot reload. Each Mac/checkout gets a stable,
+separate development URL. No LAN addresses or copied URLs are needed.
+
+For iOS alone, use `pnpm dev:mobile`, then open the Xcode workspace and press Run.
+Keep the command running. Ctrl-C stops the web server and temporary Modal app and
+removes generated endpoint settings. If development is not running, Debug shows
+an error instead of connecting to production. These endpoints are reachable over
+the internet; `dev` isolation does not make them authenticated.
+
+Local Python debugging is still available with `moon run inference:local`; it is
+not the normal phone development path.
+
+## Releases
+
+The **Release** GitHub workflow is manually started from `main`. Merging runs CI;
+it does not publish a backend, website, or TestFlight build. Vercel Git automatic
+deployments are disabled so they cannot bypass paired verification.
+
+The workflow:
+
+1. Generates and tests the shared contract, backend, web app, and iOS app.
+2. Creates or reuses a backend in Modal's `main` environment named for this exact
+   commit. An existing release backend is verified and reused, never overwritten.
+3. Checks its build ID, WebSocket handshake, recognition, and reset behavior.
+4. Builds the website and iOS app with that backend URL, and runs the actual iOS
+   client against it before publishing.
+5. Uploads the iOS artifact to TestFlight, then publishes the prebuilt website.
+
+The backend's address is part of each client build. Older installed clients keep
+using their matching backend when a new release is prepared. Retire a backend
+only when its clients are no longer supported. Retained idle backends can scale
+to zero. Failed candidates do not redirect existing clients.
+
+This coordinates artifacts and verification; Apple and Vercel publication is
+not one transaction. If website publication fails after TestFlight succeeds,
+those new iOS users still have their matching backend. Rerunning the workflow
+reuses the verified backend and rebuilds clients from the same commit.
+
+Before the first coordinated release, configure `VERCEL_TOKEN` as a secret and
+`VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` as variables in the existing `testflight`
+GitHub environment. The existing Apple signing credentials remain there. Modal
+credentials remain repository secrets. No Modal or Vercel management token is
+included in a client build.
 
 ## Research Credits
 

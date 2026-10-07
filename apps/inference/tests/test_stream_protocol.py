@@ -55,6 +55,15 @@ def context(segment_frames: int) -> dict[str, int | float]:
     }
 
 
+def test_health_identifies_the_running_backend(monkeypatch) -> None:
+    monkeypatch.setenv("HANDWAVE_DEPLOYMENT_ID", "release-under-test")
+    with client(monkeypatch) as test_client:
+        assert test_client.get("/v1/health").json() == {
+            "ok": True,
+            "deployment_id": "release-under-test",
+        }
+
+
 def test_stream_accumulates_deltas_and_resets_after_finalize(monkeypatch) -> None:
     with client(monkeypatch) as test_client:
         with test_client.websocket_connect("/v1/stream", subprotocols=["handwave.v1"]) as socket:

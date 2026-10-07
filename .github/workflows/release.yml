@@ -1,28 +1,15 @@
-name: TestFlight
+name: Release
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "ios-v*"
-    paths:
-      - ".github/actions/setup-contract/**"
-      - ".github/actions/setup-tuist/**"
-      - ".github/workflows/testflight.yml"
-      - "apps/mobile/**"
-      - "package.json"
-      - "packages/contract/**"
-      - "pnpm-lock.yaml"
   workflow_dispatch:
     inputs:
       changelog:
-        description: What changed in this build?
+        description: What changed in this release?
         required: false
         type: string
 
 concurrency:
-  group: testflight
+  group: release
   cancel-in-progress: false
 
 permissions:
@@ -43,12 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            test "$GITHUB_REF" = "refs/heads/main"
-          else
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          fi
+          test "$GITHUB_REF" = "refs/heads/main"
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.5.app
@@ -58,6 +40,13 @@ jobs:
 
       - name: Set up contract
         uses: ./.github/actions/setup-contract
+
+      - name: Check web and inference
+        env:
+          VITE_INFERENCE_URL: https://inference.invalid
+        run: |
+          uv sync --frozen --project apps/inference --group deploy
+          pnpm exec moon run web:lint web:typecheck web:test web:build inference:lint inference:typecheck inference:test contract:generatedCheck
 
       - name: Generate workspace
         working-directory: apps/mobile
@@ -81,14 +70,29 @@ jobs:
             -derivedDataPath Derived/TestFlightVerification
 
   release:
-    name: Build and upload
+    name: Publish verified release
     needs: verify
     environment: testflight
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 90
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
+      - name: Check web release configuration
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Configure $name in the testflight GitHub environment before releasing."
+              exit 1
+            fi
+          done
+
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          lfs: true
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.5.app
@@ -106,6 +110,21 @@ jobs:
       - name: Set up contract
         uses: ./.github/actions/setup-contract
 
+      - name: Deploy and verify the backend for this commit
+        id: backend
+        working-directory: apps/inference
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: uv run --frozen --group deploy python -m tools.release --revision "$GITHUB_SHA"
+
+      - name: Build the paired web app
+        env:
+          VITE_INFERENCE_URL: ${{ steps.backend.outputs.url }}
+        run: |
+          pnpm dlx vercel@62.7.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@62.7.0 build --prod --token="$VERCEL_TOKEN"
+
       - name: Generate workspace
         working-directory: apps/mobile
         env:
@@ -114,6 +133,17 @@ jobs:
           tuist install
           tuist generate --no-open
           pod install
+
+      - name: Test the release client against its backend
+        working-directory: apps/mobile
+        run: |
+          xcodebuild test \
+            -workspace HandWave.xcworkspace \
+            -scheme HandWave \
+            -configuration Release \
+            ENABLE_TESTABILITY=YES \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -derivedDataPath Derived/ReleaseVerification
 
       - name: Import distribution certificate
         uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7
@@ -137,7 +167,7 @@ jobs:
           HANDWAVE_XCCONFIG_BASE64: ${{ secrets.HANDWAVE_XCCONFIG_BASE64 }}
         run: printf '%s' "$HANDWAVE_XCCONFIG_BASE64" | base64 --decode > Configurations/HandWave.xcconfig
 
-      - name: Upload to TestFlight
+      - name: Build the paired iOS app
         working-directory: apps/mobile
         env:
           APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
@@ -147,4 +177,21 @@ jobs:
           FASTLANE_HIDE_CHANGELOG: "1"
           FASTLANE_SKIP_UPDATE_CHECK: "1"
           TESTFLIGHT_CHANGELOG: ${{ inputs.changelog }}
-        run: bundle exec fastlane ios beta
+        run: bundle exec fastlane ios build_release
+
+      - name: Publish iOS to TestFlight
+        working-directory: apps/mobile
+        env:
+          APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ vars.APPSTORE_ISSUER_ID }}
+          APPSTORE_API_PRIVATE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          TESTFLIGHT_CHANGELOG: ${{ inputs.changelog }}
+        run: bundle exec fastlane ios publish_release
+
+      - name: Publish the paired web app
+        run: pnpm dlx vercel@62.7.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      - name: Record the released backend
+        if: success()
+        run: cat .handwave/release.json >> "$GITHUB_STEP_SUMMARY"

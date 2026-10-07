@@ -47,3 +47,4 @@ apps/inference/src/inference/generated/tunings.py
 .vercel
 .lazyweb/
 .codex/
+.handwave/

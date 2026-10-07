@@ -2,6 +2,10 @@
 
 #include? "HandWave.xcconfig"
 
+// Only the development launcher may select the Debug backend.
+HANDWAVE_INFERENCE_URL =
+#include? "DebugEndpoint.xcconfig"
+
 // Local builds register through Meta AI Developer Mode. Keep production
 // credentials confined to Release.xcconfig and its release channel.
 META_APP_ID = 0

@@ -1,20 +1,45 @@
 opt_out_usage
+require "json"
+require "uri"
 
 default_platform(:ios)
 
 platform :ios do
-  desc "Build and upload the next internal TestFlight release"
-  lane :beta do
-    app_identifier = "sh.handwave.HandWave"
-    developer_team_id = "4PUCF2DKX4"
-    profile_name = ENV.fetch("APPSTORE_PROFILE_NAME")
-
-    api_key = app_store_connect_api_key(
+  private_lane :release_api_key do
+    app_store_connect_api_key(
       key_id: ENV.fetch("APPSTORE_API_KEY_ID"),
       issuer_id: ENV.fetch("APPSTORE_ISSUER_ID"),
       key_content: ENV.fetch("APPSTORE_API_PRIVATE_KEY"),
       duration: 1200
     )
+  end
+
+  desc "Build iOS for the backend verified by the release workflow"
+  lane :build_release do
+    manifest_path = File.expand_path("../../../.handwave/release.json", __dir__)
+    manifest = JSON.parse(File.read(manifest_path))
+    revision = sh("git rev-parse HEAD").strip
+    unless manifest.fetch("deployment_id") == revision
+      UI.user_error!("Backend and app must use the same commit")
+    end
+    unless manifest.fetch("environment") == "main"
+      UI.user_error!("Release requires a production backend")
+    end
+    endpoint = URI.parse(manifest.fetch("url"))
+    unless endpoint.scheme == "https" && endpoint.host && !endpoint.userinfo &&
+        !endpoint.query && !endpoint.fragment && endpoint.path.empty?
+      UI.user_error!("Release requires an HTTPS endpoint")
+    end
+    endpoint_file = File.expand_path("../Configurations/ReleaseEndpoint.xcconfig", __dir__)
+    expected = "HANDWAVE_INFERENCE_URL = #{endpoint.to_s.sub('://', ':/$()/')}"
+    unless File.readlines(endpoint_file).map(&:strip).include?(expected)
+      UI.user_error!("Release endpoint does not match the verified backend")
+    end
+    app_identifier = "sh.handwave.HandWave"
+    developer_team_id = "4PUCF2DKX4"
+    profile_name = ENV.fetch("APPSTORE_PROFILE_NAME")
+
+    api_key = release_api_key
 
     version = get_version_number(
       xcodeproj: "HandWave.xcodeproj",
@@ -55,10 +80,13 @@ platform :ios do
         }
       }
     )
+  end
 
+  desc "Publish the already-built iOS artifact after paired verification"
+  lane :publish_release do
     upload_options = {
-      api_key: api_key,
-      app_identifier: app_identifier,
+      api_key: release_api_key,
+      app_identifier: "sh.handwave.HandWave",
       ipa: "Derived/TestFlight/HandWave.ipa",
       distribute_external: false,
       notify_external_testers: false,

@@ -38,7 +38,7 @@ let infoPlist: [String: Plist.Value] = [
   "NSBluetoothAlwaysUsageDescription":
     "Hand Wave connects to your Meta wearable over Bluetooth.",
   "NSLocalNetworkUsageDescription":
-    "Hand Wave connects to your glasses over Wi-Fi and to local inference servers.",
+    "Hand Wave connects to your glasses over Wi-Fi.",
   "NSBonjourServices": ["_bonjour._tcp"],
   "UISupportedExternalAccessoryProtocols": ["com.meta.ar.wearable"],
   "NSCameraUsageDescription":

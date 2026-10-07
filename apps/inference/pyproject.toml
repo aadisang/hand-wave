@@ -48,7 +48,7 @@ extend-exclude = [
 select = ["E", "F", "I", "B", "UP", "N"]
 
 [tool.pyright]
-include = ["src"]
+include = ["src", "tools"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 

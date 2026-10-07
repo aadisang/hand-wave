@@ -15,9 +15,13 @@ enum InferenceFailure: Error, Equatable, LocalizedError, Sendable {
     case .cancelled:
       nil
     case .missingBaseURL:
-      "Set the inference URL in HandWave.xcconfig."
+      #if DEBUG
+      "Start development with pnpm dev, then rebuild this app."
+      #else
+      "This build has no verified inference service. Install a new release."
+      #endif
     case .localhostOnDevice(let url):
-      "\(url.absoluteString) points to this iPhone. Use your Mac's LAN or Tailscale URL."
+      "\(url.absoluteString) points to this iPhone. Start pnpm dev and rebuild this app."
     case .encodeRequestFailed(let message):
       "Request setup failed: \(message)."
     case .requestFailed(let url, let message):

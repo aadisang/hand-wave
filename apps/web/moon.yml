@@ -33,6 +33,7 @@ tasks:
     deps:
       - "contract:generate"
     inputs:
+      - "$VITE_INFERENCE_URL"
       - "/packages/contract/config.json"
       - "/packages/contract/src/**/*"
       - "/pnpm-lock.yaml"

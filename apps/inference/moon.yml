@@ -15,52 +15,27 @@ dependsOn:
 
 tasks:
   typecheck:
+    command: 'uv run --frozen --group deploy pyright'
+    options:
+      mergeArgs: 'replace'
     deps:
       - 'contract:generate'
 
   test:
+    command: 'uv run --frozen --group deploy python -m pytest'
+    options:
+      mergeArgs: 'replace'
     deps:
       - 'contract:generate'
 
   dev:
-    command:
-      - 'uv'
-      - 'run'
-      - 'python'
-      - '-m'
-      - 'uvicorn'
-      - 'inference.main:app'
-      - '--reload'
-      - '--host'
-      - '0.0.0.0'
-      - '--port'
-      - '8000'
+    command: 'uv run --frozen --group deploy python -m tools.dev'
     deps:
       - 'contract:generate'
     preset: 'server'
 
-  modalServe:
-    command:
-      - 'uv'
-      - 'run'
-      - '--group'
-      - 'deploy'
-      - 'modal'
-      - 'serve'
-      - 'modal_app.py'
+  local:
+    command: 'uv run --frozen uvicorn inference.main:app --reload --port 8000'
     deps:
       - 'contract:generate'
     preset: 'server'
-
-  modalDeploy:
-    command:
-      - 'uv'
-      - 'run'
-      - '--group'
-      - 'deploy'
-      - 'modal'
-      - 'deploy'
-      - 'modal_app.py'
-    deps:
-      - 'contract:generate'
-    preset: 'utility'

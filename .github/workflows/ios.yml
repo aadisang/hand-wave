@@ -5,8 +5,9 @@ on:
     paths:
       - ".github/actions/setup-contract/**"
       - ".github/workflows/ios.yml"
-      - ".github/workflows/testflight.yml"
+      - ".github/workflows/release.yml"
       - "apps/mobile/**"
+      - "apps/inference/tools/**"
       - "package.json"
       - "packages/contract/**"
       - "pnpm-lock.yaml"
@@ -16,8 +17,9 @@ on:
     paths:
       - ".github/actions/setup-contract/**"
       - ".github/workflows/ios.yml"
-      - ".github/workflows/testflight.yml"
+      - ".github/workflows/release.yml"
       - "apps/mobile/**"
+      - "apps/inference/tools/**"
       - "package.json"
       - "packages/contract/**"
       - "pnpm-lock.yaml"
