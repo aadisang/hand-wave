@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/actions/setup-contract/**"
+      - ".github/actions/setup-ios-simulator/**"
       - ".github/workflows/ios.yml"
       - ".github/workflows/release.yml"
       - "apps/mobile/**"
@@ -16,6 +17,7 @@ on:
       - main
     paths:
       - ".github/actions/setup-contract/**"
+      - ".github/actions/setup-ios-simulator/**"
       - ".github/workflows/ios.yml"
       - ".github/workflows/release.yml"
       - "apps/mobile/**"
@@ -39,8 +41,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      - name: Set up iOS simulator
+        id: simulator
+        uses: ./.github/actions/setup-ios-simulator
 
       - name: Set up Tuist
         uses: ./.github/actions/setup-tuist
@@ -66,5 +69,5 @@ jobs:
             -workspace HandWave.xcworkspace \
             -scheme HandWave \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -destination '${{ steps.simulator.outputs.destination }}' \
             -derivedDataPath Derived/CI

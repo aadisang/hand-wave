@@ -1,0 +1,32 @@
+name: Set up iOS simulator
+description: Select Xcode and boot an explicit iOS 26.5 test device
+
+outputs:
+  destination:
+    description: The xcodebuild destination for the booted simulator
+    value: ${{ steps.simulator.outputs.destination }}
+
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode
+      shell: bash
+      run: |
+        sudo xcode-select -s /Applications/Xcode_26.5.app
+        xcodebuild -runFirstLaunch
+
+    - name: Create and boot test device
+      id: simulator
+      shell: bash
+      run: |
+        set -euo pipefail
+        runtime=com.apple.CoreSimulator.SimRuntime.iOS-26-5
+        if ! xcrun simctl list runtimes --json | jq -e --arg runtime "$runtime" \
+          '.runtimes[] | select(.identifier == $runtime and .isAvailable)' >/dev/null; then
+          xcodebuild -downloadPlatform iOS -buildVersion 26.5 -architectureVariant arm64
+        fi
+        device="$(xcrun simctl create 'Hand Wave CI' \
+          com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime")"
+        xcrun simctl boot "$device"
+        xcrun simctl bootstatus "$device" -b
+        echo "destination=platform=iOS Simulator,id=$device" >> "$GITHUB_OUTPUT"
