@@ -4,27 +4,23 @@ TanStack Start client for browser camera capture and real-time sign recognition.
 
 ## Setup
 
-Install the repository dependencies and create the local environment file:
+Follow the repository setup, then start development from the repository root:
 
 ```sh
-pnpm install
-cp .env.example .env
+pnpm dev
 ```
 
-Set `VITE_INFERENCE_URL` to the inference service URL. The default points to the local service on
-port 8000.
-
-Start the web app from the repository root:
-
-```sh
-moon run web:dev
-```
-
-The app runs on `http://localhost:3000`.
+The launcher starts an isolated Modal backend and supplies its URL to Vite.
+The app runs on `http://localhost:3000`. No copied URL or local IP is needed.
 
 ## Quality
 
 ```sh
-moon run web:test
-moon run web:build
+pnpm test --web-only
 ```
+
+This runs the real local model service and browser journeys against a production
+build. Install Chromium first with
+`pnpm --filter @hand-wave/web exec playwright install chromium`.
+See [test scope and evidence](tests/TESTING.md) for artifacts, retained isolated
+regressions, and checks against an existing Modal development backend.
