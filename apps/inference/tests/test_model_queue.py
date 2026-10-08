@@ -30,6 +30,7 @@ class BlockingRuntime:
 
 
 def test_cancelled_prediction_never_overlaps_the_next_runtime_call(monkeypatch) -> None:
+    # E2E cannot force native model work to remain blocked after cancellation.
     runtime = BlockingRuntime()
     monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _assets: runtime)
     backend = CheckpointBackend(get_asset_settings())
