@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       changelog:
@@ -16,16 +18,12 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    uses: ./.github/workflows/checks.yml
-    secrets: inherit
-
-  release:
-    name: Publish verified release
-    needs: verify
-    environment: testflight
-    runs-on: macos-26
-    timeout-minutes: 90
+  configuration:
+    name: Release configuration
+    runs-on: ubuntu-latest
+    environment:
+      name: testflight
+      deployment: false
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -41,6 +39,22 @@ jobs:
             fi
           done
 
+  verify:
+    needs: configuration
+    uses: ./.github/workflows/checks.yml
+    secrets: inherit
+
+  release:
+    name: Publish verified release
+    needs: verify
+    environment: testflight
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -95,16 +109,6 @@ jobs:
           IOS_EVIDENCE_DIR: ${{ github.workspace }}/artifacts/release/mobile
         run: bash apps/mobile/scripts/test.sh live Release
 
-      - name: Save release verification evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-evidence-${{ github.sha }}
-          path: artifacts/release/
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 14
-
       - name: Import distribution certificate
         uses: Apple-Actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7
         with:
@@ -140,6 +144,7 @@ jobs:
         run: bundle exec fastlane ios build_release
 
       - name: Publish iOS to TestFlight
+        id: ios
         working-directory: apps/mobile
         env:
           APPSTORE_API_KEY_ID: ${{ vars.APPSTORE_API_KEY_ID }}
@@ -150,8 +155,37 @@ jobs:
         run: bundle exec fastlane ios publish_release
 
       - name: Publish the paired web app
-        run: pnpm dlx vercel@62.7.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        id: web
+        run: |
+          url="$(pnpm dlx vercel@62.7.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      - name: Record the released backend
-        if: success()
-        run: cat .handwave/release.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Release summary
+        if: always()
+        env:
+          BACKEND_URL: ${{ steps.backend.outputs.url }}
+          IOS_RESULT: ${{ steps.ios.outcome || 'skipped' }}
+          WEB_RESULT: ${{ steps.web.outcome || 'skipped' }}
+          WEB_URL: ${{ steps.web.outputs.url }}
+        run: |
+          {
+            printf 'Commit: `%s`\n\n' "$GITHUB_SHA"
+            printf '| Target | Result | Address |\n| --- | --- | --- |\n'
+            printf '| Backend | %s | %s |\n' '${{ steps.backend.outcome }}' "$BACKEND_URL"
+            printf '| TestFlight | %s | https://appstoreconnect.apple.com |\n' "$IOS_RESULT"
+            printf '| Website | %s | %s |\n' "$WEB_RESULT" "$WEB_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save release artifacts and evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            artifacts/release/
+            .handwave/release.json
+            apps/mobile/Derived/TestFlight/*.ipa
+            apps/mobile/Derived/TestFlight/*.dSYM.zip
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
