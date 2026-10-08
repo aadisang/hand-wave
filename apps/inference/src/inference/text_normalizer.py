@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
-from functools import cache
+from functools import cache, lru_cache
 from math import inf, log1p
 from typing import TYPE_CHECKING
+
+from symspellpy import SymSpell, Verbosity
+from symspellpy.editdistance import DistanceAlgorithm, EditDistance
 
 from inference.ctc import load_unigrams
 from inference.settings import get_asset_settings
@@ -41,6 +43,7 @@ MAX_SINGLE_WORD_CORRECTION_RANK = 1_000
 MAX_FRAGMENTED_WORD_CORRECTION_RANK = 5_000
 MIN_SINGLE_WORD_RANK_RATIO = 2.5
 MIN_COMPOUND_COLLAPSE_RANK = 1_000
+_distance_comparer = EditDistance(DistanceAlgorithm.LEVENSHTEIN_FAST)
 
 
 @dataclass(frozen=True)
@@ -62,11 +65,17 @@ class TextNormalizer:
 
         self.words, self.ranks = ranked_words(load_unigrams(unigrams_path))
         self.word_set = set(self.words)
-        self.delete_index = deletion_index(self.words)
+        self.word_index = SymSpell(
+            max_dictionary_edit_distance=1, distance_comparer=_distance_comparer
+        )
+        for word, rank in self.ranks.items():
+            if len(word) > 1:
+                # Lookup orders by frequency; use the existing vocabulary rank.
+                self.word_index.create_dictionary_entry(word, len(self.ranks) + 1 - rank)
         self.language_model = kenlm.Model(str(kenlm_model_path))
-        self._candidate_cache: dict[str, tuple[WordCandidate, ...]] = {}
-        self._correction_cache: dict[str, tuple[tuple[float, SegmentationPath], ...]] = {}
-        self._segmentation_cache: dict[str, tuple[SegmentationPath, ...]] = {}
+        self.word_candidates = lru_cache(maxsize=20_000)(self.word_candidates)
+        self.segmentations = lru_cache(maxsize=512)(self.segmentations)
+        self.correction_candidates = lru_cache(maxsize=512)(self.correction_candidates)
 
     def normalize(self, text: str) -> str:
         raw = letters_only(text)
@@ -146,9 +155,6 @@ class TextNormalizer:
         return self.normalize_spaced(text, letters_only(text))
 
     def correction_candidates(self, raw: str) -> tuple[tuple[float, SegmentationPath], ...]:
-        cached = self._correction_cache.get(raw)
-        if cached is not None:
-            return cached
         max_edits = 2 if len(raw) >= 7 else 1
         scored: list[tuple[float, SegmentationPath]] = []
         for path in self.segmentations(raw):
@@ -163,11 +169,7 @@ class TextNormalizer:
             if not preserves_edges(raw, path.words):
                 continue
             scored.append((self.path_score(path), path))
-        result = tuple(sorted(scored, key=lambda item: item[0]))
-        if len(self._correction_cache) >= 512:
-            self._correction_cache.clear()
-        self._correction_cache[raw] = result
-        return result
+        return tuple(sorted(scored, key=lambda item: item[0]))
 
     def short_first_word_correction(self, raw: str) -> SegmentationPath | None:
         max_edits = 2 if len(raw) >= 7 else 1
@@ -299,9 +301,6 @@ class TextNormalizer:
         return path.edits * 0.35 + lm_cost * 1.3 + rank_cost * 0.025 + len(path.words) * 0.03
 
     def segmentations(self, raw: str) -> tuple[SegmentationPath, ...]:
-        cached = self._segmentation_cache.get(raw)
-        if cached is not None:
-            return cached
         size = len(raw)
         paths: list[list[SegmentationPath]] = [[] for _ in range(size + 1)]
         paths[0] = [SegmentationPath(base_cost=0.0, edits=0, words=())]
@@ -327,39 +326,17 @@ class TextNormalizer:
                     paths[end] = sorted(paths[end], key=lambda item: item.base_cost)[
                         :MAX_PATHS_PER_POSITION
                     ]
-        result = tuple(paths[size])
-        if len(self._segmentation_cache) >= 512:
-            self._segmentation_cache.clear()
-        self._segmentation_cache[raw] = result
-        return result
+        return tuple(paths[size])
 
     def word_candidates(self, source: str) -> tuple[WordCandidate, ...]:
-        cached = self._candidate_cache.get(source)
-        if cached is not None:
-            return cached
-        candidates: dict[str, int] = {}
-        if source in self.word_set:
-            candidates[source] = 0
-
-        keys = {source}
-        keys.update(source[:index] + source[index + 1 :] for index in range(len(source)))
-        for key in keys:
-            for word in self.delete_index.get(key, ()):
-                edits = edit_distance(source, word, max_distance=1)
-                if edits <= 1:
-                    candidates[word] = min(candidates.get(word, edits), edits)
-
-        result = tuple(
-            WordCandidate(word, edits)
-            for word, edits in sorted(
-                candidates.items(),
-                key=lambda item: (item[1], self.ranks[item[0]]),
-            )[:MAX_CANDIDATES_PER_SPAN]
-        )
-        if len(self._candidate_cache) >= 20_000:
-            self._candidate_cache.clear()
-        self._candidate_cache[source] = result
-        return result
+        candidates = [
+            WordCandidate(item.term, item.distance)
+            for item in self.word_index.lookup(source, Verbosity.ALL)
+        ]
+        # One-letter words are valid exact matches, never correction targets.
+        if len(source) == 1 and source in self.word_set:
+            candidates.insert(0, WordCandidate(source, 0))
+        return tuple(candidates[:MAX_CANDIDATES_PER_SPAN])
 
 
 @cache
@@ -415,33 +392,9 @@ def is_candidate_word(word: str, source_rank: int) -> bool:
     return len(word) <= MAX_WORD_LENGTH
 
 
-def deletion_index(words: Iterable[str]) -> dict[str, set[str]]:
-    index: dict[str, set[str]] = defaultdict(set)
-    for word in words:
-        if len(word) < 2:
-            continue
-        index[word].add(word)
-        for char_index in range(len(word)):
-            index[word[:char_index] + word[char_index + 1 :]].add(word)
-    return dict(index)
-
-
 def edit_distance(left: str, right: str, *, max_distance: int) -> int:
-    if abs(len(left) - len(right)) > max_distance:
-        return max_distance + 1
-    previous = list(range(len(right) + 1))
-    for row, left_char in enumerate(left, start=1):
-        current = [row]
-        row_min = row
-        for column, right_char in enumerate(right, start=1):
-            value = previous[column - 1] if left_char == right_char else previous[column - 1] + 1
-            value = min(value, previous[column] + 1, current[-1] + 1)
-            current.append(value)
-            row_min = min(row_min, value)
-        if row_min > max_distance:
-            return max_distance + 1
-        previous = current
-    return previous[-1]
+    distance = _distance_comparer.compare(left, right, max_distance)
+    return max_distance + 1 if distance < 0 else distance
 
 
 def letters_only(text: str) -> str:

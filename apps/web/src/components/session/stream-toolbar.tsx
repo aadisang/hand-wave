@@ -208,7 +208,6 @@ export const StreamToolbar = memo(function StreamToolbar({
                 <CameraSelect
                   cameraId={cameraId}
                   onOpenChange={setSelectOpen}
-                  reserve={state.status === "starting"}
                   setCameraId={setCameraId}
                 />
               )}

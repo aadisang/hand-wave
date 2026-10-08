@@ -10,6 +10,7 @@ dependencies = [
     "pyctcdecode>=0.5.0",
     "pydantic>=2.13,<3",
     "pydantic-settings>=2,<3",
+    "symspellpy[editdistpy]>=6.10,<7",
     "torch>=2.13,<2.14",
     "torchaudio>=2.11,<2.12",
     "uvicorn[standard]>=0.38.0",
