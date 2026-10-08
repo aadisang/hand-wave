@@ -18,6 +18,8 @@ from urllib.error import URLError
 from urllib.request import urlopen
 from uuid import uuid4
 
+from inference.endpoints import BackendManifest, origin_text
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -118,8 +120,10 @@ def run(args: argparse.Namespace) -> int:
         (output / "source.json").write_text(json.dumps(source_hashes, indent=2) + "\n")
         command("contract", ["pnpm", "exec", "moon", "run", "contract:generate"])
         if args.backend_manifest:
-            manifest = json.loads(args.backend_manifest.read_text())
-            url, deployment_id = manifest["url"], manifest["deployment_id"]
+            manifest = BackendManifest.model_validate_json(
+                args.backend_manifest.read_bytes()
+            )
+            url, deployment_id = origin_text(manifest.url), manifest.deployment_id
         else:
             listener = socket.socket()
             listener.bind(("127.0.0.1", 0))

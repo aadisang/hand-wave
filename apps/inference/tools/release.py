@@ -11,6 +11,7 @@ from pathlib import Path
 
 import modal
 
+from inference.endpoints import BackendManifest, origin_text
 from tools.backend import ROOT, verify_backend, write_endpoint, write_manifest
 
 
@@ -34,11 +35,13 @@ def release(output: Path) -> None:
         with modal.enable_output():
             app.deploy(environment_name="main", tag=revision)
         url = fastapi_app.get_web_url()
-    if url is None:
-        raise RuntimeError("Modal did not return an inference endpoint")
-    asyncio.run(verify_backend(url, revision))
-    write_manifest(output, url, revision, "main")
-    write_endpoint(url, "Release")
+    backend = BackendManifest.model_validate(
+        {"url": url, "deployment_id": revision, "environment": "main"}
+    )
+    asyncio.run(verify_backend(backend))
+    write_manifest(output, backend)
+    write_endpoint(backend.url, "Release")
+    url = origin_text(backend.url)
     if github_output := os.getenv("GITHUB_OUTPUT"):
         with Path(github_output).open("a") as result:
             result.write(f"url={url}\ndeployment_id={revision}\n")

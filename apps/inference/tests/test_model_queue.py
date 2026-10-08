@@ -1,11 +1,11 @@
 import asyncio
 import threading
 import time
-from pathlib import Path
 
 from inference.ctc import DecodedAlternative, DecodedText
 from inference.model import CheckpointBackend
 from inference.schemas import LandmarkFrame
+from inference.settings import get_asset_settings
 
 
 class BlockingRuntime:
@@ -31,8 +31,8 @@ class BlockingRuntime:
 
 def test_cancelled_prediction_never_overlaps_the_next_runtime_call(monkeypatch) -> None:
     runtime = BlockingRuntime()
-    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _path: runtime)
-    backend = CheckpointBackend(Path("unused.ckpt"))
+    monkeypatch.setattr("inference.runtime.HandwaveRuntime", lambda _assets: runtime)
+    backend = CheckpointBackend(get_asset_settings())
     frame = LandmarkFrame(root=[0.0] * 162)
 
     async def run() -> None:

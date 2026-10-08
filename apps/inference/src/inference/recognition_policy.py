@@ -1,7 +1,7 @@
 import re
 from collections.abc import Sequence
-from typing import Protocol
 
+from inference.generated.tunings import SmoothTunings
 from inference.schemas import (
     Prediction,
     RecognitionCount,
@@ -12,46 +12,10 @@ from inference.schemas import (
 from inference.text_normalizer import edit_distance, is_uncorrected_oov
 
 
-class PolicyConfig(Protocol):
-    display_confidence: float
-    display_streak: int
-    display_count: int
-    display_clear_misses: int
-    instant_display_confidence: float
-    commit_confidence: float
-    model_disagreement_commit_confidence: float
-    short_commit_confidence: float
-    commit_streak: int
-    commit_count: int
-    endpoint_commit_count: int
-    commit_soft_oov_min_chars: int
-    commit_soft_oov_confidence: float
-    commit_reject_uncorrected_oov_chars: int
-    stable_commit_confidence: float
-    stable_commit_count: int
-    stable_commit_streak: int
-    stable_commit_min_chars: int
-    short_stable_commit_confidence: float
-    short_stable_commit_count: int
-    short_stable_commit_streak: int
-    short_stable_commit_min_chars: int
-    short_stable_commit_max_chars: int
-    majority_commit_min_count: int
-    majority_commit_min_share: float
-    majority_commit_min_chars: int
-    dominant_commit_confidence: float
-    dominant_commit_count: int
-    dominant_commit_min_chars: int
-    alternative_commit_confidence: float
-    alternative_commit_count: int
-    alternative_commit_min_chars: int
-    replace_margin: float
-
-
 def pick_alternative_candidate(
     current: RecognitionScored | None,
     candidate: RecognitionScored,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> RecognitionScored:
     if current is None:
         return candidate
@@ -66,7 +30,7 @@ def should_display(
     seen: int,
     streak: int,
     misses: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     confidence = candidate.prediction.confidence
     stable = (
@@ -87,7 +51,7 @@ def should_clear_display(
     candidate: RecognitionScored,
     display: RecognitionScored | None,
     misses: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     if display is None or misses < config.display_clear_misses:
         return False
@@ -100,7 +64,7 @@ def pick_final(
     current: RecognitionScored | None,
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> RecognitionScored | None:
     if not should_commit(candidate, seen, config):
         return current
@@ -113,7 +77,7 @@ def pick_final(
 
 def majority_candidate(
     state: RecognitionState,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> RecognitionScored | None:
     counts = state.counts or []
     total = sum(item.count for item in counts)
@@ -152,7 +116,7 @@ def majority_candidate(
     )
 
 
-def select_final(state: RecognitionState, config: PolicyConfig) -> RecognitionScored | None:
+def select_final(state: RecognitionState, config: SmoothTunings) -> RecognitionScored | None:
     selected = select_primary_final(state, config)
     if selected and should_commit(selected, count_for_candidate(state, selected), config):
         return selected
@@ -168,7 +132,7 @@ def select_final(state: RecognitionState, config: PolicyConfig) -> RecognitionSc
 
 def select_primary_final(
     state: RecognitionState,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> RecognitionScored | None:
     selected = state.final_candidate
     display = state.display
@@ -190,7 +154,7 @@ def select_primary_final(
 def should_commit(
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     confidence = max(
@@ -229,7 +193,7 @@ def should_commit(
 def is_stable_dominant_candidate(
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     return (
@@ -244,7 +208,7 @@ def is_stable_dominant_candidate(
 def has_expansion_evidence(
     state: RecognitionState,
     candidate: RecognitionScored,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     base = clean(candidate.prediction.label).replace(" ", "")
     if len(base) < 3:
@@ -266,7 +230,7 @@ def has_expansion_evidence(
 def is_stable_alternative_candidate(
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     return (
@@ -281,7 +245,7 @@ def is_stable_alternative_candidate(
 def is_stable_short_model_agreed_candidate(
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     return (
@@ -296,7 +260,7 @@ def is_stable_short_model_agreed_candidate(
 def is_stable_model_agreed_candidate(
     candidate: RecognitionScored,
     seen: int,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     text_len = len(clean(candidate.prediction.label).replace(" ", ""))
     return (
@@ -312,7 +276,7 @@ def should_accept_endpoint(
     text: str,
     confidence: float,
     state: RecognitionState,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     if not text or count_for(state, text) < config.endpoint_commit_count:
         return False
@@ -334,7 +298,7 @@ def should_accept_endpoint(
 def is_low_confidence_soft_oov(
     text: str,
     confidence: float,
-    config: PolicyConfig,
+    config: SmoothTunings,
 ) -> bool:
     return confidence < config.commit_soft_oov_confidence and is_uncorrected_oov(
         text,

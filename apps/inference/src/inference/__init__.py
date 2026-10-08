@@ -1,3 +1,1 @@
-__all__ = ["app"]
-
-from .main import app
+"""Handwave inference service. The ASGI app is ``inference.main:app``."""

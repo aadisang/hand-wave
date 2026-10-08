@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from math import inf, log1p
-from os import getenv
 from typing import TYPE_CHECKING
 
-from inference.ctc import DEFAULT_KENLM_MODEL_PATH, DEFAULT_UNIGRAMS_PATH, load_unigrams
+from inference.ctc import load_unigrams
+from inference.settings import get_asset_settings
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from pathlib import Path
 
 
 MAX_WORDS = 50_000
@@ -56,11 +57,13 @@ class SegmentationPath:
 
 
 class TextNormalizer:
-    def __init__(self) -> None:
-        self.words, self.ranks = ranked_words(load_unigrams(DEFAULT_UNIGRAMS_PATH))
+    def __init__(self, kenlm_model_path: Path, unigrams_path: Path) -> None:
+        import kenlm
+
+        self.words, self.ranks = ranked_words(load_unigrams(unigrams_path))
         self.word_set = set(self.words)
         self.delete_index = deletion_index(self.words)
-        self.language_model = load_language_model()
+        self.language_model = kenlm.Model(str(kenlm_model_path))
         self._candidate_cache: dict[str, tuple[WordCandidate, ...]] = {}
         self._correction_cache: dict[str, tuple[tuple[float, SegmentationPath], ...]] = {}
         self._segmentation_cache: dict[str, tuple[SegmentationPath, ...]] = {}
@@ -359,30 +362,20 @@ class TextNormalizer:
         return result
 
 
-@lru_cache(maxsize=1)
-def default_normalizer() -> TextNormalizer | None:
-    if getenv("TEXT_NORMALIZER_MODE", "required").lower() == "disabled":
-        return None
-    return TextNormalizer()
-
-
-def initialize_text_normalizer() -> None:
-    default_normalizer()
+@cache
+def default_normalizer() -> TextNormalizer:
+    assets = get_asset_settings()
+    return TextNormalizer(assets.kenlm_model_path, assets.kenlm_unigrams_path)
 
 
 def normalize_prediction_text(text: str) -> str:
-    normalizer = default_normalizer()
-    if normalizer is None:
-        return text
-    return normalizer.normalize(text)
+    return default_normalizer().normalize(text)
 
 
 def is_uncorrected_oov(text: str, *, min_chars: int) -> bool:
     if min_chars <= 0:
         return False
     normalizer = default_normalizer()
-    if normalizer is None:
-        return False
 
     raw = letters_only(text)
     if len(raw) < min_chars or " " in text or raw in normalizer.word_set:
@@ -516,9 +509,3 @@ def plausible_single_word_alignment(raw: str, word: str) -> bool:
     if len(word) == len(raw) + 1 and (word[1:] == raw or word[:-1] == raw):
         return True
     return False
-
-
-def load_language_model():
-    import kenlm
-
-    return kenlm.Model(str(DEFAULT_KENLM_MODEL_PATH))

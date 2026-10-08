@@ -1,16 +1,11 @@
 import asyncio
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from os import getenv
-from pathlib import Path
 
 from inference.ctc import DecodedText
 from inference.schemas import LandmarkFrame, Prediction, PredictOut, Span
+from inference.settings import AssetSettings
 from inference.text_normalizer import normalize_prediction_text
-
-DEFAULT_MODELS_DIR = Path(__file__).resolve().parents[2] / "models"
-MODELS_DIR = Path(getenv("MODEL_DIR", str(DEFAULT_MODELS_DIR)))
-MODEL_CHECKPOINT_PATH_ENV = "MODEL_CHECKPOINT_PATH"
 
 
 class ModelBackend:
@@ -19,10 +14,10 @@ class ModelBackend:
 
 
 class CheckpointBackend(ModelBackend):
-    def __init__(self, checkpoint_path: Path) -> None:
+    def __init__(self, assets: AssetSettings) -> None:
         from inference.runtime import HandwaveRuntime
 
-        self.runtime = HandwaveRuntime(checkpoint_path)
+        self.runtime = HandwaveRuntime(assets)
         # Cancellation cannot stop native model work once it has entered a
         # thread. A single-worker executor keeps the runtime serial even when
         # the task awaiting an older prediction gets cancelled.
@@ -81,24 +76,3 @@ def decoded_to_predict_out(decoded: DecodedText) -> PredictOut:
         partial_text=label,
         stable_text="",
     )
-
-
-def load_backend() -> ModelBackend:
-    return CheckpointBackend(resolve_checkpoint_path())
-
-
-def resolve_checkpoint_path(models_dir: Path = MODELS_DIR) -> Path:
-    explicit = getenv(MODEL_CHECKPOINT_PATH_ENV)
-    if explicit:
-        checkpoint = Path(explicit)
-        if not checkpoint.exists():
-            raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
-        return checkpoint
-
-    checkpoints = sorted(models_dir.glob("*.ckpt"))
-    if not checkpoints:
-        raise FileNotFoundError(f"expected one .ckpt model under {models_dir}")
-    if len(checkpoints) > 1:
-        names = ", ".join(path.name for path in checkpoints)
-        raise RuntimeError(f"expected one .ckpt model under {models_dir}, found: {names}")
-    return checkpoints[0]
