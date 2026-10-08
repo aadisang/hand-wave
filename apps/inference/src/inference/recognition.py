@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from os import getenv
 from time import perf_counter
 
-from inference.generated.tunings import SMOOTH
+from inference.generated.tunings import SMOOTH, SmoothTunings
 from inference.model import ModelBackend
 from inference.recognition_policy import (
-    PolicyConfig,
     clean,
     compatible_text,
     count_for,
@@ -46,133 +43,6 @@ from inference.text_normalizer import is_uncorrected_oov, normalize_prediction_t
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class SmoothConfig(PolicyConfig):
-    display_confidence: float = SMOOTH.display_confidence
-    display_streak: int = SMOOTH.display_streak
-    display_count: int = SMOOTH.display_count
-    display_clear_misses: int = SMOOTH.display_clear_misses
-    display_clear_motion: float = SMOOTH.display_clear_motion
-    instant_display_confidence: float = SMOOTH.instant_display_confidence
-    commit_confidence: float = SMOOTH.commit_confidence
-    model_disagreement_commit_confidence: float = SMOOTH.model_disagreement_commit_confidence
-    short_commit_confidence: float = SMOOTH.short_commit_confidence
-    commit_streak: int = SMOOTH.commit_streak
-    commit_count: int = SMOOTH.commit_count
-    endpoint_commit_count: int = SMOOTH.endpoint_commit_count
-    commit_soft_oov_min_chars: int = SMOOTH.commit_soft_oov_min_chars
-    commit_soft_oov_confidence: float = SMOOTH.commit_soft_oov_confidence
-    commit_reject_uncorrected_oov_chars: int = SMOOTH.commit_reject_uncorrected_oov_chars
-    stable_commit_confidence: float = SMOOTH.stable_commit_confidence
-    stable_commit_count: int = SMOOTH.stable_commit_count
-    stable_commit_streak: int = SMOOTH.stable_commit_streak
-    stable_commit_min_chars: int = SMOOTH.stable_commit_min_chars
-    short_stable_commit_confidence: float = SMOOTH.short_stable_commit_confidence
-    short_stable_commit_count: int = SMOOTH.short_stable_commit_count
-    short_stable_commit_streak: int = SMOOTH.short_stable_commit_streak
-    short_stable_commit_min_chars: int = SMOOTH.short_stable_commit_min_chars
-    short_stable_commit_max_chars: int = SMOOTH.short_stable_commit_max_chars
-    majority_commit_min_count: int = SMOOTH.majority_commit_min_count
-    majority_commit_min_share: float = SMOOTH.majority_commit_min_share
-    majority_commit_min_chars: int = SMOOTH.majority_commit_min_chars
-    dominant_commit_confidence: float = SMOOTH.dominant_commit_confidence
-    dominant_commit_count: int = SMOOTH.dominant_commit_count
-    dominant_commit_min_chars: int = SMOOTH.dominant_commit_min_chars
-    alternative_commit_confidence: float = SMOOTH.alternative_commit_confidence
-    alternative_commit_count: int = SMOOTH.alternative_commit_count
-    alternative_commit_min_chars: int = SMOOTH.alternative_commit_min_chars
-    alternative_commit_recent_misses: int = SMOOTH.alternative_commit_recent_misses
-    replace_margin: float = SMOOTH.replace_margin
-
-    @classmethod
-    def from_env(cls) -> SmoothConfig:
-        return cls(
-            display_confidence=_env_float("DISPLAY_MIN_CONFIDENCE", cls.display_confidence),
-            display_streak=_env_int("DISPLAY_MIN_STREAK", cls.display_streak),
-            display_count=_env_int("DISPLAY_MIN_COUNT", cls.display_count),
-            display_clear_misses=_env_int("DISPLAY_CLEAR_MISSES", cls.display_clear_misses),
-            display_clear_motion=_env_float("DISPLAY_CLEAR_MOTION", cls.display_clear_motion),
-            instant_display_confidence=_env_float(
-                "DISPLAY_INSTANT_CONFIDENCE", cls.instant_display_confidence
-            ),
-            commit_confidence=_env_float("COMMIT_MIN_CONFIDENCE", cls.commit_confidence),
-            model_disagreement_commit_confidence=_env_float(
-                "MODEL_DISAGREEMENT_COMMIT_CONFIDENCE",
-                cls.model_disagreement_commit_confidence,
-            ),
-            short_commit_confidence=_env_float(
-                "SHORT_COMMIT_MIN_CONFIDENCE", cls.short_commit_confidence
-            ),
-            commit_streak=_env_int("COMMIT_MIN_STREAK", cls.commit_streak),
-            commit_count=_env_int("COMMIT_MIN_COUNT", cls.commit_count),
-            endpoint_commit_count=_env_int("ENDPOINT_COMMIT_MIN_COUNT", cls.endpoint_commit_count),
-            commit_soft_oov_min_chars=_env_int(
-                "COMMIT_SOFT_OOV_MIN_CHARS", cls.commit_soft_oov_min_chars
-            ),
-            commit_soft_oov_confidence=_env_float(
-                "COMMIT_SOFT_OOV_MIN_CONFIDENCE", cls.commit_soft_oov_confidence
-            ),
-            commit_reject_uncorrected_oov_chars=_env_int(
-                "COMMIT_REJECT_UNCORRECTED_OOV_CHARS",
-                cls.commit_reject_uncorrected_oov_chars,
-            ),
-            stable_commit_confidence=_env_float(
-                "STABLE_COMMIT_MIN_CONFIDENCE", cls.stable_commit_confidence
-            ),
-            stable_commit_count=_env_int("STABLE_COMMIT_MIN_COUNT", cls.stable_commit_count),
-            stable_commit_streak=_env_int("STABLE_COMMIT_MIN_STREAK", cls.stable_commit_streak),
-            stable_commit_min_chars=_env_int(
-                "STABLE_COMMIT_MIN_CHARS", cls.stable_commit_min_chars
-            ),
-            short_stable_commit_confidence=_env_float(
-                "SHORT_STABLE_COMMIT_MIN_CONFIDENCE",
-                cls.short_stable_commit_confidence,
-            ),
-            short_stable_commit_count=_env_int(
-                "SHORT_STABLE_COMMIT_MIN_COUNT", cls.short_stable_commit_count
-            ),
-            short_stable_commit_streak=_env_int(
-                "SHORT_STABLE_COMMIT_MIN_STREAK", cls.short_stable_commit_streak
-            ),
-            short_stable_commit_min_chars=_env_int(
-                "SHORT_STABLE_COMMIT_MIN_CHARS", cls.short_stable_commit_min_chars
-            ),
-            short_stable_commit_max_chars=_env_int(
-                "SHORT_STABLE_COMMIT_MAX_CHARS", cls.short_stable_commit_max_chars
-            ),
-            majority_commit_min_count=_env_int(
-                "MAJORITY_COMMIT_MIN_COUNT", cls.majority_commit_min_count
-            ),
-            majority_commit_min_share=_env_float(
-                "MAJORITY_COMMIT_MIN_SHARE", cls.majority_commit_min_share
-            ),
-            majority_commit_min_chars=_env_int(
-                "MAJORITY_COMMIT_MIN_CHARS", cls.majority_commit_min_chars
-            ),
-            dominant_commit_confidence=_env_float(
-                "DOMINANT_COMMIT_MIN_CONFIDENCE", cls.dominant_commit_confidence
-            ),
-            dominant_commit_count=_env_int("DOMINANT_COMMIT_MIN_COUNT", cls.dominant_commit_count),
-            dominant_commit_min_chars=_env_int(
-                "DOMINANT_COMMIT_MIN_CHARS", cls.dominant_commit_min_chars
-            ),
-            alternative_commit_confidence=_env_float(
-                "ALTERNATIVE_COMMIT_MIN_CONFIDENCE", cls.alternative_commit_confidence
-            ),
-            alternative_commit_count=_env_int(
-                "ALTERNATIVE_COMMIT_MIN_COUNT", cls.alternative_commit_count
-            ),
-            alternative_commit_min_chars=_env_int(
-                "ALTERNATIVE_COMMIT_MIN_CHARS", cls.alternative_commit_min_chars
-            ),
-            alternative_commit_recent_misses=_env_int(
-                "ALTERNATIVE_COMMIT_RECENT_MISSES",
-                cls.alternative_commit_recent_misses,
-            ),
-            replace_margin=_env_float("DISPLAY_REPLACE_MARGIN", cls.replace_margin),
-        )
-
-
 def empty_state() -> RecognitionState:
     return RecognitionState(
         display=None,
@@ -188,10 +58,9 @@ def empty_state() -> RecognitionState:
 
 
 async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut:
-    config = SmoothConfig.from_env()
     state = payload.state or empty_state()
     if payload.finalize:
-        out = finalize(state, payload.context, config)
+        out = finalize(state, payload.context, SMOOTH)
         if out.committed:
             return out
 
@@ -208,9 +77,9 @@ async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut
                 payload.context,
                 len(frames),
                 latency_ms,
-                config,
+                SMOOTH,
             )
-        out = finalize(state, payload.context, config)
+        out = finalize(state, payload.context, SMOOTH)
         return out.model_copy(
             update={
                 "trace": RecognitionTrace(
@@ -239,7 +108,7 @@ async def recognize(payload: RecognizeIn, backend: ModelBackend) -> RecognizeOut
         payload.context,
         len(frames),
         latency_ms,
-        config,
+        SMOOTH,
     )
 
 
@@ -249,9 +118,8 @@ def accept_prediction(
     context: RecognitionContext,
     buffered_frames: int,
     latency_ms: float,
-    config: SmoothConfig | None = None,
+    config: SmoothTunings,
 ) -> RecognizeOut:
-    config = config or SmoothConfig.from_env()
     state = state.model_copy(deep=True)
     text = clean(response.prediction.label)
     if text:
@@ -296,9 +164,8 @@ def accept_endpoint_prediction(
     context: RecognitionContext,
     buffered_frames: int,
     latency_ms: float,
-    config: SmoothConfig | None = None,
+    config: SmoothTunings,
 ) -> tuple[RecognitionState, DecodeTrace]:
-    config = config or SmoothConfig.from_env()
     state = state.model_copy(deep=True)
     text = clean(response.prediction.label)
     trace = DecodeTrace(
@@ -339,9 +206,8 @@ def accept_endpoint_prediction(
 def finalize(
     state: RecognitionState,
     context: RecognitionContext,
-    config: SmoothConfig | None = None,
+    config: SmoothTunings,
 ) -> RecognizeOut:
-    config = config or SmoothConfig.from_env()
     selected = select_final(state, config)
     prediction = None
     committed = False
@@ -389,7 +255,7 @@ def accept_text(
     state: RecognitionState,
     response: PredictOut,
     text: str,
-    config: SmoothConfig,
+    config: SmoothTunings,
 ) -> RecognitionState:
     seen = count_for(state, text) + 1
     streak = state.selected_streak + 1 if state.selected_text == text else 1
@@ -438,7 +304,7 @@ def accept_text(
 def accept_blank(
     state: RecognitionState,
     context: RecognitionContext,
-    config: SmoothConfig,
+    config: SmoothTunings,
 ) -> RecognitionState:
     if not state.display:
         return state
@@ -461,7 +327,7 @@ def accept_blank(
 def accept_alternative_predictions(
     state: RecognitionState,
     response: PredictOut,
-    config: SmoothConfig,
+    config: SmoothTunings,
 ) -> RecognitionState:
     candidates = ranked_current_candidates(response)
     present = {text for text, _, _ in candidates}
@@ -525,7 +391,7 @@ def ranked_current_candidates(response: PredictOut) -> tuple[tuple[str, Predicti
 def age_alternative_candidate(
     state: RecognitionState,
     present: set[str],
-    config: SmoothConfig,
+    config: SmoothTunings,
 ) -> RecognitionState:
     if state.alternative_candidate is None:
         state.alternative_misses = 0
@@ -571,7 +437,7 @@ def should_remember_alternative_candidate(
     candidate: RecognitionScored,
     seen: int,
     rank: int,
-    config: SmoothConfig,
+    config: SmoothTunings,
 ) -> bool:
     text = candidate.prediction.label
     text_len = len(clean(text).replace(" ", ""))
@@ -596,13 +462,3 @@ def should_remember_alternative_candidate(
         )
         and not is_low_confidence_soft_oov(text, candidate.prediction.confidence, config)
     )
-
-
-def _env_float(name: str, default: float) -> float:
-    value = getenv(name)
-    return float(value) if value else default
-
-
-def _env_int(name: str, default: int) -> int:
-    value = getenv(name)
-    return int(value) if value else default

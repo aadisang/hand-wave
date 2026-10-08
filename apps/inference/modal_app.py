@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-from os import environ
+import json
 
 import modal
 
-DEPLOYMENT_KIND = environ["HANDWAVE_DEPLOYMENT_KIND"]
-DEPLOYMENT_ID = environ["HANDWAVE_DEPLOYMENT_ID"]
-if DEPLOYMENT_KIND not in ("dev", "release"):
-    raise ValueError("Start Modal through the development or release launcher")
-APP_NAME = "hand-wave" if DEPLOYMENT_KIND == "dev" else f"hand-wave-{DEPLOYMENT_ID}"
+from inference.settings import DeploymentSettings
+
+# Set by the development or release launcher; Modal re-imports this in the container.
+# The required deployment fields come from the environment, not arguments.
+DEPLOYMENT = DeploymentSettings()  # pyright: ignore[reportCallIssue]
+DEV = DEPLOYMENT.deployment_kind == "dev"
+APP_NAME = "hand-wave" if DEV else f"hand-wave-{DEPLOYMENT.deployment_id}"
 MODEL_DIR = "/models"
 
 env = {
-    "CORS_ORIGINS": (
-        "http://localhost:3000,http://127.0.0.1:3000"
-        if DEPLOYMENT_KIND == "dev"
-        else "https://handwave.sh"
+    "CORS_ORIGINS": json.dumps(
+        ["http://localhost:3000", "http://127.0.0.1:3000"] if DEV else ["https://handwave.sh"]
     ),
     "MODEL_DIR": MODEL_DIR,
-    "HANDWAVE_DEPLOYMENT_ID": DEPLOYMENT_ID,
-    "HANDWAVE_DEPLOYMENT_KIND": DEPLOYMENT_KIND,
+    "HANDWAVE_DEPLOYMENT_ID": DEPLOYMENT.deployment_id,
+    "HANDWAVE_DEPLOYMENT_KIND": DEPLOYMENT.deployment_kind,
 }
 
 image = (
@@ -39,8 +39,8 @@ app = modal.App(APP_NAME)
 @app.function(
     image=image,
     timeout=86_400,
-    min_containers=1 if DEPLOYMENT_KIND == "dev" else 0,
-    max_containers=1 if DEPLOYMENT_KIND == "dev" else None,
+    min_containers=1 if DEV else 0,
+    max_containers=1 if DEV else None,
 )
 # Each socket is mostly idle, but model work is serial inside a container.
 # Scale near one active socket per model while allowing short connection bursts.

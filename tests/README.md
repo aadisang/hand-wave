@@ -11,6 +11,12 @@ These are the failures the shared runner must expose before its implementation:
 
 - The model cannot load, or an old process answers on the selected port. Wait for
   health with the expected deployment ID; reject a different ID.
+- The backend is misconfigured: a missing deployment ID, invalid CORS origins, or
+  missing model files. The server must exit during startup; keep `server.log`
+  and the failed report.
+- A `--backend-manifest` file is missing, malformed, not HTTPS on the default
+  port, or names another environment. Fail before any client check and keep the
+  validation error in the report.
 - A protocol check passes without running inference. Require a real prediction
   and decode evidence before testing finalize and reset.
 - The browser cannot load MediaPipe, start or restart capture, reach the real

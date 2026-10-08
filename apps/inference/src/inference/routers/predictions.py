@@ -1,4 +1,3 @@
-from os import environ
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -14,6 +13,7 @@ from inference.schemas import (
     RecognizeIn,
     RecognizeOut,
 )
+from inference.settings import ServerSettings, get_settings
 from inference.streaming import (
     PROTOCOL_VERSION,
     SUBPROTOCOL,
@@ -40,8 +40,8 @@ async def predict(
 
 
 @router.get("/health", response_model=HealthOut)
-async def health() -> HealthOut:
-    return HealthOut(ok=True, deployment_id=environ["HANDWAVE_DEPLOYMENT_ID"])
+async def health(settings: Annotated[ServerSettings, Depends(get_settings)]) -> HealthOut:
+    return HealthOut(ok=True, deployment_id=settings.deployment_id)
 
 
 @router.post("/recognize", response_model=RecognizeOut)

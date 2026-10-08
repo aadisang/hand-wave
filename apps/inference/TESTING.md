@@ -10,6 +10,18 @@ accepting valid input after a bad request. A closed connection can also
 prevent a later client from reconnecting. These are service boundary failures;
 test them through a real process and the real model.
 
+Configuration can also be wrong. The server must refuse to start, with the
+error in its log, when the deployment ID is missing or blank, `CORS_ORIGINS` is
+not a JSON list of origins, an origin has credentials, a path, a query, or a
+fragment, or a checkpoint, KenLM model, or unigram file is missing. The decoder
+and text normalizer must load the same configured language model assets. The
+Modal app must not be defined without a `dev` or `release` deployment kind and a
+deployment ID, and must not check model files on the host, where `/models` does
+not exist. A backend manifest must name an HTTPS origin on the default port, a
+deployment ID, and the `dev` or `main` environment; the runner must reject any
+other manifest with a failed report. Readiness must reject a backend whose
+health reports another deployment ID.
+
 Record each request and response, failures, process logs, elapsed times, Git
 revision and source hashes, and model hashes. A failed run must still write its
 report and exit nonzero. A repeat run must use the same command and assets. A

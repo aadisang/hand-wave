@@ -1,27 +1,21 @@
 from contextlib import asynccontextmanager
-from os import getenv
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from inference.model import load_backend
+from inference.endpoints import origin_text
+from inference.model import CheckpointBackend
 from inference.routers import predictions
-from inference.text_normalizer import initialize_text_normalizer
+from inference.settings import get_asset_settings, get_settings
+from inference.text_normalizer import default_normalizer
 
-
-def cors_origins() -> list[str]:
-    raw_origins = getenv(
-        "CORS_ORIGINS",
-        "https://handwave.sh,http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001",
-    )
-    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    initialize_text_normalizer()
-    backend = load_backend()
-    app.state.backend = backend
+    default_normalizer()
+    app.state.backend = CheckpointBackend(get_asset_settings())
     yield
     app.state.backend = None
 
@@ -34,7 +28,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins(),
+    allow_origins=[origin_text(origin) for origin in settings.cors_origins],
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )

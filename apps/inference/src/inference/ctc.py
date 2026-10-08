@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from os import getenv
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -14,66 +13,8 @@ from inference.generated.tunings import CTC
 logging.getLogger("pyctcdecode").setLevel(logging.ERROR)
 from pyctcdecode import build_ctcdecoder  # noqa: E402
 
-
-def _env_words(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
-    value = getenv(name)
-    if value is None:
-        return default
-    return tuple(word.strip().lower() for word in value.split(",") if word.strip())
-
-
 FSBOARD_CHARS = tuple(" !#$%&'()*+,-./0123456789:;=?@[_abcdefghijklmnopqrstuvwxyz~")
 VOCAB = ("<blank>", *FSBOARD_CHARS)
-LM_DIR = Path(__file__).resolve().parents[2] / "models" / "lm"
-DEFAULT_KENLM_MODEL_PATH = LM_DIR / "neutral_english_4gram.kenlm"
-DEFAULT_UNIGRAMS_PATH = LM_DIR / "neutral_english_unigrams.txt"
-
-
-@dataclass(frozen=True)
-class CtcDecoderConfig:
-    kenlm_model_path: Path | None
-    unigram_path: Path | None
-    alpha: float
-    beta: float
-    unk_score_offset: float
-    beam_width: int = CTC.beam_width
-    beam_prune_logp: float = CTC.beam_prune_logp
-    token_min_logp: float = CTC.token_min_logp
-    confidence_temperature: float = CTC.confidence_temperature
-    hotwords: tuple[str, ...] = CTC.hotwords
-    hotword_weight: float = CTC.hotword_weight
-
-    @classmethod
-    def from_env(cls) -> CtcDecoderConfig:
-        model_path = _env_path("KENLM_MODEL_PATH", DEFAULT_KENLM_MODEL_PATH)
-        return cls(
-            kenlm_model_path=model_path,
-            unigram_path=_env_path("KENLM_UNIGRAMS_PATH", DEFAULT_UNIGRAMS_PATH),
-            alpha=_env_float("CTC_ALPHA", CTC.alpha),
-            beta=_env_float("CTC_BETA", CTC.beta),
-            unk_score_offset=_env_float(
-                "CTC_UNK_SCORE_OFFSET",
-                CTC.unk_score_offset,
-            ),
-            beam_width=_env_int("CTC_BEAM_WIDTH", CTC.beam_width),
-            beam_prune_logp=_env_float(
-                "CTC_BEAM_PRUNE_LOGP",
-                CTC.beam_prune_logp,
-            ),
-            token_min_logp=_env_float(
-                "CTC_TOKEN_MIN_LOGP",
-                CTC.token_min_logp,
-            ),
-            confidence_temperature=_env_float(
-                "CTC_CONFIDENCE_TEMPERATURE",
-                CTC.confidence_temperature,
-            ),
-            hotwords=_env_words("CTC_HOTWORDS", CTC.hotwords),
-            hotword_weight=_env_float(
-                "CTC_HOTWORD_WEIGHT",
-                CTC.hotword_weight,
-            ),
-        )
 
 
 @dataclass(frozen=True)
@@ -118,25 +59,16 @@ class CtcDecoder(Protocol):
     def reset_params(self, *args: object, **kwargs: object) -> None: ...
 
 
-def build_decoder(config: CtcDecoderConfig | None = None) -> CtcDecoder:
-    config = config or CtcDecoderConfig.from_env()
-    if config.kenlm_model_path is None:
-        return cast(CtcDecoder, build_ctcdecoder(["", *FSBOARD_CHARS]))
-
-    if not config.kenlm_model_path.exists():
-        raise FileNotFoundError(f"missing KenLM model: {config.kenlm_model_path}")
-    if config.unigram_path is None or not config.unigram_path.exists():
-        raise FileNotFoundError(f"missing KenLM unigrams: {config.unigram_path}")
-
+def build_decoder(kenlm_model_path: Path, unigrams_path: Path) -> CtcDecoder:
     return cast(
         CtcDecoder,
         build_ctcdecoder(
             ["", *FSBOARD_CHARS],
-            kenlm_model_path=str(config.kenlm_model_path),
-            unigrams=load_unigrams(config.unigram_path),
-            alpha=config.alpha,
-            beta=config.beta,
-            unk_score_offset=config.unk_score_offset,
+            kenlm_model_path=str(kenlm_model_path),
+            unigrams=load_unigrams(unigrams_path),
+            alpha=CTC.alpha,
+            beta=CTC.beta,
+            unk_score_offset=CTC.unk_score_offset,
         ),
     )
 
@@ -190,22 +122,16 @@ def blank_stats(emissions: np.ndarray) -> BlankStats:
 def decode_alternatives(
     decoder: CtcDecoder,
     emissions: np.ndarray,
-    beam_width: int,
-    beam_prune_logp: float = -10.0,
-    token_min_logp: float = -5.0,
-    confidence_temperature: float = 1.0,
-    hotwords: tuple[str, ...] = (),
-    hotword_weight: float = 10.0,
 ) -> tuple[DecodedAlternative, ...]:
-    if confidence_temperature <= 0:
+    if CTC.confidence_temperature <= 0:
         raise ValueError("confidence_temperature must be positive")
     beams = decoder.decode_beams(
         emissions,
-        beam_width=beam_width,
-        beam_prune_logp=beam_prune_logp,
-        token_min_logp=token_min_logp,
-        hotwords=list(hotwords) or None,
-        hotword_weight=hotword_weight,
+        beam_width=CTC.beam_width,
+        beam_prune_logp=CTC.beam_prune_logp,
+        token_min_logp=CTC.token_min_logp,
+        hotwords=list(CTC.hotwords) or None,
+        hotword_weight=CTC.hotword_weight,
     )
     scored: list[tuple[str, float, float, float, tuple[DecodedSpan, ...]]] = []
     for beam in beams:
@@ -218,7 +144,7 @@ def decode_alternatives(
 
     weights = softmax(
         np.asarray(
-            [score / confidence_temperature for _, score, *_ in scored],
+            [score / CTC.confidence_temperature for _, score, *_ in scored],
             dtype=np.float64,
         )
     )
@@ -288,20 +214,3 @@ def softmax(scores: np.ndarray) -> np.ndarray:
     if total <= 0:
         return np.zeros_like(scores)
     return weights / total
-
-
-def _env_path(name: str, default: Path) -> Path | None:
-    value = getenv(name)
-    if value == "":
-        return None
-    return Path(value) if value else default
-
-
-def _env_float(name: str, default: float) -> float:
-    value = getenv(name)
-    return float(value) if value else default
-
-
-def _env_int(name: str, default: int) -> int:
-    value = getenv(name)
-    return int(value) if value else default

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -10,7 +9,6 @@ import torch
 
 from inference.ctc import (
     VOCAB,
-    CtcDecoderConfig,
     DecodedAlternative,
     DecodedText,
     allowed_token_ids,
@@ -26,6 +24,7 @@ from inference.text_normalizer import normalize_prediction_text
 
 if TYPE_CHECKING:
     from inference.schemas import LandmarkFrame
+    from inference.settings import AssetSettings
 
 
 @dataclass(frozen=True)
@@ -39,22 +38,10 @@ class RuntimeEmission:
 
 
 class HandwaveRuntime:
-    def __init__(
-        self,
-        checkpoint_path: str | Path,
-        device: str = "auto",
-        decoder_config: CtcDecoderConfig | None = None,
-    ) -> None:
-        decoder_config = decoder_config or CtcDecoderConfig.from_env()
-        self.device = resolve_device(device)
-        self.model = load_model(Path(checkpoint_path), self.device, vocab_size=len(VOCAB))
-        self.decoder = build_decoder(decoder_config)
-        self.beam_width = decoder_config.beam_width
-        self.beam_prune_logp = decoder_config.beam_prune_logp
-        self.token_min_logp = decoder_config.token_min_logp
-        self.confidence_temperature = decoder_config.confidence_temperature
-        self.hotwords = decoder_config.hotwords
-        self.hotword_weight = decoder_config.hotword_weight
+    def __init__(self, assets: AssetSettings) -> None:
+        self.device = resolve_device("auto")
+        self.model = load_model(assets.model_checkpoint_path, self.device, vocab_size=len(VOCAB))
+        self.decoder = build_decoder(assets.kenlm_model_path, assets.kenlm_unigrams_path)
         self.allowed_token_ids = allowed_token_ids("abcdefghijklmnopqrstuvwxyz ")
 
     @torch.no_grad()
@@ -81,7 +68,7 @@ class HandwaveRuntime:
 
     def decode_emission(self, emission: RuntimeEmission) -> DecodedText:
         emissions = emission.emissions
-        alternatives = self._decode(emissions)
+        alternatives = decode_alternatives(self.decoder, emissions)
         best = alternatives[0] if alternatives else DecodedAlternative("", 0.0, 0.0, 0.0, "")
         return DecodedText(
             text=normalize_prediction_text(best.text),
@@ -92,18 +79,6 @@ class HandwaveRuntime:
             blank_ratio=emission.blank_ratio,
             tail_blank_ratio=emission.tail_blank_ratio,
             tail_blank_frames=emission.tail_blank_frames,
-        )
-
-    def _decode(self, emissions: np.ndarray) -> tuple[DecodedAlternative, ...]:
-        return decode_alternatives(
-            self.decoder,
-            emissions,
-            self.beam_width,
-            beam_prune_logp=self.beam_prune_logp,
-            token_min_logp=self.token_min_logp,
-            confidence_temperature=self.confidence_temperature,
-            hotwords=self.hotwords,
-            hotword_weight=self.hotword_weight,
         )
 
 

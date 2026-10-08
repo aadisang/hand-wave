@@ -17,6 +17,7 @@ from queue import Empty, Queue
 from threading import Thread
 from uuid import uuid4
 
+from inference.endpoints import BackendManifest, origin_text
 from tools.backend import ROOT, verify_backend, write_endpoint, write_manifest
 
 ENDPOINT = ROOT / "apps/mobile/Configurations/DebugEndpoint.xcconfig"
@@ -104,15 +105,19 @@ def run(backend_only: bool) -> None:
                     url = endpoint_from_output(lines.get(timeout=0.2), suffix)
                 except Empty:
                     pass
+            backend = BackendManifest.model_validate(
+                {"url": url, "deployment_id": deployment_id, "environment": "dev"}
+            )
             print("Checking the development model and streaming protocol...", flush=True)
             try:
-                asyncio.run(verify_backend(url, deployment_id))
+                asyncio.run(verify_backend(backend))
             except TimeoutError as exc:
                 raise TimeoutError(
                     "The development backend did not become ready within 3 minutes"
                 ) from exc
-            write_endpoint(url, "Debug")
-            write_manifest(manifest, url, deployment_id, "dev")
+            write_endpoint(backend.url, "Debug")
+            write_manifest(manifest, backend)
+            url = origin_text(backend.url)
             print(f"Development backend ready: {url}", flush=True)
             print("Xcode Debug is configured. Press Run; no IP settings are needed.", flush=True)
             if not backend_only:
@@ -147,5 +152,5 @@ if __name__ == "__main__":
         run(args.backend_only)
     except KeyboardInterrupt:
         pass
-    except (RuntimeError, TimeoutError) as exc:
+    except (RuntimeError, TimeoutError, ValueError) as exc:
         sys.exit(str(exc))
