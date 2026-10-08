@@ -1,4 +1,5 @@
-import { memo, useSyncExternalStore } from "react";
+import { useMediaDevices } from "@reactuses/core";
+import { memo } from "react";
 import {
   Select,
   SelectContent,
@@ -12,13 +13,7 @@ import { ToolbarSeparator } from "@/components/ui/toolbar";
 type Props = {
   cameraId: string | null;
   onOpenChange?: (open: boolean) => void;
-  reserve: boolean;
   setCameraId: (cameraId: string | null) => void;
-};
-
-type CameraSnapshot = {
-  cameras: MediaDeviceInfo[];
-  ready: boolean;
 };
 
 const cleanLabel = (label: string) =>
@@ -32,18 +27,13 @@ const triggerLabelFor = (label: string) =>
   label;
 
 const triggerWidth = "clamp(7rem, 24vw, 10rem)";
-const emptySnapshot: CameraSnapshot = { cameras: [], ready: false };
-const listeners = new Set<() => void>();
-
-let snapshot = emptySnapshot;
-
 export const CameraSelect = memo(function CameraSelect({
   cameraId,
   onOpenChange,
-  reserve,
   setCameraId,
 }: Props) {
-  const { cameras, ready } = useCameraDevices();
+  const [{ devices }] = useMediaDevices();
+  const cameras = devices.filter((device) => device.kind === "videoinput");
   const selectedIndex = cameras.findIndex((d) => d.deviceId === cameraId);
   const selectedLabel =
     selectedIndex === -1
@@ -51,10 +41,6 @@ export const CameraSelect = memo(function CameraSelect({
       : labelFor(cameras[selectedIndex], selectedIndex);
 
   if (cameras.length < 2) {
-    const showPlaceholder =
-      reserve || !ready || cameraId !== null || cameras.length === 1;
-    if (!showPlaceholder) return null;
-
     return (
       <>
         <ToolbarSeparator orientation="vertical" />
@@ -109,41 +95,3 @@ export const CameraSelect = memo(function CameraSelect({
     </>
   );
 });
-
-function useCameraDevices() {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-function subscribe(onStoreChange: () => void) {
-  listeners.add(onStoreChange);
-  requestRefresh();
-
-  const timers = [
-    window.setTimeout(requestRefresh, 250),
-    window.setTimeout(requestRefresh, 1_000),
-  ];
-  navigator.mediaDevices.addEventListener("devicechange", requestRefresh);
-
-  return () => {
-    listeners.delete(onStoreChange);
-    timers.forEach(window.clearTimeout);
-    navigator.mediaDevices.removeEventListener("devicechange", requestRefresh);
-  };
-}
-
-function requestRefresh() {
-  void refresh().catch(() => undefined);
-}
-
-function getSnapshot() {
-  return snapshot;
-}
-
-async function refresh() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  snapshot = {
-    cameras: devices.filter((device) => device.kind === "videoinput"),
-    ready: true,
-  };
-  listeners.forEach((listener) => listener());
-}

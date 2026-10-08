@@ -55,6 +55,7 @@ test("camera reaches the real backend, runs both detectors, and restarts cleanly
         .toBeGreaterThan(0);
     }
     await screenshot(page, testInfo, "camera-ready");
+    await expectControlsLifecycle(page, testInfo);
 
     const tracks = await page
       .getByLabel("Camera preview")
@@ -222,4 +223,37 @@ async function expectCameraReady(
   await expect(
     page.getByText("Still connecting…", { exact: true }),
   ).toHaveCount(0);
+  const cameraLabel = await page
+    .getByLabel("Camera preview")
+    .evaluate(
+      (video) =>
+        (
+          (video as HTMLVideoElement).srcObject as MediaStream
+        ).getVideoTracks()[0].label,
+    );
+  expect(cameraLabel).not.toBe("");
+  await expect(
+    page.getByRole("toolbar", { name: "Stream controls" }),
+  ).toContainText(cameraLabel);
+}
+
+async function expectControlsLifecycle(page: Page, testInfo: TestInfo) {
+  const video = await page.getByLabel("Camera preview").boundingBox();
+  if (!video) throw new Error("Camera preview has no visible bounds");
+  const controls = page
+    .getByRole("toolbar", { name: "Stream controls" })
+    .locator("..");
+  await page.mouse.move(video.x + video.width / 2, video.y + video.height / 2);
+  await expect(controls).toHaveCSS("opacity", "1");
+  await expect(controls).toHaveCSS("opacity", "0", { timeout: 8_000 });
+  await screenshot(page, testInfo, "controls-idle");
+  await page.mouse.move(
+    video.x + video.width / 2 + 10,
+    video.y + video.height / 2,
+  );
+  await expect(controls).toHaveCSS("opacity", "1");
+  await page.mouse.move(0, 0);
+  await expect(controls).toHaveCSS("opacity", "0");
+  await page.mouse.move(video.x + video.width / 2, video.y + video.height / 2);
+  await expect(controls).toHaveCSS("opacity", "1");
 }

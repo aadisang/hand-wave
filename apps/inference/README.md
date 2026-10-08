@@ -26,6 +26,15 @@ The asset paths must name existing files. The Modal descriptor also reads
 comes only from the shared contract in `packages/contract/config.json`; change
 it there and run `moon run contract:generateTunings`.
 
+## Text normalization
+
+Text normalization uses SymSpell for one-edit dictionary lookup and its compiled
+Levenshtein comparer. Vocabulary rank determines suggestion order. One-letter
+words remain exact matches only. KenLM scoring and the recognition-specific
+segmentation rules remain in this service; SymSpell's compound correction is not
+used. Each normalizer owns bounded `functools.lru_cache` caches for lookup and
+segmentation.
+
 ## Development
 
 Run `pnpm dev` at the repository root, or `pnpm dev:mobile` without Vite. The
