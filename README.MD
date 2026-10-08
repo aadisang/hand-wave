@@ -28,7 +28,7 @@ This starts an isolated Modal backend and configures both clients; use `pnpm dev
 ## Testing and releases
 
 Run `pnpm test` (or `pnpm test --web-only`) for real-service checks and saved evidence in `artifacts/e2e`; browser checks require `pnpm --filter @hand-wave/web exec playwright install chromium` once.
-The manual **Release** workflow builds both clients with a backend from the same commit; merging does not publish.
+Merging to `main` runs checks, then publishes TestFlight and the website with a backend from the same commit; the **Release** workflow shows progress, results, and downloadable artifacts.
 
 ## Research Credits
 
