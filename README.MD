@@ -6,16 +6,19 @@ Sign recognition for web and iOS, backed by a small Python inference service.
 
 ## Setup
 
-Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, moon, and Git LFS.
+Requirements: pnpm 10.33+, Node 22+, Python 3.11/3.12, uv, and moon.
 
 ```sh
-git lfs install
-git lfs pull
+python3 scripts/download_models.py
 pnpm install
 uv sync --project apps/inference --group deploy
 uv run --project apps/inference --group deploy modal setup
 uv run --project apps/inference --group deploy modal environment create dev
 ```
+
+The download script fetches the pinned models from GitHub Releases, verifies their
+SHA-256 checksums, and skips files that already match. Models stay out of Git, so
+cloning the repository does not download them or consume Git LFS bandwidth.
 
 ## Development
 

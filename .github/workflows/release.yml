@@ -57,8 +57,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          lfs: true
 
       - name: Set up iOS simulator
         id: simulator
@@ -76,6 +74,9 @@ jobs:
 
       - name: Set up contract
         uses: ./.github/actions/setup-contract
+
+      - name: Download verified inference models
+        run: python3 scripts/download_models.py
 
       - name: Deploy and verify the backend for this commit
         id: backend

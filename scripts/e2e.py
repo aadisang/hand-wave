@@ -114,6 +114,11 @@ def run(args: argparse.Namespace) -> int:
         files = git(
             "ls-files", "--cached", "--others", "--exclude-standard", "-z"
         ).split("\0")
+        files.extend(
+            str(path.relative_to(ROOT))
+            for pattern in ("*.ckpt", "lm/*.kenlm")
+            for path in (ROOT / "apps/inference/models").glob(pattern)
+        )
         source_hashes = {
             name: digest(ROOT / name) for name in files if (ROOT / name).is_file()
         }
