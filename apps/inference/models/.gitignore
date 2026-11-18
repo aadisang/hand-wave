@@ -1,7 +1,5 @@
 *
 !.gitignore
-!*.ckpt
 !lm/
-!lm/neutral_english_4gram.kenlm
 !lm/neutral_english_unigrams.txt
 !lm/README.md

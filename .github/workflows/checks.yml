@@ -20,8 +20,9 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          lfs: true
       - uses: ./.github/actions/setup-contract
+      - name: Download verified inference models
+        run: python3 scripts/download_models.py
       - name: Install test dependencies
         run: |
           uv sync --frozen --project apps/inference --group deploy
@@ -29,9 +30,9 @@ jobs:
       - name: Static checks
         run: |
           pnpm exec moon run web:lint web:typecheck inference:lint inference:formatCheck inference:typecheck contract:generatedCheck
-          uv run --project apps/inference --frozen ruff check scripts/e2e.py
-          uv run --project apps/inference --frozen ruff format --check scripts/e2e.py
-          uv run --project apps/inference --frozen --group deploy pyright scripts/e2e.py
+          uv run --project apps/inference --frozen ruff check scripts/e2e.py scripts/download_models.py
+          uv run --project apps/inference --frozen ruff format --check scripts/e2e.py scripts/download_models.py
+          uv run --project apps/inference --frozen --group deploy pyright scripts/e2e.py scripts/download_models.py
       - name: Real service and production browser
         run: pnpm test --web-only --output artifacts/e2e/browser
       - name: Documented isolated regressions
@@ -53,11 +54,12 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          lfs: true
       - uses: ./.github/actions/setup-ios-simulator
         id: simulator
       - uses: ./.github/actions/setup-tuist
       - uses: ./.github/actions/setup-contract
+      - name: Download verified inference models
+        run: python3 scripts/download_models.py
       - name: Install backend dependencies
         run: uv sync --frozen --project apps/inference --group deploy
       - name: Real service and native client
